@@ -2,7 +2,7 @@ attrs:
     Figure:
         background_fill_color: '#000000'
         border_fill_color: '#FFFFFF'
-        outline_line_color: '#444444'
+        outline_line_color: '#FFFFFF'
     Text: 
         text_font_style: 'bold' 
     Axis:

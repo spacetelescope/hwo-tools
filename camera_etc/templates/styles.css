@@ -166,6 +166,15 @@ h6 {
     border-right-color: #BAD8FF; 
 }
 
+.bk-root .bk-tabs-header .bk-tab.bk-active{ 
+  color: #AAA; 
+  /* JT HERE */ 
+} 
+.bk-root .bk-tabs-header .bk-tab{ 
+  color: #6B9AD3; 
+  /* JT HERE */ 
+} 
+
 .bk-root .bk-slider-parent input[type="text"] {
   color: #F00;
   margin-bottom: 2px;

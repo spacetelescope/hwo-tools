@@ -142,23 +142,23 @@ source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
 
 # Set up widgets
-aperture= Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, tags=[4,5,6,6]) #,callback_policy='mouseup') 
+aperture= Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, tags=[4,5,6,6]) 
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
-aperture.js_on_change("value", aperture_callback) 
+aperture.js_on_change('value_throttled', aperture_callback) 
 
-exptime = Slider(title="Exptime (hours)", value=1., start=0.1, end=10.0, step=0.1) #, callback_policy='mouseup')
+exptime = Slider(title="Exptime (hours)", value=1., start=0.1, end=10.0, step=0.1) 
 exptime_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
-exptime.js_on_change("value", exptime_callback) 
+exptime.js_on_change("value_throttled", exptime_callback) 
 
-magnitude = Slider(title="V Magnitude (AB)", value=28.0, start=20.0, end=35.) #, callback_policy='mouseup') 
+magnitude = Slider(title="V Magnitude (AB)", value=28.0, start=20.0, end=35.) 
 magnitude_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
-magnitude.js_on_change("value", magnitude_callback) 
+magnitude.js_on_change("value_throttled", magnitude_callback) 
 
 template = Select(title="Template Spectrum", value="Flat (AB)", 
                 options=["Flat (AB)", "Blackbody (5000K)", "O5V Star", \

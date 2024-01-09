@@ -3,7 +3,7 @@
 from __future__ import print_function
 import numpy as np 
 import os 
-from astropy.io import ascii 
+from astropy.table import Table 
 
 class Telescope: 
 
@@ -51,7 +51,7 @@ class Spectrograph():
         cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
 
         self.name = 'LUMOS' 
-        lumos = ascii.read(cwd+'/data/LUMOS_vals.dat') 
+        lumos = Table.read(cwd+'/data/LUMOS_vals.dat', format='ascii') 
         self.wave = lumos['Wave']
         self.aeff = lumos['A_eff']
         self.bef = lumos['Med_Res_BEF'] 

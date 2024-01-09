@@ -124,13 +124,13 @@ redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, wid
 redshift_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
-redshift.js_on_change("value", redshift_callback) 
+redshift.js_on_change("value_throttled", redshift_callback) 
 
 magnitude = Slider(title="AB Magnitude", value=21., start=15., end=30.0, step=0.1, width=200)
 magnitude_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
-magnitude.js_on_change("value", magnitude_callback) 
+magnitude.js_on_change("value_throttled", magnitude_callback) 
 
 
 
@@ -142,7 +142,7 @@ aperture= Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
-aperture.js_on_change("value", aperture_callback) 
+aperture.js_on_change("value_throttled", aperture_callback) 
 
 
 
@@ -150,7 +150,7 @@ exptime = Slider(title="Exposure Time [hr]", value=1.0, start=0.1, end=10.0, ste
 exptime_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
-exptime.js_on_change("value", exptime_callback) 
+exptime.js_on_change("value_throttled", exptime_callback) 
 
 # iterate on changes to parameters 
 for w in [template, grating]:  w.on_change('value', update_data)

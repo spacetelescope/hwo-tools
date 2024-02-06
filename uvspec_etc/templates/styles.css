@@ -14,8 +14,8 @@ body {
   color: #FFF;
   background-color: #000000; 
   background-image: url(https://www.stsci.edu/~tumlinso/SpecHeader.png);
-  background-size: 800px; 
   background-position: top;
+  background-size: 1000px;
   background-repeat: no-repeat;
   margin-top: 50px;
 }
@@ -166,6 +166,15 @@ h6 {
     border-right-color: #BAD8FF; 
 }
 
+.bk-root .bk-tabs-header .bk-tab.bk-active{ 
+  color: #0000AA; 
+  /* JT HERE */ 
+} 
+.bk-root .bk-tabs-header .bk-tab{ 
+  color: #4877B1; 
+  /* JT HERE */ 
+} 
+
 .bk-root .bk-slider-parent input[type="text"] {
   color: #F00;
   margin-bottom: 2px;
@@ -178,6 +187,7 @@ h6 {
 .bk-root .bk-ui-slider .bk-ui-slider-handle {
     width: 1em;
     height: 1em;
+    color: #FF0000; 
 }
 
 .bk-root .bk-ui-state-active, .bk-root .bk-ui-widget-content .bk-ui-state-active, .bk-root .bk-ui-widget-header .bk-ui-state-active {
@@ -185,8 +195,9 @@ h6 {
 }
 
 .bk-root .bk-bs-nav-tabs> li.open > a, .bk-root .bk-bs-nav-tabs> li:hover > a {
-    background: #272727 !important;
-    color: #ffffff;
+    background: #0000FF !important;
+    color: #ff0000;
+  /* JT HERE */ 
 }
 
 .bk-root .bk-bs-nav-tabs> li.bk-bs-active:hover > a {

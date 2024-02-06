@@ -58,7 +58,7 @@ flux_plot = Figure(plot_height=400, plot_width=800,
               x_range=[900, 2000], y_range=[0, 4e-16], toolbar_location='right') 
 flux_plot.x_range=Range1d(900,3000,bounds=(900,3000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None)) 
-flux_plot.yaxis.axis_label = 'Flux [erg / s / cm2 / Ang]' 
+flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 flux_plot.line('w', 'f', source=spectrum_template, line_width=3, line_color='firebrick', line_alpha=0.7, legend='Source Flux')
 flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend='Background')
@@ -145,7 +145,6 @@ aperture_callback = CustomJS(args=dict(source=source), code="""
 aperture.js_on_change("value_throttled", aperture_callback) 
 
 
-
 exptime = Slider(title="Exposure Time [hr]", value=1.0, start=0.1, end=10.0, step=0.1, width=200)
 exptime_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
@@ -156,13 +155,13 @@ exptime.js_on_change("value_throttled", exptime_callback)
 for w in [template, grating]:  w.on_change('value', update_data)
  
 # Set up layouts and add to document
-help_text = Div(text = h.help()) 
-source_inputs = WidgetBox(children=[template, redshift, magnitude])
+help_text = Div(text = h.help(), width=200) 
+source_inputs = Column(children=[template, redshift, magnitude])
 controls_panel = Panel(child=source_inputs, title='Controls')
 help_panel = Panel(child=help_text, title='Info')
 source_inputs = Tabs(tabs=[ controls_panel, help_panel]) 
 
-exposure_inputs = WidgetBox(children=[grating, aperture, exptime])
+exposure_inputs = Column(children=[grating, aperture, exptime])
 exposure_panel = Panel(child=exposure_inputs, title='Exposure')
 exposure_inputs = Tabs(tabs=[ exposure_panel ]) 
 

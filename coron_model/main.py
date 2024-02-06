@@ -25,7 +25,7 @@ import yaml
 from bokeh.plotting import Figure
 from bokeh.models import ColumnDataSource, HoverTool, Paragraph, Range1d, DataRange1d, Label, DataSource
 from bokeh.models.glyphs import Text, Rect
-from bokeh.layouts import column, row, WidgetBox 
+from bokeh.layouts import column, row
 from bokeh.models.widgets import Slider, Panel, Tabs, Div, TextInput, RadioButtonGroup, Select, RadioButtonGroup
 from bokeh.io import curdoc, output_file, show
 from bokeh.models.callbacks import CustomJS
@@ -205,17 +205,17 @@ nir_bandpasses = ColumnDataSource(data=dict(x=x_nir, y=y_nir, width=x_nirwidth))
 # BOKEH PLOTTING
 ################################
 #plots spectrum and exposure time
-snr_plot = Figure(plot_height=500, plot_width=750, 
+snr_plot = Figure(plot_height=500, plot_width=750, border_fill_color='black', 
                   tools="crosshair,pan,reset,save,box_zoom,wheel_zoom,hover",
                   toolbar_location='right', x_range=[0.2, 2.0], y_range=[0, 0.2])
 
-exp_plot = Figure(plot_height=500, plot_width=750, 
-                  tools="crosshair,pan,reset,save,box_zoom,wheel_zoom,hover",
+exp_plot = Figure(plot_height=500, plot_width=750, border_fill_color='black', 
+                  tools="crosshair,pan,reset,save,box_zoom,wheel_zoom,hover", 
                   toolbar_location='right', x_range=[0.2, 2.0], y_range=[1e-3, 1e10],
                   y_axis_type="log")
 
-counts_plot = Figure(plot_height=500, plot_width=750, 
-                  tools="crosshair,pan,reset,save,box_zoom,wheel_zoom,hover",
+counts_plot = Figure(plot_height=500, plot_width=750, border_fill_color='black', 
+                  tools="crosshair,pan,reset,save,box_zoom,wheel_zoom,hover", 
                   toolbar_location='right', x_range=[0.2, 2.0], y_range=[1e-3, 1e6],
                   y_axis_type="log")
 
@@ -1952,7 +1952,7 @@ def update_data(attrname, old, new):
 
 source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
-exptime  = Slider(title="Integration time per bandpass (hours)", value=80., start=0.1, end=1000.0, step=0.1) 
+exptime  = Slider(title="Integration time per bandpass (hours)", value=80., start=0.1, end=1000.0, step=0.1, ) 
 exptime_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
@@ -2183,9 +2183,9 @@ starshade = Select(title="Simulate starshade-like observation?", value="No", opt
 observatory = Select(title="Simulate specific observatory?", value="No", options=["No",  "LUVOIR Architecture A", "LUVOIR Architecture B"])
 
 #select menu for planet
-template = Select(title="Planet Spectrum", value="Earth", options=["Earth",  "Archean Earth", "Hazy Archean Earth", "1% PAL O2 Proterozoic Earth", "0.1% PAL O2 Proterozoic Earth","Venus", "Early Mars", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",'-----','Warm Neptune at 2 AU', 'Warm Neptune w/o Clouds at 1 AU', 'Warm Neptune w/ Clouds at 1 AU','Warm Jupiter at 0.8 AU', 'Warm Jupiter at 2 AU',"False O2 Planet (orbiting F2V)", '-----', 'Proxima Cen b 10 bar 95% O2 dry', 'Proxima Cen b 10 bar 95% O2 wet', 'Proxima Cen b 10 bar O2-CO2', 'Proxima Cen b 90 bar O2-CO2', 'Proxima Cen b 90 bar Venus', 'Proxima Cen b 10 bar Venus', 'Proxima Cen b CO2/CO/O2 dry', 'Proxima Cen b Earth', 'Proxima Cen b Archean Earth', 'Proxima Cen b hazy Archean Earth' ])
+template = Select(title="Planet Spectrum", value="Earth", options=["Earth",  "Archean Earth", "Hazy Archean Earth", "1% PAL O2 Proterozoic Earth", "0.1% PAL O2 Proterozoic Earth","Venus", "Early Mars", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",'-----','Warm Neptune at 2 AU', 'Warm Neptune w/o Clouds at 1 AU', 'Warm Neptune w/ Clouds at 1 AU','Warm Jupiter at 0.8 AU', 'Warm Jupiter at 2 AU',"False O2 Planet (orbiting F2V)", '-----', 'Proxima Cen b 10 bar 95% O2 dry', 'Proxima Cen b 10 bar 95% O2 wet', 'Proxima Cen b 10 bar O2-CO2', 'Proxima Cen b 90 bar O2-CO2', 'Proxima Cen b 90 bar Venus', 'Proxima Cen b 10 bar Venus', 'Proxima Cen b CO2/CO/O2 dry', 'Proxima Cen b Earth', 'Proxima Cen b Archean Earth', 'Proxima Cen b hazy Archean Earth' ], width=250)
 #select menu for comparison spectrum
-comparison = Select(title="Show comparison spectrum?", value ="none", options=["none", "Earth",  "Archean Earth", "Hazy Archean Earth", "1% PAL O2 Proterozoic Earth", "0.1% PAL O2 Proterozoic Earth","Venus", "Early Mars", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",'-----','Warm Neptune at 2 AU', 'Warm Neptune w/o Clouds at 1 AU', 'Warm Neptune w/ Clouds at 1 AU','Warm Jupiter at 0.8 AU', 'Warm Jupiter at 2 AU', "False O2 Planet (orbiting F2V)", '-----', 'Proxima Cen b 10 bar 95% O2 dry', 'Proxima Cen b 10 bar 95% O2 wet', 'Proxima Cen b 10 bar O2-CO2', 'Proxima Cen b 90 bar O2-CO2', 'Proxima Cen b 90 bar Venus', 'Proxima Cen b 10 bar Venus', 'Proxima Cen b CO2/CO/O2 dry', 'Proxima Cen b Earth', 'Proxima Cen b Archean Earth', 'Proxima Cen b hazy Archean Earth', '-----','stars & galaxies:', '(arbitrary y units)', 'O5V star', 'B5V star', 'A5V star', 'F5V star', 'G2V star', 'G5V star', 'K2V star', 'M0V star', 'M2V star', 'M4V star', 'M5V star', 'Proxima Centauri star', 'T0 brown dwarf', 'T9 brown dwarf', 'L5 brown dwarf', 'L8 brown dwarf', 'NGC 337 spiral galaxy', 'NGC 660 peculiar galaxy', 'NGC 4621 elliptical galaxy', 'NGC 5033 spiral galaxy', 'Haro 6 blue compact dwarf galaxy', 'NGC 7476 spiral galaxy'])
+comparison = Select(title="Show comparison spectrum?", value ="none", options=["none", "Earth",  "Archean Earth", "Hazy Archean Earth", "1% PAL O2 Proterozoic Earth", "0.1% PAL O2 Proterozoic Earth","Venus", "Early Mars", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",'-----','Warm Neptune at 2 AU', 'Warm Neptune w/o Clouds at 1 AU', 'Warm Neptune w/ Clouds at 1 AU','Warm Jupiter at 0.8 AU', 'Warm Jupiter at 2 AU', "False O2 Planet (orbiting F2V)", '-----', 'Proxima Cen b 10 bar 95% O2 dry', 'Proxima Cen b 10 bar 95% O2 wet', 'Proxima Cen b 10 bar O2-CO2', 'Proxima Cen b 90 bar O2-CO2', 'Proxima Cen b 90 bar Venus', 'Proxima Cen b 10 bar Venus', 'Proxima Cen b CO2/CO/O2 dry', 'Proxima Cen b Earth', 'Proxima Cen b Archean Earth', 'Proxima Cen b hazy Archean Earth', '-----','stars & galaxies:', '(arbitrary y units)', 'O5V star', 'B5V star', 'A5V star', 'F5V star', 'G2V star', 'G5V star', 'K2V star', 'M0V star', 'M2V star', 'M4V star', 'M5V star', 'Proxima Centauri star', 'T0 brown dwarf', 'T9 brown dwarf', 'L5 brown dwarf', 'L8 brown dwarf', 'NGC 337 spiral galaxy', 'NGC 660 peculiar galaxy', 'NGC 4621 elliptical galaxy', 'NGC 5033 spiral galaxy', 'Haro 6 blue compact dwarf galaxy', 'NGC 7476 spiral galaxy'], width=250)
 
 #info text
 info_text = Div(text="""

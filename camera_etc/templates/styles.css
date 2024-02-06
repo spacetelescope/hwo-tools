@@ -167,11 +167,11 @@ h6 {
 }
 
 .bk-root .bk-tabs-header .bk-tab.bk-active{ 
-  color: #AAA; 
+  color: #0000AA; 
   /* JT HERE */ 
 } 
 .bk-root .bk-tabs-header .bk-tab{ 
-  color: #6B9AD3; 
+  color: #4877B1; 
   /* JT HERE */ 
 } 
 
@@ -187,6 +187,7 @@ h6 {
 .bk-root .bk-ui-slider .bk-ui-slider-handle {
     width: 1em;
     height: 1em;
+    color: #FF0000; 
 }
 
 .bk-root .bk-ui-state-active, .bk-root .bk-ui-widget-content .bk-ui-state-active, .bk-root .bk-ui-widget-header .bk-ui-state-active {
@@ -194,8 +195,9 @@ h6 {
 }
 
 .bk-root .bk-bs-nav-tabs> li.open > a, .bk-root .bk-bs-nav-tabs> li:hover > a {
-    background: #272727 !important;
-    color: #ffffff;
+    background: #0000FF !important;
+    color: #ff0000;
+  /* JT HERE */ 
 }
 
 .bk-root .bk-bs-nav-tabs> li.bk-bs-active:hover > a {

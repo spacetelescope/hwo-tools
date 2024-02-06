@@ -1113,7 +1113,7 @@ def update_data(attrname, old, new):
     lastlam = lam
     lastCratio = Cratio
 
-    np.savetxt('last_run.txt', np.c_[lam, spec*1e9, Cratio*1e9, (spec-sig)*1e9, (spec+sig)*1e9],  delimiter='     ', comments='')      
+    np.savetxt('coron_model/last_run.txt', np.c_[lam, spec*1e9, Cratio*1e9, (spec-sig)*1e9, (spec+sig)*1e9],  delimiter='     ', comments='')      
     
     
     #UPDATE DATA

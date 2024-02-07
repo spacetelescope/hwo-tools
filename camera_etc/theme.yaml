@@ -1,8 +1,9 @@
 attrs:
     Figure:
-        background_fill_color: '#000000'
-        border_fill_color: '#FFFFFF'
+        background_fill_color: '#444444'
+        border_fill_color: '#000000'
         outline_line_color: '#FFFFFF'
+        background_fill_alpha: 0.5
     Text: 
         text_font_style: 'bold' 
     Axis:
@@ -10,7 +11,6 @@ attrs:
         axis_label_text_color: "white"
         major_label_text_color: "white"
         major_tick_line_color: "white"
-        minor_tick_line_color: "white"
         minor_tick_line_color: "white"
     Grid:
         grid_line_dash: [6, 4]

@@ -1,11 +1,5 @@
-''' A dead simple ETC for HWO's imaging camera 
-'''
-from __future__ import print_function
 import numpy as np
 from bokeh.io import output_file
-
-import phot_compute_snr as phot_etc 
-
 from bokeh.plotting import Figure
 from bokeh.embed import components
 from bokeh.models import ColumnDataSource, HoverTool, Paragraph, Range1d 
@@ -15,13 +9,15 @@ from bokeh.layouts import row
 from bokeh.models.widgets import Slider, Tabs, Div, Panel, Select 
 from bokeh.io import curdoc
 
+import phot_compute_snr as phot_etc 
+
 import Telescope as T 
 import hdi_help as h 
 import get_hdi_seds 
 import pysynphot as S 
 
 hwo = T.Telescope(6., 280., 500.) # set up HWO with 10 meters, T = 280, and diff limit at 500 nm 
-hdi = T.Camera()                     # and HDI camera with default bandpasses 
+hdi = T.Camera()                  # an HDI camera with default bandpasses 
 hdi.set_pixel_sizes(hwo) 
 
 spec_dict = get_hdi_seds.add_spectrum_to_library() 
@@ -50,15 +46,11 @@ hover = HoverTool(point_policy="snap_to_data",
         """
     )
 
-
-# Set up plot
 snr_plot = Figure(plot_height=400, plot_width=700, 
               tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
               x_range=[120, 2300], y_range=[0, 40], border_fill_color='black', toolbar_location='right')
 snr_plot.x_range = Range1d(100, 2300, bounds=(120, 2300)) 
 snr_plot.add_tools(hover)
-snr_plot.background_fill_color = "grey"
-snr_plot.background_fill_alpha = 0.5
 snr_plot.yaxis.axis_label = 'Signal to Noise Ratio'
 snr_plot.xaxis.axis_label = 'Wavelength [nm]'
 snr_plot.text(5500, 20, text=['V'], text_align='center', text_color='red')
@@ -79,8 +71,6 @@ sed_plot = Figure(plot_height=400, plot_width=700,
               tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
               x_range=[120, 2300], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
 sed_plot.x_range = Range1d(100, 2300, bounds=(120, 2300)) 
-sed_plot.background_fill_color = "grey"
-sed_plot.background_fill_alpha = 0.5
 sed_plot.yaxis.axis_label = 'AB Magnitude'
 sed_plot.xaxis.axis_label = 'Wavelength [nm]'
 sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
@@ -132,7 +122,7 @@ source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
 
 # Set up widgets
-aperture= Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, tags=[4,5,6,6], width=250) 
+aperture = Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, tags=[4,5,6,6], width=250) 
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
@@ -154,10 +144,6 @@ template = Select(title="Template Spectrum", value="Flat (AB)",
                 options=["Flat (AB)", "Blackbody (5000K)", "O5V Star", \
                          "B5V Star", "G2V Star", "M2V Star", "Orion Nebula", "Elliptical Galaxy", "Sbc Galaxy", \
                          "Starburst Galaxy", "NGC 1068"], width=250) 
-#redshift = Slider(title="Redshift", value=0., start=0.0, end=1.0, step=0.1, callback_policy='mouseup')
-#redshift.callback = CustomJS(args=dict(source=source), code="""
-#    source.data = { value: [cb_obj.value] }
-#""")
 
 for w in [template]: 
     w.on_change('value', update_data)
@@ -171,4 +157,4 @@ plots = Tabs(tabs=[ Panel(child=snr_plot, title='SNR'), Panel(child=sed_plot, ti
 
 curdoc().add_root(row(children=[inputs, plots])) 
 curdoc().add_root(source) 
-curdoc().add_root(source1) 
+#curdoc().add_root(source1) 

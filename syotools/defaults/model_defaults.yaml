@@ -1,0 +1,116 @@
+Telescope:
+    name: "LUVOIR"
+    aperture: 
+        - JsonUnit
+        - {value: 10.0, unit: "m"}
+    temperature: 
+        - JsonUnit
+        - {value: 270.0, unit: "K"}
+    ota_emissivity:
+        - JsonUnit
+        - {value: 0.240, unit: ""}
+    diff_limit_wavelength:
+        - JsonUnit
+        - {value: 500.0, unit: "nm"}
+    unobscured_fraction:
+        - JsonUnit
+        - {value: 0.87, unit: ""}
+Camera:
+    name: "HDI"
+    pivotwave: 
+        - JsonUnit
+        - {value: [225., 275., 336., 475., 606., 775., 850., 1260., 1600., 2220.], unit: "nm"}
+    bandnames: ["FUV", "NUV", "U","B","V","R","I", "J", "H", "K"]
+    channels: [[0,1], [2, 3, 4, 5, 6], [7, 8, 9]]
+    fiducials:
+        - JsonUnit
+        - {value: [400.0, 400.0, 1200.0], unit: "nm"}
+    total_qe:
+        - JsonUnit
+        - {value: [0.10, 0.112, 0.175, 0.211, 0.211, 0.211, 0.145, 0.342, 0.342, 0.335], unit: "electron / ph"}
+    ap_corr:
+        - JsonUnit
+        - {value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], unit: ""}
+    bandpass_r:
+        - JsonUnit
+        - {value: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0], unit: ""}
+    dark_current:
+        - JsonUnit
+        - {value: [0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002], unit: "electron / (pix s)"}
+    detector_rn:
+        - JsonUnit
+        - {value: [2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5], unit: "electron(1/2) / pix(1/2)"}
+    sky_sigma:
+        - JsonUnit
+        - {value: [24.56, 26.27, 23.38, 22.80, 22.41, 22.20, 22.11, 22.32, 22.53, 22.88], unit: ""}
+Exposure:
+    sed:
+        - JsonUnit
+        - {value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], unit: "mag(AB)"}
+    sed_id: "fab"
+    n_exp: 3
+    exptime:
+        - JsonUnit
+        - {value: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], unit: "h"}
+    snr:
+        - JsonUnit
+        - {value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], unit: ""}
+    magnitude:
+        - JsonUnit
+        - {value: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], unit: "mag(AB)"}
+    redshift: 0.
+    unknown: "snr"
+Spectrograph:
+    name: "LUMOS"
+    modes: ['G120M', 'G150M', 'G180M','G155L', 'G145LL', 'G300M']
+    descriptions:
+        G120M: "G120M (R = 30,400)" 
+        G150M: "G150M (R = 37,800)"
+        G180M: "G180M (R = 40,800)"
+        G155L: "G155L (R = 11,600)"
+        G145LL: "G145LL (R = 500)"
+        G300M: "G300M (R = 28,000)"
+    bef:
+        - JsonUnit
+        - {value: [0.0], unit: "cm-2 erg Angstrom-1 s-1"}
+    R:
+        - JsonUnit
+        - {value: 0.0, unit: "pix"}
+    wrange:
+        - JsonUnit
+        - {value: [0.0, 1.0], unit: "Angstrom"}
+    wave:
+        - JsonUnit
+        - {value: [0.0], unit: "Angstrom"}
+    aeff:
+        - JsonUnit
+        - {value: [0.0], unit: "cm2"}
+    mode: "G150M"
+Spectropolarimeter:
+    name: "POLLUX"
+    modes: ['NUV_POL', 'MUV_POL', 'FUV_POL','NUV_SPEC', 'MUV_SPEC', 'FUV_SPEC']
+    descriptions:
+        NUV_POL: "NUV_POL (R = 130,440)" 
+        MUV_POL: "MUV_POL (R = 129,732)"
+        FUV_POL: "FUV_POL (R = 127,050)"
+        NUV_SPEC: "NUV_SPEC (R = 130,579)"
+        MUV_SPEC: "MUV_SPEC (R = 137,209)"
+        FUV_SPEC: "FUV_SPEC (R = 127,149)"
+    bef:
+        - JsonUnit
+        - {value: [0.0], unit: "cm-2 erg Angstrom-1 s-1"}
+    R:
+        - JsonUnit
+        - {value: 0.0, unit: "pix"}
+    wrange:
+        - JsonUnit
+        - {value: [0.0, 1.0], unit: "Angstrom"}
+    wave:
+        - JsonUnit
+        - {value: [0.0], unit: "Angstrom"}
+    aeff:
+        - JsonUnit
+        - {value: [0.0], unit: "cm2"}
+    mode: "NUV_POL"
+Coronagraph: {}
+    

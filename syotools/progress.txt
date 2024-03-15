@@ -1,0 +1,14 @@
+Finished conversions:
+ - Telescope.py -> most of the /models/ directory, and model_defaults.py
+ - phot_compute_snr.py -> methods in the new Camera class
+ - get_pysynphot_spectra.py -> added /spectra/ directory, and became spec_defaults.py
+ - coron_model.py -> coron.py in /models/
+
+
+Not yet converted:
+ - exoearth_vis_bokeh0.12.py - mosview_bokeh0.12.py - phot_etc_bokeh0.12.py - planet_atm_bokeh0.12.py - spec_etc_bokeh0.12.py - z2gal_bokeh0.12.py
+ - coron_model.py ->  to bokeh_coronagraph.py in /interface/
+
+Not going to be converted:
+ - coronagraph-master (this is someone else’s package)
+ - save_file.py (looks like it was absorbed by coron_model.py)

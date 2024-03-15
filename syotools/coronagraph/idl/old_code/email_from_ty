@@ -1,0 +1,37 @@
+Hey Giada (and Shawn),
+
+Here's a baseline model.  I've also included an example runscript, so you can see how to call it.  The "atlast_noise.pro" has a header, and is fairly well commented, so you can see what inputs and outputs are.  The file "noise_routines.pro" contains all the sub-routines that the noise model calls.  For now,  do me a favor and keep these pieces of code between the three of us.
+
+Here's what I set in the call to atlast_noise:
+
+Ahr - high-resolution planetary geometric albedo
+lamhr - wavelength grid for Ahr (um)
+alpha - phase angle (deg)
+Phi - phase function (applied at alpha)
+Rp - planet radius (in Earth radii)
+r - planet semi-major axis (AU)
+Teff - stellar effective temperature (K)
+Rs - stellar radius (in solar radii)
+d - distance to the system (pc)
+Nez - number of exo-zodi in system
+diam - telescope diameter (m)
+C - raw contrast
+lammin, lammax - min and max wavelengths covered (um)
+Res - spectral resolution
+Tput - throughput
+IWA, OWA - inner and outer working angles (in lambda/D)
+Tsys - system/telescope temperature (K)
+emis - system/telescope emissivity
+
+Here's what I'm currently setting in the model:
+De - dark current (e-/s)
+DNHpix - horizontal spread of spectrum (in # of pixels)
+Re - read noise per pixel
+Dtmax - maximum exposure time (s; limited by cosmic ray hits)
+X - size of aperture placed over planet (in lambda/D)
+q - quantum efficiency of detector
+
+Note that at line 146 in atlast_noise.pro, I've added a thermal contribution from the telescope.  I didn't think too hard about this, so you should check if it's right.  Email me if you find an error there.
+
+Cheers!
+-Ty-

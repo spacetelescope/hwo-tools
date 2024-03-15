@@ -1,0 +1,3 @@
+[submodule "readsmart"]
+	path = readsmart
+	url = git@github.com:jlustigy/readsmart.git

@@ -10,8 +10,11 @@ from __future__ import (print_function, division, absolute_import, with_statemen
 from syotools.models.base import PersistentModel
 from syotools.defaults import default_telescope
 from syotools.utils import pre_encode
+from syotools.utils.jsonunit import str_jsunit
 import astropy.units as u #for unit conversions
 import numpy as np
+
+import read_json 
 
 
 class Telescope(PersistentModel):
@@ -68,5 +71,17 @@ class Telescope(PersistentModel):
     def add_spectrograph(self, spectrograph):
         self.spectrographs.append(spectrograph)
         spectrograph.telescope = self
-    
-    
+
+    def set_from_json(self,name): 
+        print('Setting Telescope to: ', name) 
+        
+        if ('EAC1' in name): tel = read_json.eac1()
+        if ('EAC2' in name): tel = read_json.eac2()
+        if ('EAC3' in name): tel = read_json.eac3()
+        
+        self.name = tel['name'] 
+        self.aperture = tel['aperture_id'] * u.m 
+        self.temperature = tel['temperature_K'] * u.K 
+        self.diff_limited_wavelength = tel['diff_limited_wavelength'] * u.nm 
+        self.unobscured_fraction = tel['unobscured_fraction'] 
+

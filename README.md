@@ -16,5 +16,6 @@ The $INSTALL_DIR is just any local directory of your choice.
 - add to your .bashrc / .bash_profile:
    - export PYTHONPATH=$INSTALL_DIR/Sci-Eng-Interface/
    - export SCI_ENG_DIR=$INSTALL_DIR/Sci-Eng-Interface/ 
+   - export PYSYN_CDBS=$INSTALL_DIR/hwo-tools/pysynphot_data/grp/redcat/trds/ 
 - open and run BasicRun.ipynb
 - If this gives you S/N values, you have it working.

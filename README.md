@@ -19,3 +19,8 @@ The $INSTALL_DIR is just any local directory of your choice.
    - export PYSYN_CDBS=$INSTALL_DIR/hwo-tools/pysynphot_data/grp/redcat/trds/ 
 - open and run BasicRun.ipynb
 - If this gives you S/N values, you have it working.
+
+Once you have this basic test working, you can run the flat python script 
+BasicRun.py or create your own. 
+
+Better documentation is pending. . . 

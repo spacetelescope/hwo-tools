@@ -14,9 +14,11 @@ The $INSTALL_DIR is just any local directory of your choice.
     cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools.yml
 - conda activate hwotools 
 - add to your .bashrc / .bash_profile:
-   - export PYTHONPATH=$INSTALL_DIR/Sci-Eng-Interface/
+   - export PYTHONPATH=$INSTALL_DIR/Sci-Eng-Interface/:$INSTALL_DIR/hwo-tools/
    - export SCI_ENG_DIR=$INSTALL_DIR/Sci-Eng-Interface/ 
-   - export PYSYN_CDBS=$INSTALL_DIR/hwo-tools/pysynphot_data/grp/redcat/trds/ 
+   - export PYSYN_CDBS=$INSTALL_DIR/hwo-tools/pysynphot_data/grp/redcat/trds/
+   - in the likely event that you already have PYTHONPATH set in your .*rc file, append these:
+        - export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/Sci-Eng-Interface/:$INSTALL_DIR/hwo-tools/
 - open and run BasicRun.ipynb
 - If this gives you S/N values, you have it working.
 

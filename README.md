@@ -24,3 +24,11 @@ The $INSTALL_DIR is just any local directory of your choice.
 
 Once you have this basic test working, you can run the flat python script 
 BasicRun.py or create your own. 
+
+The camera_wrapper and uvspec_wrapper notebooks show the simplest way to call these tools, 
+using bare python wrappers around the SWOTools API. These allow you to get SNR results
+with one import and one line of code. Use these if you need to run in 'batch mode', which the 
+online GUI tools will not do. 
+
+For a deeper illustration of how the tools work, try the other notebooks 
+Camera_ETC_Tutorial and UVSpec_ETC_Tutorial.  

@@ -24,5 +24,3 @@ The $INSTALL_DIR is just any local directory of your choice.
 
 Once you have this basic test working, you can run the flat python script 
 BasicRun.py or create your own. 
-
-Better documentation is pending. . . 

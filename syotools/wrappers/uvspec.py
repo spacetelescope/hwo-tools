@@ -26,8 +26,8 @@ def uvspec_snr(telescope, mode, template, fuvmag, exptime):
 
     #Print the current template & mode
     print("Current SED template: {}".format(SpectralLibrary[uvi_exp.sed_id])) 
-    print("Current grating mode: {}\n".format(uvi.descriptions[uvi.mode])) 
-    print("Current exposure time: {}\n".format(uvi_exp.exptime)) 
+    print("Current grating mode: {}".format(uvi.descriptions[uvi.mode])) 
+    print("Current exposure time: {} hours\n".format(uvi_exp.exptime[1]['value'][0])) 
     
     lumos_template_codes = ['flam', 'qso', 's99', 'o5v', 'g2v', 'g191b2b', 'gd71', 'gd153', 'ctts', 
                         'mdwarf', 'orion', 'nodust', 'ebv6', 'hi1hei1', 'hi0hei1']

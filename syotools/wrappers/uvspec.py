@@ -3,7 +3,9 @@
 def uvspec_snr(telescope, mode, template, fuvmag, exptime): 
     ''' Run a basic SNR calculation that takes in a telescope, 
         spectral template, normalization magnitude, and exposure 
-        time to compute SNR'''  
+        time to compute SNR
+        This function is supplied as a user-friendly wrapper to 
+        the SYOTools API '''  
     
     from syotools.models import Telescope, Spectrograph
     from syotools.utils.jsonunit import str_jsunit

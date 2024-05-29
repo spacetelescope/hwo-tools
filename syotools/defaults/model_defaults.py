@@ -27,9 +27,6 @@ cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
 #Load data from ascii table file (need a better method? maybe a FITS table?)
 #and establish the default file path
 if use_pathlib:
-    #spec_default_path = str(Path('data') / 'LUMOS_ETC.fits')
-    #pol_default_path = str(Path('data') / 'POLLUX_ETC.fits')
-    #yaml_default_path = str(Path('defaults') / 'model_defaults.yaml')
     spec_default_path = str(cwd+'syotools/'+'data/LUMOS_ETC.fits')
     pol_default_path = str(cwd+'syotools/'+'data/POLLUX_ETC.fits')
     yaml_default_path = str(cwd+'syotools/'+'defaults/model_defaults.yaml')

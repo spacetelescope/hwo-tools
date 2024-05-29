@@ -32,7 +32,7 @@ class Spectrograph(PersistentModel):
         modes        - supported observing modes (list)
         descriptions - description of supported observing modes (dict)
         mode         - current observing mode (string)
-        bef          - background emission function in erg/s/cm3/res_element (float array)
+        bef          - background emission function in erg/cm2/pixel/s ement (float array)
         R            - spectral resolution (float)
         wrange        - effective wavelength range (2-element float array)
         wave         - wavelength in Angstroms (float array)
@@ -53,7 +53,9 @@ class Spectrograph(PersistentModel):
     name = ''
     modes = []
     descriptions = {}
-    bef = pre_encode(np.zeros(0, dtype=float) * (u.erg / u.cm**2 / u.s / u.AA))
+    # JT fixed BEF units 05292024 
+    #bef = pre_encode(np.zeros(0, dtype=float) * (u.erg / u.cm**2 / u.s / u.AA))
+    bef = pre_encode(np.zeros(0, dtype=float) * (u.erg / u.cm**2 / u.s / u.pix))
     R = pre_encode(0. * u.dimensionless_unscaled) 
     wave = pre_encode(np.zeros(0, dtype=float) * u.AA)
     aeff = pre_encode(np.zeros(0, dtype=float) * u.cm**2)
@@ -81,7 +83,9 @@ class Spectrograph(PersistentModel):
                 
         self.R = pre_encode(table.meta['R'] * u.pix)
         self.wave = pre_encode(table['Wavelength'])
-        self.bef = pre_encode(table['BEF'] / self.recover('delta_lambda'))
+        #JT 05292024 
+        #self.bef = pre_encode(table['BEF'] / self.recover('delta_lambda'))
+        self.bef = pre_encode(table['BEF']) 
         self.aeff = pre_encode(table['A_Eff'])
         wrange = np.array([table.meta['WAVE_LO'], table.meta['WAVE_HI']]) * u.AA
         self.wrange = pre_encode(wrange)
@@ -116,7 +120,7 @@ class Spectropolarimeter(Spectrograph):
         modes        - supported observing modes (list)
         descriptions - description of supported observing modes (dict)
         mode         - current observing mode (string)
-        bef          - background emission function in erg/s/cm3/res_element (float array)
+        bef          - background emission function in erg/cm2/s/pixel (float array)
         R            - spectral resolution (float)
         wrange        - effective wavelength range (2-element float array)
         wave         - wavelength in Angstroms (float array)

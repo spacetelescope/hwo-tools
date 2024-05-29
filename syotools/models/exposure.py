@@ -84,6 +84,7 @@ class Exposure(PersistentModel):
     n_exp = 0
     _exptime = pre_encode(np.zeros(1, dtype=float) * u.s)
     _snr = pre_encode(np.zeros(1, dtype=float) * u.dimensionless_unscaled)
+    _snr_goal = pre_encode(np.zeros(1, dtype=float) * u.dimensionless_unscaled)
     _magnitude = pre_encode(np.zeros(1, dtype=float) * u.ABmag)
     _redshift = 0.
     _unknown = '' #one of 'snr', 'magnitude', 'exptime'
@@ -241,7 +242,6 @@ class Exposure(PersistentModel):
         
         raise NotImplementedError
         
-
 class PhotometricExposure(Exposure):
     """
     A subclass of the base Exposure model, for photometric ETC calculations.
@@ -316,6 +316,7 @@ class PhotometricExposure(Exposure):
         
         return True #completed successfully
         
+
     def _update_magnitude(self):
         """
         Calculate the limiting magnitude given the desired S/N and exposure
@@ -431,10 +432,11 @@ class SpectrographicExposure(Exposure):
         if self.spectrograph is None or self.telescope is None:
             return False
         
-        #At the moment, we only calculate the SNR.
-        if self.unknown != "snr":
-            raise NotImplementedError("Only SNR calculations currently supported")
-        self._update_snr()
+        if self.unknown == "snr":
+            print('you are about to call _update_snr on SpectrographicExposure')
+            self._update_snr()
+        if self.unknown == "exptime":
+            self._update_exptime() 
         
     def _update_snr(self):
         """
@@ -464,6 +466,8 @@ class SpectrographicExposure(Exposure):
         wave = _wave.to(u.AA)
         swave = (sed.wave * u.Unit(sed.waveunits.name)).to(u.AA)
 
+        #print('_update_snr bef: ', bef)
+
         sflux = (sed.flux * funit).to(u.erg / u.s / u.cm**2 / u.AA, equivalencies=u.spectral_density(swave))
         wave = wave.to(swave.unit)
         
@@ -471,14 +475,20 @@ class SpectrographicExposure(Exposure):
 
         iflux = np.interp(wave, swave, sflux, left=0., right=0.) # JT * (u.erg / u.s / u.cm**2 / u.AA)
         phot_energy = const.h.to(u.erg * u.s) * const.c.to(u.cm / u.s) / wave.to(u.cm) / u.ct
+        #print('_update_snr phot_energy: ', phot_energy)
+
         scaled_aeff = aeff * (aper / (15 * u.m))**2
         source_counts = iflux / phot_energy * scaled_aeff * exptime * delta_lambda
- 
-        #source counts is coming out with : cm2 ct erg / (Angstrom cm4 pix s)
+        #print('_update_snr source_counts: ', source_counts)
+
+        # source counts is coming out with : cm2 ct erg / (Angstrom cm4 pix s)
         # that's wrong - should be ct / pix so it adds to bg_counts below 
 
-        bg_counts = bef / phot_energy * scaled_aeff * exptime * delta_lambda
-        
+        bg_counts = bef / phot_energy * scaled_aeff * exptime 
+        #print('_update_snr bg_counts: ', bg_counts)
+
+        #print(' ') 
+
         """###ORIGINAL CALCULATION
         wlo, whi = wrange
         
@@ -496,9 +506,77 @@ class SpectrographicExposure(Exposure):
         bg_counts = bef_interp / phot_energy * aef_interp * exptime * swave / R"""
         
         snr = source_counts / np.sqrt(source_counts + bg_counts)
-        
+
         if self.verbose:
             print("SNR: {}".format(snr))
         
         self._snr = pre_encode(snr)
 
+    def _update_exptime(self):
+        print("This function will compute the exposure time to get the desired SNR")
+
+        """
+        Calculate the exptime based on the current SED and spectrograph parameters.
+        """
+    
+        if self.verbose:
+            msg1 = "Creating exposure for {} ({})".format(self.telescope.name,
+                                                           self.telescope.recover('aperture'))
+            msg2 = " with {} in mode {}".format(self.spectrograph.name, self.spectrograph.mode)
+            print(msg1 + msg2)
+            
+        sed, _snr_goal, _exptime = self.recover('sed', '_snr_goal', '_exptime')
+        _wave, aeff, bef, aper, R, wrange = self.recover('spectrograph.wave', 
+                                                         'spectrograph.aeff', 
+                                                         'spectrograph.bef',
+                                                         'telescope.aperture',
+                                                         'spectrograph.R',
+                                                         'spectrograph.wrange')
+        
+        print("The requested SNR is {}\n".format(_snr_goal))
+
+        if sed.fluxunits.name == "abmag":
+            funit = u.ABmag
+        elif sed.fluxunits.name == "photlam":
+            funit = u.ph / u.s / u.cm**2 / u.AA
+        else:
+            funit = u.Unit(sed.fluxunits.name)
+
+        wave = _wave.to(u.AA)
+        swave = (sed.wave * u.Unit(sed.waveunits.name)).to(u.AA)
+
+        sflux = (sed.flux * funit).to(u.erg / u.s / u.cm**2 / u.AA, equivalencies=u.spectral_density(swave))
+        #print('sflux  = ', sflux, '\n') #<--- this has the correct units, "erg / (Angstrom s cm2)"
+       
+        wave = wave.to(swave.unit)
+        #print('wave = ', wave, '\n') #<---- 20,600 element array of wavelengths tied to Spectrograph object (not Exposure) 
+                        #<--- this has the correct units, "Angstrom"
+
+        delta_lambda = self.recover('spectrograph.delta_lambda').to(u.AA / u.pix)
+        #print('delta_lambda = ', delta_lambda, '\n') #<--- this has the correct units, "Angstrom/pix"
+
+
+        iflux = np.interp(wave, swave, sflux, left=0., right=0.) 
+        #print('iflux = ', iflux, '\n') #<--- this has the correct units, "erg / (Angstrom s cm2)"
+                                 #<--- becuase the units are carried through the interpolation 
+
+        #print('bef = ', bef)  #<--- this has the correct units, "erg / (pix s cm2)"
+        phot_energy = const.h.to(u.erg * u.s) * const.c.to(u.cm / u.s) / wave.to(u.cm) / u.ct
+        #print('photE = ', phot_energy, '\n') #<--- this has the correct units, "erg / ct"
+
+        scaled_aeff = aeff * (aper / (15 * u.m))**2 
+        #print('aeff = ', aeff) #<--- this has the correct units, "cm2"
+        #print('aper = ', aper)#<--- this has the correct units, "m"
+        #print('scaled_aeff = ', scaled_aeff, '\n') #<--- this has the correct units, "cm2"
+        
+        #print('SNR^2 :', (_snr_goal)**2)
+
+        t_exp = (_snr_goal)**2 * (iflux / phot_energy * scaled_aeff * delta_lambda + bef / phot_energy * scaled_aeff) / ((iflux/phot_energy)**2 * scaled_aeff**2 * delta_lambda**2)
+        
+        if self.verbose:
+            print("Exptime: {}".format(t_exp))
+        
+        #serialize with JsonUnit for transportation
+        self._exptime = pre_encode(t_exp)
+        
+        return True #completed successfully

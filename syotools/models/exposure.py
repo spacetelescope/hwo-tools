@@ -433,7 +433,6 @@ class SpectrographicExposure(Exposure):
             return False
         
         if self.unknown == "snr":
-            print('you are about to call _update_snr on SpectrographicExposure')
             self._update_snr()
         if self.unknown == "exptime":
             self._update_exptime() 

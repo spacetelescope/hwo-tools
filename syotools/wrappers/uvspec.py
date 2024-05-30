@@ -1,5 +1,4 @@
 
-
 def uvspec_snr(telescope, mode, template, fuvmag, exptime): 
     ''' Run a basic SNR calculation that takes in a telescope, 
         spectral template, normalization magnitude, and exposure 
@@ -65,10 +64,8 @@ def uvspec_snr(telescope, mode, template, fuvmag, exptime):
 
     return wave, snr, uvi 
 
-
 def uvspec_exptime(telescope, mode, template, fuvmag, snr_goal): 
-    
-  ''' Run a basic SNR calculation that takes in a telescope, 
+    ''' Run a basic SNR calculation that takes in a telescope, 
       spectral template, normalization magnitude, and SNR goal  
       to compute exposure time. For converting magnitude, template, 
       and exptime to SNR, use uvspec_snr.py 

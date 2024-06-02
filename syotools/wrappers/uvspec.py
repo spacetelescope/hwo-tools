@@ -53,6 +53,7 @@ def uvspec_snr(telescope, mode, template, fuvmag, exptime, silent=True):
        uvi_exp.verbose = False 
        tel.verbose = False 
        uvi.verbose = False 
+       print("We have set verbose = False") 
 
     if not silent: 
         print("Current SED template: {}".format(SpectralLibrary[uvi_exp.sed_id])) 

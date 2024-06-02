@@ -13,7 +13,7 @@ def camera_snr(telescope, template, mag, exptime):
     hri_exp = hri.create_exposure()
 
     hri_exp.sed_id = template
-    hri_exp.renorm_sed(mag * u.ABmag, bandpass='r')
+    hri_exp.renorm_sed(mag * u.ABmag, bandpass='v')
     exptime_list = []
     for i in hri.bandnames: exptime_list.append(exptime) 
     hri_exp.exptime[1]['value'] = exptime_list 

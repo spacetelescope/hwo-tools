@@ -1,0 +1,29 @@
+
+Information about the spectral templates: 
+
+flam      Flat in F_lambda
+qso       z = 0 QSO composite 
+s99       10 Myr Starburst
+o5v       O5V Star
+g2v       G2V Star
+g191b2b   G191B2B (WD)
+gd71      GD71 (WD)
+gd153     GD153 (WD)
+ctts      Classical T-Tauri Star
+mdwarf    M1 Dwarf
+orion     Orion Nebula
+nodust    Starburst, No Dust
+ebv6      Starburst, E(B-V) = 0.6
+hi1hei1   Galaxy with f_esc, HI=1, HeI=1
+hi0hei1   Galaxy with f_esc, HI=0.001, HeI=1
+
+Most of these templates are drawn from the STScI
+pysynphot package. To request addtional spectral 
+templates, you can do the following: 
+
+(1) visit the #etcs_and_tools channel on the HWO Community Slack Team, 
+(2) file a GitHub issue here with your specific request: 
+     https://github.com/spacetelescope/hwo-tools/issues
+
+
+

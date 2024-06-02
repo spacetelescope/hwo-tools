@@ -1,5 +1,5 @@
 
-def uvspec_snr(telescope, mode, template, fuvmag, exptime): 
+def uvspec_snr(telescope, mode, template, fuvmag, exptime, silent=True): 
     ''' Run a basic SNR calculation that takes in a telescope, 
         spectral template, normalization magnitude, and exposure 
         time to compute SNR. For converting magnitude, template, 
@@ -47,10 +47,18 @@ def uvspec_snr(telescope, mode, template, fuvmag, exptime):
 
     uvi_exp.exptime[1]['value'] = [exptime, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
 
-    #Print the current template & mode
-    print("Current SED template: {}".format(SpectralLibrary[uvi_exp.sed_id])) 
-    print("Current grating mode: {}".format(uvi.descriptions[uvi.mode])) 
-    print("Current exposure time: {} hours\n".format(uvi_exp.exptime[1]['value'][0])) 
+    uvi_exp.verbose = True 
+    tel.verbose = True 
+    if (silent):  
+       uvi_exp.verbose = False 
+       tel.verbose = False 
+       uvi.verbose = False 
+       print("We have set verbose = False") 
+
+    if not silent: 
+        print("Current SED template: {}".format(SpectralLibrary[uvi_exp.sed_id])) 
+        print("Current grating mode: {}".format(uvi.descriptions[uvi.mode])) 
+        print("Current exposure time: {} hours\n".format(uvi_exp.exptime[1]['value'][0])) 
     
     lumos_template_codes = ['flam', 'qso', 's99', 'o5v', 'g2v', 'g191b2b', 'gd71', 'gd153', 'ctts', 
                         'mdwarf', 'orion', 'nodust', 'ebv6', 'hi1hei1', 'hi0hei1']
@@ -64,7 +72,7 @@ def uvspec_snr(telescope, mode, template, fuvmag, exptime):
 
     return wave, snr, uvi 
 
-def uvspec_exptime(telescope, mode, template, fuvmag, snr_goal): 
+def uvspec_exptime(telescope, mode, template, fuvmag, snr_goal, silent=True): 
     ''' Run a basic SNR calculation that takes in a telescope, 
       spectral template, normalization magnitude, and SNR goal  
       to compute exposure time. For converting magnitude, template, 
@@ -110,10 +118,13 @@ def uvspec_exptime(telescope, mode, template, fuvmag, snr_goal):
     uvi_exp.sed_id = template
     uvi_exp.renorm_sed(fuvmag * u.ABmag, bandpass='galex,fuv')
 
-    #Print the current template & mode
-    print("Current SED template: {}".format(SpectralLibrary[uvi_exp.sed_id])) 
-    print("Current grating mode: {}".format(uvi.descriptions[uvi.mode])) 
-    print("Current exposure time: {} hours\n".format(uvi_exp.exptime[1]['value'][0])) 
+    uvi_exp.verbose = True 
+    if (silent):  uvi_exp.verbose = False 
+
+    if not silent: 
+        print("Current SED template: {}".format(SpectralLibrary[uvi_exp.sed_id])) 
+        print("Current grating mode: {}".format(uvi.descriptions[uvi.mode])) 
+        print("Current exposure time: {} hours\n".format(uvi_exp.exptime[1]['value'][0])) 
     
     lumos_template_codes = ['flam', 'qso', 's99', 'o5v', 'g2v', 'g191b2b', 'gd71', 'gd153', 'ctts', 
                         'mdwarf', 'orion', 'nodust', 'ebv6', 'hi1hei1', 'hi0hei1']

@@ -45,6 +45,8 @@ class Telescope(PersistentModel):
     ota_emissivity = pre_encode(0. * u.dimensionless_unscaled)
     diff_limit_wavelength = pre_encode(0. * u.nm)
     unobscured_fraction = pre_encode(1. * u.dimensionless_unscaled)
+
+    verbose = False 
         
     @property
     def diff_limit_fwhm(self):
@@ -73,7 +75,8 @@ class Telescope(PersistentModel):
         spectrograph.telescope = self
 
     def set_from_json(self,name): 
-        print('Setting Telescope to: ', name) 
+        if not self.verbose: 
+            print('Setting Telescope to: ', name) 
         
         if ('EAC1' in name): tel = read_json.eac1()
         if ('EAC2' in name): tel = read_json.eac2()

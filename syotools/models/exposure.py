@@ -512,8 +512,6 @@ class SpectrographicExposure(Exposure):
         self._snr = pre_encode(snr)
 
     def _update_exptime(self):
-        print("This function will compute the exposure time to get the desired SNR")
-
         """
         Calculate the exptime based on the current SED and spectrograph parameters.
         """
@@ -532,7 +530,8 @@ class SpectrographicExposure(Exposure):
                                                          'spectrograph.R',
                                                          'spectrograph.wrange')
         
-        print("The requested SNR is {}\n".format(_snr_goal))
+        if not self.verbose: 
+            print("The requested SNR is {}\n".format(_snr_goal))
 
         if sed.fluxunits.name == "abmag":
             funit = u.ABmag

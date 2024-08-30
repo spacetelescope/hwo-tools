@@ -530,7 +530,7 @@ class SpectrographicExposure(Exposure):
                                                          'spectrograph.R',
                                                          'spectrograph.wrange')
         
-        if not self.verbose: 
+        if self.verbose: 
             print("The requested SNR is {}\n".format(_snr_goal))
 
         if sed.fluxunits.name == "abmag":

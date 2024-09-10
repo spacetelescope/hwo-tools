@@ -12,12 +12,17 @@ from __future__ import (print_function, division, absolute_import, with_statemen
 import astropy.units as u
 import numpy as np
 
-import syotools.coronagraph as cg
+import syotools.coronagraph as ty
 from syotools.models.base import PersistentModel
+from syotools.models.exposure import CoronagraphicExposure
 from syotools.defaults import default_coronagraph
 from syotools.utils import pre_encode
 
 class Coronagraph(PersistentModel):
+
+# significant changes needed here to align with Mennesson paper !! 
+# JT 9/10/2024 
+
     """
     The basic coronagraph class, which provides parameter storage for 
     optimization.
@@ -48,10 +53,20 @@ class Coronagraph(PersistentModel):
     
     _default_model = default_coronagraph
     
-    engine = cg
+    telescope = None 
+    exposures = []
+
+    engine = ty
     count_rates = {}
     
-    int_time = pre_encode(0. * u.hr)
+    int_time = pre_encode(10. * u.hr)
+    int_time = 10. * u.hr 
+    raw_contrast = 1e-10 # dimensionless 
+    eta_p = 0.2  # core throughput, taking the value for a type 1 coronagraph from Mennesson Figure 24 
+    Tr = 0.3 # total througput absent masks and detector QE - used number for all coronagraphs per Table 2
+    quantum_eff = 0.9 # detector quantum efficiency (0.9 per Table 2) 
+
+    # all this below was needed only for calling the Ty code 
     phase_angle = pre_encode(0. * u.deg)
     phase_func = pre_encode(1.)
     r_planet = pre_encode(1. * u.R_earth)
@@ -63,11 +78,13 @@ class Coronagraph(PersistentModel):
     wave = pre_encode(np.zeros(0, dtype=float) * u.um)
     radiance = pre_encode(np.zeros(0, dtype=float) * (u.W / u.m**2 / u.um / u.sr))
     sol_flux = pre_encode(np.zeros(0, dtype=float) * (u.W / u.m**2 / u.um))
+    #end of stuff for Ty code 
     
     
     def __init__(self, *arg, **kw):
         super().__init__(*arg, **kw)
-        self._calc_count_rates()
+        #self._calc_count_rates_imaging() 
+        #self._calc_count_rates_ty() # Gray's code - commented out bc of error and in favor of new imaging mode  
     
     @property
     def albedo(self):
@@ -76,7 +93,37 @@ class Coronagraph(PersistentModel):
         """
         return pre_encode(np.pi * u.sr * (np.pi * self.radiance / self.sol_flux).decompose())
     
-    def _calc_count_rates(self):
+    def _calc_count_rates_imaging(self):
+        """
+        Compute the coronagraphic model for a corongraph image using the math from Mennesson et al. (2024) 
+        For now we are ignoring the xy dependence of these calculations, making this a zero-dimensional calculation.  
+        """
+        epsilon = 1.0e-10 # mean astrophysical planet-to-star flux ratio over the bandpass 
+
+        # Sun at 10 pc in V band (V_abs_Sun = 4.8) in units photons cm^-2 s^-1 micron^-1 - using https://irsa.ipac.caltech.edu/data/SPITZER/docs/dataanalysistools/tools/pet/magtojy/ 
+        sun_flux = 4.51e-7 * u.erg / u.cm**2 / u.s / u.micron
+        ph_energy = 6.626196e-27 * u.erg * u.s * (2.9979e10 * u.cm / u.s) / (5500 * u.Angstrom).to(u.cm) / u.ph 
+        sun_phot = sun_flux / ph_energy 
+ 
+        phi_S = sun_phot / 12.**2 * 10.**2 # correct photon rate to 12 pc for a Solar twin - should be photons / s/ cm^2 / micron 
+
+        collecting_area = np.pi * (self.telescope.aperture.to(u.cm) / 2.)**2 # square cm, 6 meters, filled aperture, this will have to come in from the telescope object in the end. 
+
+        dlambda = 0.55 / 5 * u.micron # bandpass taken from 0.55 micron central wavelength and spectral resolution per Table 2 
+        
+        N_s = phi_S * collecting_area * self.quantum_eff * self.Tr * dlambda # total number of stellar photons per sec in the absence of any corongraph - Eq (8) 
+
+        # the various count rates 
+        r_pl = self.eta_p * epsilon * N_s # planet photon rate detected in a circular photometric aperture Eq (3) 
+        r_sp = self.eta_p * self.raw_contrast * N_s      # photon rate from residual starlight in speckles Eq (4) 
+        r_sz = 0.1 * r_sp # 10% of speckles - totally made up 
+        r_xz = 0.1 * r_sp # 10% of speckles - totally made up 
+
+        r_n = r_pl + r_sp + r_sz + r_xz # total noise rate, sum of terms just below Eq (2) 
+
+        self._signal_to_noise = (r_pl * self.int_time.to(u.s)) / (r_n * self.int_time.to(u.s))**0.5 
+
+    def _calc_count_rates_ty(self):
         """
         Compute the coronagraphic model using the coronagraph package.
         """
@@ -97,7 +144,8 @@ class Coronagraph(PersistentModel):
         sm = semimajor.to(u.au).value
         ds = d_system.to(u.pc).value
         ez = self.n_exoz
-        cr = cg.count_rates(al, wv, sf, pa, pf, rp, te, rs, sm, ds, ez)
+        # this is where the Ty & Giada code is called 
+        cr = ty.count_rates(al, wv, sf, pa, pf, rp, te, rs, sm, ds, ez)
         self._count_rates = dict(*zip(['wavelength','wave_bin','albedo',
                                        'quant_eff','flux_ratio','planet_cr',
                                        'speckle_cr','zodi_cr','exoz_cr',
@@ -157,3 +205,14 @@ class Coronagraph(PersistentModel):
                 'spec': spec * 1.e9,
                 'downerr': (spec - sig) * 1.e9,
                 'uperr': (spec + sig) * 1.e9}
+
+    def create_exposure(self):
+        new_exposure = CoronagraphicExposure()
+        self.add_exposure(new_exposure)
+        return new_exposure
+
+    def add_exposure(self, exposure):
+        self.exposures.append(exposure)
+        exposure.coronagraph = self
+        exposure.telescope = self.telescope
+        exposure.calculate()

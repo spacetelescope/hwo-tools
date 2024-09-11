@@ -66,6 +66,8 @@ class Coronagraph(PersistentModel):
     Tr = 0.3 # total througput absent masks and detector QE - used number for all coronagraphs per Table 2
     quantum_eff = 0.9 # detector quantum efficiency (0.9 per Table 2) 
 
+    sigma_DeltaC = 5e-12 # the post-processing factor 
+
     # all this below was needed only for calling the Ty code 
     phase_angle = pre_encode(0. * u.deg)
     phase_func = pre_encode(1.)
@@ -114,14 +116,16 @@ class Coronagraph(PersistentModel):
         N_s = phi_S * collecting_area * self.quantum_eff * self.Tr * dlambda # total number of stellar photons per sec in the absence of any corongraph - Eq (8) 
 
         # the various count rates 
-        r_pl = self.eta_p * epsilon * N_s # planet photon rate detected in a circular photometric aperture Eq (3) 
+        r_pl = self.eta_p * epsilon * N_s # planet photon rate (ph / s) detected in a circular photometric aperture Eq (3) 
         r_sp = self.eta_p * self.raw_contrast * N_s      # photon rate from residual starlight in speckles Eq (4) 
-        r_sz = 0.1 * r_sp # 10% of speckles - totally made up 
-        r_xz = 0.1 * r_sp # 10% of speckles - totally made up 
+        r_sz = 1. * u.ph / u.s / u.micron * dlambda * self.Tr # read off the upper right panel of Figure 23. 
+        r_xz = 7. * u.ph / u.s / u.micron * dlambda * self.Tr # read off the upper right panel of Figure 23. 
 
         r_n = r_pl + r_sp + r_sz + r_xz # total noise rate, sum of terms just below Eq (2) 
+        post_term = self.eta_p * self.sigma_DeltaC * N_s * self.int_time.to(u.s) / u.ph #<---- see Eq 13
 
-        self._signal_to_noise = (r_pl * self.int_time.to(u.s)) / (r_n * self.int_time.to(u.s))**0.5 
+        # the factor of 2 on r_n here in the denominator is from Eq 13 and accounts for differential imaging 
+        self._signal_to_noise = (r_pl * self.int_time.to(u.s) / u.ph) / (2. * r_n * self.int_time.to(u.s)/u.ph  + post_term**2 )**0.5 
 
     def _calc_count_rates_ty(self):
         """

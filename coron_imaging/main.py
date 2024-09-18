@@ -38,7 +38,7 @@ spec_dict[template_to_start_with].flux # <---- these are the variables you need 
 spec_dict[template_to_start_with].convert('abmag') 
 
 # set up ColumnDataSources for the coron texptime plot 
-source_exp = ColumnDataSource(data=dict(x=[1,2,3,4,5], y=[38,43,55,63,254], desc=['RC = 10-10 no post', 'RC=10-10 with post', 'RC = 10-9 no post', 'RC = 10-9 with post', 'RC = 10-8 no post'] ))
+source_exp = ColumnDataSource(data=dict(x=[1,2,3,4,5], y=[38,43,55,63,254], desc=['RC = 10^-10 no post', 'RC=10^-10 with post', 'RC = 10^-9 no post', 'RC = 10^-9 with post', 'RC = 10^-8 no post'] ))
 #source2 = ColumnDataSource(data=dict(x=hdi.pivotwave[0:2], y=snr[0:2], desc=hdi.bandnames[0:2]))
 #source3 = ColumnDataSource(data=dict(x=hdi.pivotwave[-3:], y=snr[-3:], desc=hdi.bandnames[-3:]))
 
@@ -59,7 +59,7 @@ hover = HoverTool(point_policy="snap_to_data",
 
 texp_plot = figure(height=400, width=700, tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
 	x_range=[0, 6], y_range=[0, 100], border_fill_color='black', toolbar_location='right')
-texp_plot.xaxis.major_label_overrides = {0:' ', 1:"10^-1, no post", 2:"10^10 with post", 3:"10^-9 no post", 4:"10^-9 with post", 5:"RC = 10-8", 6:" "} 
+texp_plot.xaxis.major_label_overrides = {0:' ', 1:"10^-10, no post", 2:"10^-10 with post", 3:"10^-9 no post", 4:"10^-9 with post", 5:"RC = 10-8", 6:" "} 
 texp_plot.line('x', 'y', source=source_exp, line_width=3, line_color='blue', line_alpha=1.0) 
 texp_plot.scatter('x', 'y', source=source_exp, fill_color='white', line_color='blue', size=10)
 texp_plot.add_tools(hover)

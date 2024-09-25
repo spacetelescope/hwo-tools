@@ -49,12 +49,11 @@ class Spectrograph():
     def __init__(self): 
 
         cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
+        cwd = './' 
 
         self.name = 'LUMOS' 
-        print(" right here dammit ") 
         print(cwd+'/data/LUMOS_vals.dat') 
         lumos = Table.read(cwd+'/data/LUMOS_vals.dat', format='ascii') 
-        print(" did it     dammit ") 
         self.wave = lumos['Wave']
         self.aeff = lumos['A_eff']
         self.bef = lumos['Med_Res_BEF'] 

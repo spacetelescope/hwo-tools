@@ -1,5 +1,5 @@
 attrs:
-    Figure:
+    figure:
         background_fill_color: '#FFFFFF'
         background_fill_alpha: 0.02 
         border_fill_color: '#000000'

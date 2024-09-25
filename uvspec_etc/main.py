@@ -1,17 +1,17 @@
 from __future__ import print_function
 import numpy as np
 import copy 
-from bokeh.plotting import Figure
+from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, HoverTool, Range1d 
-from bokeh.layouts import Column, Row, WidgetBox
-from bokeh.models.widgets import Slider, TextInput, Select, Tabs, Panel, Div 
+from bokeh.layouts import row, column
+from bokeh.models.widgets import Slider, TextInput, Select, Div 
+from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.io import curdoc
 from bokeh.models.callbacks import CustomJS
 import astropy.constants as const
 import get_lumos_spectra
 import Telescope as T 
 import lumos_help as h 
-
 
 luvoir = T.Telescope(15., 280., 500.) # set up LUVOIR with 15 meters, T = 280, and diff limit at 500 nm 
 lumos = T.Spectrograph() # set up LUVOIR with 10 meters, T = 280, and diff limit at 500 nm 
@@ -53,23 +53,23 @@ spectrum_template = ColumnDataSource(data=dict(w=spec_dict[template_to_start_wit
 instrument_info = ColumnDataSource(data=dict(wave=lumos.wave, bef=lumos.bef))
 
 # set up the flux plot 
-flux_plot = Figure(plot_height=400, plot_width=800, 
+flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
               x_range=[900, 2000], y_range=[0, 4e-16], toolbar_location='right') 
 flux_plot.x_range=Range1d(900,3000,bounds=(900,3000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None)) 
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
-flux_plot.line('w', 'f', source=spectrum_template, line_width=3, line_color='firebrick', line_alpha=0.7, legend='Source Flux')
-flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend='Background')
+flux_plot.line('w', 'f', source=spectrum_template, line_width=3, line_color='firebrick', line_alpha=0.7, legend_label='Source Flux')
+flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
 
 # set up the flux plot 
-sn_plot = Figure(plot_height=400, plot_width=800, 
+sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
               x_range=[900, 2000], y_range=[0, 40], toolbar_location='right')
 sn_plot.x_range=Range1d(900,3000,bounds=(900,3000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
-sn_plot.line('w', 'sn', source=spectrum_template, line_width=3, line_color='orange', line_alpha=0.7, legend='S/N per resel')
+sn_plot.line('w', 'sn', source=spectrum_template, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
 sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 sn_plot.yaxis.axis_label = 'S/N per resel' 
 
@@ -105,8 +105,8 @@ def update_data(attrname, old, new): # use this one for updating pysynphot tempa
     sn_plot.y_range.end = 1.3*np.max(spectrum_template.data['sn'])
     print('MAX MAX', np.max(spectrum_template.data['f']), np.max(flux_cut)) 
 
-    instrument_info.data['wave'] = lumos.wave 
-    instrument_info.data['bef'] = lumos.bef  
+    #instrument_info.data['wave'] = lumos.wave 
+    #instrument_info.data['bef'] = lumos.bef  
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))
@@ -156,21 +156,17 @@ for w in [template, grating]:  w.on_change('value', update_data)
  
 # Set up layouts and add to document
 help_text = Div(text = h.help(), width=200) 
-source_inputs = Column(children=[template, redshift, magnitude])
-controls_panel = Panel(child=source_inputs, title='Controls')
-help_panel = Panel(child=help_text, title='Info')
-source_inputs = Tabs(tabs=[ controls_panel, help_panel]) 
+source_inputs = column(children=[template, redshift, magnitude], sizing_mode='fixed', max_width=300, width=250, height=300)
+controls_panel = TabPanel(child=source_inputs, title='Controls') 
+help_panel = TabPanel(child=help_text, title='Info') 
+source_inputs = Tabs(tabs=[ controls_panel, help_panel], width=300) 
+source_inputs = Tabs(tabs=[ controls_panel], width=300) 
 
-exposure_inputs = Column(children=[grating, aperture, exptime])
-exposure_panel = Panel(child=exposure_inputs, title='Exposure')
-exposure_inputs = Tabs(tabs=[ exposure_panel ]) 
+exposure_inputs = column(children=[grating, aperture, exptime], sizing_mode='fixed', max_width=300, width=300, height=600 )
+exposure_panel = TabPanel(child=exposure_inputs, title='Exposure')
+exposure_inputs = Tabs(tabs=[ exposure_panel ], width=300) 
 
-row1 = Row(children=[source_inputs, flux_plot])
-row2 = Row(children=[exposure_inputs, sn_plot])
+row1 = row(children=[source_inputs, flux_plot])
+row2 = row(children=[exposure_inputs, sn_plot])
 
-curdoc().add_root(Column(children=[row1, row2]))
-
-
-
-
-
+curdoc().add_root(column(children=[row1, row2]))

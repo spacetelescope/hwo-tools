@@ -10,7 +10,7 @@ The $INSTALL_DIR is just any local directory of your choice.
    git clone https://github.com/spacetelescope/hwo-tools.git
 - The Sci-Eng-Interface material is now bundled with SYOtools 
 - Set up the conda repo with the hwotools dependencies: \
-    cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools_syo_separate.yml
+    cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools.yml
 - conda activate hwotools_syo_separate  
 - add to your .bashrc / .bash_profile:
    - export PYTHONPATH=$INSTALL_DIR/Sci-Eng-Interface/:$INSTALL_DIR/hwo-tools/

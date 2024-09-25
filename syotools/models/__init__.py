@@ -11,5 +11,5 @@ from __future__ import (print_function, division, absolute_import, with_statemen
 from .telescope import Telescope
 from .camera import Camera
 from .spectrograph import Spectrograph, Spectropolarimeter
-from .coron import Coronagraph
+from .coronagraph import Coronagraph
 from .exposure import PhotometricExposure, SpectrographicExposure

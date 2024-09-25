@@ -578,3 +578,63 @@ class SpectrographicExposure(Exposure):
         self._exptime = pre_encode(t_exp)
         
         return True #completed successfully
+
+
+class CoronagraphicExposure(Exposure):
+    """
+    A subclass of the base Exposure model, for coronagraphic imaging calculations.
+    """
+    
+    def calculate(self):
+        """
+        Wrapper to calculate the exposure time, SNR, or limiting magnitude, 
+        based on the other two. The "unknown" attribute controls which of these
+        parameters is calculated. 
+        JT - THIS PART DOESNT WORK FOR CORON YET 
+        """
+        if self._disable:
+            return False
+        if self.camera is None or self.telescope is None:
+            return False
+        status = {'magnitude': self._update_magnitude,
+                  'exptime': self._update_exptime,
+                  'snr': self._update_snr}[self.unknown]()
+        return status
+    
+    #Calculation methods
+    
+    def _update_exptime(self):
+        """
+        Calculate the exposure time to achieve the desired S/N for the 
+        given SED.
+        """
+        print('doesnt exist yet pull it from camera class') 
+        
+        return False #completed successfully
+        
+
+    def _update_magnitude(self):
+        """
+        Calculate the limiting magnitude given the desired S/N and exposure
+        time.
+        """
+
+        print('doesnt exist yet pull it from camera class') 
+        
+        return False #completed successfully
+    
+    def _update_snr(self):
+        """
+        Calculate the SNR for the given exposure time and planet properties. 
+        Follows Mennesson et al. 2024 
+        """
+        
+        self.camera._print_initcon(self.verbose)
+
+        print(' telescope inside the Coron exposure object ', self.telescope.aperture) 
+        
+        #serialize with JsonUnit for transportation
+        self._snr = pre_encode(10.)
+        
+        return True #completed successfully
+

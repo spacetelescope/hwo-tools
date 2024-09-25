@@ -38,6 +38,7 @@ class Telescope(PersistentModel):
     
     cameras = []
     spectrographs = []
+    coronagraphs = [] 
     
     name = ''
     aperture = pre_encode(0. * u.m)
@@ -73,6 +74,10 @@ class Telescope(PersistentModel):
     def add_spectrograph(self, spectrograph):
         self.spectrographs.append(spectrograph)
         spectrograph.telescope = self
+
+    def add_coronagraph(self, coronagraph):
+        self.coronagraphs.append(coronagraph)
+        coronagraph.telescope = self
 
     def set_from_json(self,name): 
         if self.verbose: 

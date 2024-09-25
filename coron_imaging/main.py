@@ -11,7 +11,7 @@ from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import row, column 
 from bokeh.io import curdoc
 import astropy.units as u
-
+from syotools.sci_eng_interface import read_json 
 
 # This import supports the new exptime panel for coronagraphic imaging - JT 091124 
 from syotools.models import Telescope, Coronagraph

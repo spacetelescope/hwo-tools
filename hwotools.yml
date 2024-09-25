@@ -14,4 +14,5 @@ dependencies:
   - jupyter=1.0.0
   - pip:
       - pysynphot==2.0.0
+      - syotools 
 prefix: /Users/tumlinson/anaconda3/envs/hwotools

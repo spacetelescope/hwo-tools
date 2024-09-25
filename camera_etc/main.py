@@ -56,13 +56,13 @@ snr_plot.xaxis.axis_label = 'Wavelength [nm]'
 snr_plot.text(5500, 20, text=['V'], text_align='center', text_color='red')
 
 snr_plot.line('x', 'y', source=source1, line_width=3, line_alpha=1.0) 
-snr_plot.circle('x', 'y', source=source1, fill_color='white', line_color='blue', size=10)
+snr_plot.scatter('x', 'y', source=source1, fill_color='white', line_color='blue', size=10)
     
 snr_plot.line('x', 'y', source=source2, line_width=3, line_color='orange', line_alpha=1.0)
-snr_plot.circle('x', 'y', source=source2, fill_color='white', line_color='orange', size=8) 
+snr_plot.scatter('x', 'y', source=source2, fill_color='white', line_color='orange', size=8) 
     
 snr_plot.line('x', 'y', source=source3, line_width=3, line_color='red', line_alpha=1.0)
-snr_plot.circle('x', 'y', source=source3, fill_color='white', line_color='red', size=8) 
+snr_plot.scatter('x', 'y', source=source3, fill_color='white', line_color='red', size=8) 
 
 spectrum_template = ColumnDataSource(data=dict(w=spec_dict[template_to_start_with].wave, f=spec_dict[template_to_start_with].flux, \
                                    w0=spec_dict[template_to_start_with].wave, f0=spec_dict[template_to_start_with].flux))

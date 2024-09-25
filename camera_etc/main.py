@@ -1,12 +1,12 @@
 import numpy as np
 from bokeh.io import output_file
-from bokeh.plotting import Figure
+from bokeh.plotting import figure
 from bokeh.embed import components
-from bokeh.models import ColumnDataSource, HoverTool, Paragraph, Range1d 
+from bokeh.models import ColumnDataSource, HoverTool, Paragraph, Range1d  
 from bokeh.models.callbacks import CustomJS
-from bokeh.models import Column 
-from bokeh.layouts import row
-from bokeh.models.widgets import Slider, Tabs, Div, Panel, Select 
+from bokeh.models.widgets import Slider, Div, Select 
+from bokeh.models.layouts import TabPanel, Tabs
+from bokeh.layouts import row, column 
 from bokeh.io import curdoc
 
 import phot_compute_snr as phot_etc 
@@ -46,7 +46,7 @@ hover = HoverTool(point_policy="snap_to_data",
         """
     )
 
-snr_plot = Figure(plot_height=400, plot_width=700, 
+snr_plot = figure(height=400, width=700, 
               tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
               x_range=[120, 2300], y_range=[0, 40], border_fill_color='black', toolbar_location='right')
 snr_plot.x_range = Range1d(100, 2300, bounds=(120, 2300)) 
@@ -67,8 +67,7 @@ snr_plot.circle('x', 'y', source=source3, fill_color='white', line_color='red', 
 spectrum_template = ColumnDataSource(data=dict(w=spec_dict[template_to_start_with].wave, f=spec_dict[template_to_start_with].flux, \
                                    w0=spec_dict[template_to_start_with].wave, f0=spec_dict[template_to_start_with].flux))
 
-sed_plot = Figure(plot_height=400, plot_width=700, 
-              tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
+sed_plot = figure(height=400, width=700,tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
               x_range=[120, 2300], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
 sed_plot.x_range = Range1d(100, 2300, bounds=(120, 2300)) 
 sed_plot.yaxis.axis_label = 'AB Magnitude'
@@ -148,13 +147,13 @@ template = Select(title="Template Spectrum", value="Flat (AB)",
 for w in [template]: 
     w.on_change('value', update_data)
 
-controls = Column(children=[aperture, exptime, magnitude, template ]) 
-controls_tab = Panel(child=controls, title='Controls')
-help_tab = Panel(child=Div(text = h.help()), title='Info')
-inputs = Tabs(tabs=[ controls_tab, help_tab]) 
+controls = column(children=[aperture, exptime, magnitude, template ], sizing_mode='fixed', max_width=300, width=300, height=600) 
+controls_tab = TabPanel(child=controls, title='Controls')
+info_tab = TabPanel(child=Div(text = h.help()), title='Info')
+inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 
 
-plots = Tabs(tabs=[ Panel(child=snr_plot, title='SNR'), Panel(child=sed_plot, title='SED')]) 
+plots = Tabs(tabs=[ TabPanel(child=snr_plot, title='SNR'), TabPanel(child=sed_plot, title='SED')]) 
 
 curdoc().add_root(row(children=[inputs, plots])) 
 curdoc().add_root(source) 
-#curdoc().add_root(source1) 
+curdoc().add_root(source1) 

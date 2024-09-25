@@ -1,0 +1,46 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <style>
+            @import url(https://fonts.googleapis.com/css?family=PT+Serif);
+            body {
+              font-family: 'PT Serif';
+              -webkit-font-smoothing: antialiased;
+              text-rendering: optimizeLegibility;
+              color: #000;
+              background: #FFFFFF;   
+             }
+		h1.text-muted {
+		    text-align: center;
+		}
+		h2.text-muted {
+		    text-align: center;
+		}
+        </style>
+        <meta charset="utf-8">
+        {{ bokeh_css }}
+        {{ bokeh_js }}
+        <title>High Definition Imager (HDI) ETC</title>
+    </head>
+
+
+    <div class="container", text-align: center>
+      <div class="header clearfix">
+        <nav>
+          <ul class="nav nav-pills pull-right">
+            <!-- <li role="presentation" class="active"><a href="#">Home</a></li>
+            <li role="presentation"><a href="#">About</a></li>
+            <li role="presentation"><a href="#">Contact</a></li> --> 
+          </ul>
+        </nav>
+        <h1 class="text-muted"><a href="https://asd.gsfc.nasa.gov/luvoir/tools/">LUVOIR: The Large UltraViolet Optical Infrared Surveyor</a></h1>
+        <h2 class="text-muted">High Definition Imager (HDI) ETC</h2>
+      </div>
+
+    <body>
+        {{ plot_div|indent(8) }}
+        {{ plot_script|indent(8) }}
+    </body>
+</html>

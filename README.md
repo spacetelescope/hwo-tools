@@ -11,10 +11,10 @@ The $INSTALL_DIR is just any local directory of your choice.
 - The Sci-Eng-Interface material is now bundled with SYOtools 
 - Set up the conda repo with the hwotools dependencies: \
     cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools.yml
-- conda activate hwotools_syo_separate  
+- conda activate hwotools
 - add to your .bashrc / .bash_profile:
    - export PYTHONPATH=$INSTALL_DIR/Sci-Eng-Interface/:$INSTALL_DIR/hwo-tools/
-   - export PYSYN_CDBS=/Users/tumlinson/anaconda3/envs/hwotools_syo_separate/lib/python3.12/site-packages/syotools/pysynphot_data
+   - export PYSYN_CDBS=/Users/tumlinson/anaconda3/envs/hwotools/lib/python3.12/site-packages/syotools/pysynphot_data
    - in the likely event that you already have PYTHONPATH set in your .*rc file, append these:
         - export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/hwo-tools/
 - open and run BasicRun.ipynb

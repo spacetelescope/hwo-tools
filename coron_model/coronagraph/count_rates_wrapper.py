@@ -1,9 +1,6 @@
 # Import dependent modules
-import numpy as np
-import sys
 from .count_rates import count_rates
 from .Noise import Output
-import pdb
 
 __all__ = ['count_rates_wrapper']
 

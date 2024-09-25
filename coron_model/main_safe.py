@@ -12,25 +12,19 @@
 
 from __future__ import print_function
 import numpy as np
-from astropy.io import fits, ascii 
-import pdb
-import sys
+from astropy.io import ascii 
 import os 
-from astropy.table import Table, Column
+from astropy.table import Table
 import os
 from bokeh.io import curdoc
-from bokeh.client import push_session
 
-from bokeh.themes import Theme 
-import yaml 
 from bokeh.plotting import Figure
-from bokeh.models import ColumnDataSource, HBox, HoverTool, Paragraph, Range1d, DataRange1d, Label, DataSource
+from bokeh.models import ColumnDataSource, HoverTool
 from bokeh.models.glyphs import Text
-from bokeh.layouts import column, row, WidgetBox 
+from bokeh.layouts import column, row 
 from bokeh.models.widgets import Slider, Panel, Tabs, Div, TextInput, RadioButtonGroup, Select, RadioButtonGroup
-from bokeh.io import curdoc, output_file, show
+from bokeh.io import curdoc
 from bokeh.models.callbacks import CustomJS
-from bokeh.embed import components, autoload_server
 
 
 import coronagraph as cg  # Import coronagraph model
@@ -684,11 +678,11 @@ def update_data(attrname, old, new):
           solhr_ = model[:,2]
           Flx_ = model[:,3]
           model1 = np.loadtxt(fn1, skiprows=1)
-          lamhr_1 = model1[:,0]
+        #   lamhr_1 = model1[:,0]
           solhr_1 = model1[:,2]
           Flx_1 = model1[:,3]
           model2 = np.loadtxt(fn2, skiprows=1)
-          lamhr_2 = model2[:,0]
+        #   lamhr_2 = model2[:,0]
           solhr_2 = model2[:,2]
           Flx_2 = model2[:,3]
           Ahr_ = Flx_/solhr_
@@ -1183,11 +1177,11 @@ def update_data(attrname, old, new):
           solhr_c = model[:,2]
           Flx_c = model[:,3]
           model1 = np.loadtxt(fn1, skiprows=1)
-          lamhr_1c = model1[:,0]
+        #   lamhr_1c = model1[:,0]
           solhr_1c = model1[:,2]
           Flx_1c = model1[:,3]
           model2 = np.loadtxt(fn2, skiprows=1)
-          lamhr_2c = model2[:,0]
+        #   lamhr_2c = model2[:,0]
           solhr_2c = model2[:,2]
           Flx_2c = model2[:,3]
           Ahr_c = Flx_c/solhr_c

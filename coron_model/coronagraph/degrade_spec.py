@@ -6,7 +6,6 @@ Created on Mon Jul  6 11:00:41 2015
 """
 
 import numpy as np
-import scipy as sp
 from scipy import interpolate
 from scipy.stats import binned_statistic
 

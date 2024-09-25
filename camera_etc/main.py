@@ -1,8 +1,6 @@
 import numpy as np
-from bokeh.io import output_file
 from bokeh.plotting import Figure
-from bokeh.embed import components
-from bokeh.models import ColumnDataSource, HoverTool, Paragraph, Range1d 
+from bokeh.models import ColumnDataSource, HoverTool, Range1d 
 from bokeh.models.callbacks import CustomJS
 from bokeh.models import Column 
 from bokeh.layouts import row
@@ -95,7 +93,7 @@ def update_data(attrname, old, new):
     new_f = np.array(new_f0) 
     spectrum_template.data = {'w':new_w, 'f':new_f, 'w0':new_w0, 'f0':new_f0} 
 
-    interp_mags = spec_dict[template.value]
+    # interp_mags = spec_dict[template.value]
     mag_arr = np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]) 
     for pwave,index in zip(hdi.pivotwave,np.arange(10)): 
        mag_arr[index] = ss.sample(pwave) 

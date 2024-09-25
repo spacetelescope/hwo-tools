@@ -80,7 +80,7 @@ def planetzoo_observation(name='earth', telescope=Telescope(), planet=Planet(), 
         lamhr = model[:,0]
         radhr = model[:,1]
         solhr = model[:,2]
-        reflhr = model[:,3]
+        # reflhr = model[:,3]
         Ahr   = np.pi*(np.pi*radhr/solhr) # hi-resolution reflectivity
         planet.Rp    = 1.0     # Earth radii
         planet.r     = 1.0     # semi-major axis (AU)

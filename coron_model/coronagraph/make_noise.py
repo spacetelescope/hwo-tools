@@ -1,9 +1,8 @@
 # Import dependent modules
 import numpy as np
-from .degrade_spec import degrade_spec, downbin_spec
+from .degrade_spec import degrade_spec
 from .convolve_spec import convolve_spec
-from .noise_routines import Fstar, Fplan, FpFs, cplan, czodi, cezodi, cspeck, cdark, cread, ctherm, ccic, f_airy
-import pdb
+from .noise_routines import Fstar, Fplan, FpFs, cplan, czodi, cezodi, cspeck, cdark, cread, ctherm, f_airy
 
 __all__ = ['make_noise']
 
@@ -54,7 +53,7 @@ def make_noise(Ahr, lamhr, solhr, telescope, planet, star, wantsnr=10.0, FIX_OWA
     IWA=telescope.IWA
     OWA=telescope.OWA
     Tsys=telescope.Tsys
-    Tdet=telescope.Tdet
+    # Tdet=telescope.Tdet
     emis=telescope.emissivity
 
     # Set the Imaging Mode?
@@ -190,8 +189,8 @@ def make_noise(Ahr, lamhr, solhr, telescope, planet, star, wantsnr=10.0, FIX_OWA
     else:
         cth = np.zeros_like(cp)
     cnoise =  cp + 2*(cz + cez + csp + cD + cR + cth)                        # assumes background subtraction
-    cb = (cz + cez + csp + cD + cR + cth)
-    ctot = cp + cz + cez + csp + cD + cR + cth
+    # cb = (cz + cez + csp + cD + cR + cth)
+    # ctot = cp + cz + cez + csp + cD + cR + cth
 
     '''
     Giada: where does the factor of 2 come from?

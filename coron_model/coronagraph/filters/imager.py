@@ -72,11 +72,11 @@ class Wheel(object):
             #ax1.set_ylim([0.0,10.0])
             ax1.axes.get_yaxis().set_visible(False)          
 
-        Nfilt = len(self.__dict__)   
+        # Nfilt = len(self.__dict__)   
         #colors,scalarMap,cNorm = scalarmap(np.arange(Nfilt),cmap='Dark2')     
         i = 0
         fmax = 1.0
-        for attr, value in self.__dict__.iteritems():
+        for _, value in self.__dict__.iteritems():
             if np.max(value.response) > fmax: fmax = np.max(value.response)
             wl, response = value.wl, value.response
             #ax1.plot(wl,response, lw=3.0, label=value.name, c=colors[i])
@@ -84,7 +84,7 @@ class Wheel(object):
             i += 1
         ax1.set_ylim([0.0,fmax*10.])
         
-        if ax==None:
+        if ax is None:
             return ax1
         
     def __str__(self):
@@ -143,7 +143,7 @@ def read_landsat():
     swir1 = np.genfromtxt(path+'SWIR1.txt', skip_header=1)
     swir2 = np.genfromtxt(path+'SWIR2.txt', skip_header=1)
     LANDSAT_names = ['Coastal Aerosols','Blue','Green','Red','NIR','SWIR1','SWIR2','Pan','Cirrus']
-    titles = ['wl','response','std','bandwidth','FWHM_low','FWHM_high','bandcenter']
+    # titles = ['wl','response','std','bandwidth','FWHM_low','FWHM_high','bandcenter']
     wl = [coastal[:,0]/1e3, blue[:,0]/1e3, green[:,0]/1e3, red[:,0]/1e3, nir[:,0]/1e3, swir1[:,0]/1e3, swir2[:,0]/1e3, pan[:,0]/1e3, cirrus[:,0]/1e3]
     response = [coastal[:,1], blue[:,1], green[:,1], red[:,1], nir[:,1], swir1[:,1], swir2[:,1], pan[:,1], cirrus[:,1]]
     FWHM = np.array([15.98, 60.04, 57.33, 37.47, 28.25, 84.72, 186.66, 172.40, 20.39]) / 1e3

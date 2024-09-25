@@ -8,7 +8,7 @@ def compute_snr(telescope, camera, exposure_in_hours, ab_magnitudes):
     diff_limit = 1.22*(500.*0.000000001)*206264.8062/telescope.aperture
     #print 'diff_limit', diff_limit
 
-    source_magnitudes = np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]) * ab_magnitudes
+    # source_magnitudes = np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]) * ab_magnitudes
 
     sky_brightness = np.array([23.807, 25.517, 22.627, 22.307, 21.917, 22.257, 21.757, 21.567, 22.417, 22.537])
     fwhm_psf = 1.22 * camera.pivotwave * 0.000000001 * 206264.8062 / telescope.aperture
@@ -20,17 +20,17 @@ def compute_snr(telescope, camera, exposure_in_hours, ab_magnitudes):
 
     desired_exposure_time = np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]) * exposure_in_hours * 3600.
 
-    time_per_exposure = desired_exposure_time / number_of_exposures
+    # time_per_exposure = desired_exposure_time / number_of_exposures
 
     signal_counts = camera.total_qe * desired_exposure_time * camera.ab_zeropoint * camera.aperture_correction * (np.pi) / 4. * \
         (telescope.aperture  * 100.0)**2 * camera.derived_bandpass * 10.**(-0.4*ab_magnitudes)
 
-    shot_noise_in_signal = signal_counts ** 0.5
+    # shot_noise_in_signal = signal_counts ** 0.5
 
     sky_counts = camera.total_qe * desired_exposure_time * camera.ab_zeropoint * np.pi / 4. * (telescope.aperture  * 100.0)**2 * \
         camera.derived_bandpass * 10.**(-0.4*sky_brightness) * (camera.pixel_size * sn_box)**2
 
-    shot_noise_in_sky = sky_counts ** 0.5
+    # shot_noise_in_sky = sky_counts ** 0.5
 
     read_noise = camera.detector_read_noise * sn_box * number_of_exposures**0.5
 

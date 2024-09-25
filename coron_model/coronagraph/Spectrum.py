@@ -1,5 +1,4 @@
 import numpy as np
-import readsmart as rs
 
 class Spectrum(object):
 

@@ -1,15 +1,14 @@
 # Import dependent modules
 import numpy as np
 import sys
-from .degrade_spec import degrade_spec, downbin_spec
+from .degrade_spec import downbin_spec
 from .convolve_spec import convolve_spec
 from .noise_routines import Fobj, cobj, czodi,  \
-    cdark, cread, ctherm, ccic, f_airy, ctherm_earth, construct_lam, \
+    cdark, cread, ctherm, f_airy, ctherm_earth, construct_lam, \
     set_quantum_efficiency, set_read_noise, set_dark_current, set_lenslet, \
-    set_throughput, set_atmos_throughput, get_thermal_ground_intensity, \
-    exptime_element, lambertPhaseFunction
-import pdb
-import os
+    set_atmos_throughput, get_thermal_ground_intensity, \
+    exptime_element
+
 
 __all__ = ['count_rates_onirs']
 
@@ -163,7 +162,7 @@ def count_rates_onirs(Fohr, lamhr,
         lam = np.array([x[1].bandcenter for x in tdict])
         # Construct array of wavelength bin widths (FWHM)
         dlam = np.array([x[1].FWHM for x in tdict])
-        Nlam = len(lam)
+        # Nlam = len(lam)
     elif mode == 'IFS':
         IMAGE = False
         COMPUTE_LAM = True
@@ -257,7 +256,7 @@ def count_rates_onirs(Fohr, lamhr,
 
     cb = (cz + cD + cR + cth)
     cnoise =  co + 2*cb                # assumes background subtraction
-    ctot = co + cz + cD + cR + cth
+    # ctot = co + cz + cD + cR + cth
 
     '''
     Giada: where does the factor of 2 come from [above]?

@@ -6,7 +6,6 @@ import glob
 import os
 import sys
 
-import ah_bootstrap
 from setuptools import setup
 
 #A dirty hack to get around some early import/configurations ambiguities

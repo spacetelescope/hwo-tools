@@ -2,7 +2,6 @@ import numpy as np
 import scipy as sp
 from .degrade_spec import degrade_spec
 from scipy import interp
-from scipy import ndimage
 
 __all__ = ['convolve_spec']
 
@@ -19,7 +18,7 @@ def convolve_spec(Ahr, lamhr, filters, forceTopHat=False):
     tdict = sorted(filters.__dict__.iteritems(), key=lambda x: x[1].bandcenter)
     F = []
     for x in tdict:
-        if (x[1].wl == None) or (x[1].response == None) or forceTopHat:
+        if (x[1].wl is None) or (x[1].response is None) or forceTopHat:
             # Use FWHM with tophat convolution
             Fi = tophat_instrument(Ahr, lamhr, x[1].bandcenter, FWHM=x[1].FWHM)
         else:

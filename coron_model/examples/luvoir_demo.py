@@ -3,8 +3,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
-from matplotlib import rc
-import pdb
 import sys
 mpl.rc('font', family='Times New Roman')
 mpl.rcParams['font.size'] = 25.0
@@ -132,7 +130,7 @@ if plot:
     if saveplot:
         plot_tag = "luvoir_demo_"+title+tag+".png"
         fig.savefig(plot_tag)
-        print 'Saved: ' + plot_tag
+        print ('Saved: ' + plot_tag)
     else:
         plt.show()
 
@@ -145,6 +143,6 @@ if savefile:
     data_tag = 'luvoir_demo_'+tag+'.txt'
     y_sav = np.array([lam,spec,sig])
     np.savetxt(data_tag, y_sav.T)
-    print 'Saved: ' + data_tag
+    print ('Saved: ' + data_tag)
 
 sys.exit()

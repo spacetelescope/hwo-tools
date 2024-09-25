@@ -3,7 +3,7 @@ Telescope, Planet, and Star classes.
 """
 
 import numpy as np
-from .utils import Input, Loadin
+from .utils import Loadin
 
 __all__ = ['Telescope', 'Planet', 'Star']
 

@@ -1,11 +1,10 @@
 from __future__ import print_function
 import pysynphot as S 
 import os 
-from astropy.io import ascii
 
 def add_spectrum_to_library():
 
-    cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
+    # cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
 
     spec_dict = {}
 

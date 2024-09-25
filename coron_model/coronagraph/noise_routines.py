@@ -1,5 +1,4 @@
 import numpy as np
-import scipy as sp
 from scipy import special
 from numba import jit
 import os
@@ -283,6 +282,7 @@ def cezodi(q, X, T, lam, dlam, D, r, Fstar, Nez, Mezv, SUN=False, CIRC=True):
     else:
         Teffs  = 5778.     # Sun effective temperature
         Rs  = 1.           # Sun radius (in solar radii)
+        # Teffs and Rs are never ccessed
         #Fsol  = Fstar(lam, Teffs, Rs, 1., AU=True)  # Sun as blackbody (W/m**2/um)
     rat   = np.zeros(len(lam))
     rat[:]= Fstar[:]/FsolV # ratio of solar flux to V-band solar flux
@@ -526,7 +526,7 @@ def f_airy_int(X):
             # sum intensities
             E = E + Iairy[i,j]*dA
     E = 4.*E # factor of 4 as integral only over one quadrant
-    fpa   = E/E0
+    # fpa   = E/E0
 
 def ctherm(q, X, lam, dlam, D, Tsys, emis, T):
     """
@@ -958,7 +958,6 @@ def set_throughput(lam, Tput, Tput_uv, Tput_nir, o_Tput_vis, o_Tput_uv, o_Tput_n
     SILENT : bool, optional
         Suppress printing
     """
-    from scipy.interpolate import interp1d
     
     Nlam = len(lam)
     T    = 1 + np.zeros(Nlam)

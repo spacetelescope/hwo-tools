@@ -1,7 +1,6 @@
 import numpy as np
 from .make_noise import make_noise
 from .teleplanstar import Star
-import pdb
 
 __all__ = ['call_noise']
 
@@ -26,7 +25,7 @@ def call_noise(telescope,planet,Ahr='',lamhr='', solhr='',
         lamhr = model[:,0]
         radhr = model[:,1]
         solhr = model[:,2]
-        reflhr = model[:,3]
+        # reflhr = model[:,3]
         Ahr   = np.pi*(np.pi*radhr/solhr) # hi-resolution reflectivity
         planet.Rp    = 1.0     # Earth radii
         planet.r     = 1.0     # semi-major axis (AU)

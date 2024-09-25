@@ -8,17 +8,15 @@ The $INSTALL_DIR is just any local directory of your choice.
 - cd $INSTALL_DIR
 - Clone the hwo-tools repo:
    git clone https://github.com/spacetelescope/hwo-tools.git
-- Clone the Sci-Eng-Interface repo:
-   git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface.git
+- The Sci-Eng-Interface material is now bundled with SYOtools 
 - Set up the conda repo with the hwotools dependencies: \
-    cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools.yml
-- conda activate hwotools 
+    cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools_syo_separate.yml
+- conda activate hwotools_syo_separate  
 - add to your .bashrc / .bash_profile:
    - export PYTHONPATH=$INSTALL_DIR/Sci-Eng-Interface/:$INSTALL_DIR/hwo-tools/
-   - export SCI_ENG_DIR=$INSTALL_DIR/Sci-Eng-Interface/ 
-   - export PYSYN_CDBS=$INSTALL_DIR/hwo-tools/pysynphot_data/grp/redcat/trds/
+   - export PYSYN_CDBS=/Users/tumlinson/anaconda3/envs/hwotools_syo_separate/lib/python3.12/site-packages/syotools/pysynphot_data
    - in the likely event that you already have PYTHONPATH set in your .*rc file, append these:
-        - export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/Sci-Eng-Interface/:$INSTALL_DIR/hwo-tools/
+        - export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/hwo-tools/
 - open and run BasicRun.ipynb
 - If this gives you S/N values, you have it working.
 

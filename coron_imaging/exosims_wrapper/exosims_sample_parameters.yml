@@ -1,0 +1,110 @@
+paths:
+  output: ./output
+  input: ./
+  temporary: ./temp
+
+# Basic EXOSIMS Parameters
+initial_exosims:
+    ppFact: 0.29
+    minComp: 0
+    filterBinaries: false
+    keepStarCatalog: true
+    pupilDiam: 7.87
+    obscurFac: 0.1211489507256436
+    shapeFac: 0.7853981633974483
+    modules:
+      BackgroundSources: ' '
+      Completeness: ' '
+      Observatory: ' '
+      OpticalSystem: Nemati
+      PlanetPhysicalModel: ' '
+      PlanetPopulation: ' '
+      PostProcessing: ' '
+      SimulatedUniverse: ' '
+      StarCatalog: HWOMissionStars
+      SurveyEnsemble: ' '
+      SurveySimulation: ' '
+      TargetList: ' '
+      TimeKeeping: ' '
+      ZodiacalLight: ' '
+    observingModes:
+    - SNR: 7.0
+      detectionMode: true
+      instName: "CONF_NF_Imager"
+      systName: "coronagraph"
+      timeMultiplier: 1.1
+    scienceInstruments:
+    - name: CONF_NF_Imager
+      QE: 0.675
+      PCeff: 1.0
+      Rs: 5
+      optics: 0.532
+      sread: 0
+      idark: 3.0e-5
+      texp: 8.180824
+      pixelNumber: 1024
+      pixelSize: 1.3e-05
+      FoV: 3.5
+      pixelScale: 6.55e-3
+      CIC: 1.3e-3
+      radDos: 0
+      ENF: 1.0
+    starlightSuppressionSystems:
+    - name: coronagraph
+      lam: 1000.0
+      BW: 0.2
+      ohTime: 0.0
+      occulter: false
+      core_area: 2.26
+      IWA: 0.1767766952966369
+      OWA: 45.078057300642406
+      input_angle_units: LAMBDA/D
+      occ_trans: ./occ_trans.fits
+      core_thruput: ./core_thruput.fits
+      core_mean_intensity: ./core_mean_intensity.fits
+
+# iter_values: [1.0e-10, 5.0e-5]
+iter_values: [0.1, 1.0]
+
+working_angles:  # In units of EEID (which is target dependent).
+  # HZ is defined as (0.95 - 1.67)*EEID
+  - 0.95
+  - 1.35
+  - 1.67
+
+targets:
+  star1:
+    HIP: 32439 A
+    spec_type: F8V
+    luminosity: 0.2615
+    eeid: 0.07423
+    eepsr: 6.34e-11
+    exo_zodi: 3.0
+  star2:
+    HIP: 77052 A
+    spec_type: G5V
+    luminosity: -0.0788
+    eeid: 0.06174
+    eepsr: 1.39e-10
+    exo_zodi: 3.0
+  star3:
+    HIP: 79672 
+    spec_type: G2Va
+    luminosity: 0.0391
+    eeid: 0.07399
+    eepsr: 1.06e-10
+    exo_zodi: 3.0
+  star4:
+    HIP: 26779
+    spec_type: K1V
+    luminosity: -0.3209
+    eeid: 0.05633
+    eepsr: 2.42e-10
+    exo_zodi: 3.0
+  star5:
+    HIP: 113283
+    spec_type: K4Ve
+    luminosity: -0.70
+    eeid: 0.05829
+    eepsr: 5.89e-10
+    exo_zodi: 3.0

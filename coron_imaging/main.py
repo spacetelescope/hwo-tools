@@ -100,6 +100,8 @@ def update_exosims(attrname, old, new):
 
     exosims_exp.data = dict(working_angle=[0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00], exptime=np.array(int_time_in_hr) ) 
 
+    print(error_budget) 
+
 def update_exptime(attrname, old, new):
 
     cac.telescope.aperture = aperture.value * u.m

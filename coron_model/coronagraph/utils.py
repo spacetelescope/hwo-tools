@@ -1,6 +1,8 @@
 
 from __future__ import print_function 
-import imp, sys
+# import imp - omitted because imp library is deprecated in python 3.12 
+import sys
+import importlib 
 from types import ModuleType, FunctionType # , StringType
 import os
 
@@ -32,9 +34,11 @@ class Input(object):
         default_input_file = os.path.join(relpath,'input_default_'+input_type+'.py')
         user_input_file = os.path.join(relpath,'input_user_'+input_type+'.py')
 
-        self._input = imp.load_source("input", default_input_file)            # Load default inputs into self._input
+        #self._input = imp.load_source("input", default_input_file)            # Load default inputs into self._input - omitted bc imp is deprecated JT 9/24 
+        self._input = importlib.import_module("input", default_input_file)            # Load default inputs into self._input
 
-        self._input_usr = imp.load_source("input_usr", user_input_file)       # Load user inputs into self._input_usr
+        #self._input_usr = imp.load_source("input_usr", user_input_file)       # Load user inputs into self._input_usr- omitted bc imp is deprecated JT 9/24 
+        self._input_usr = importlib.import_module("input_usr", user_input_file)       # Load user inputs into self._input_usr- omitted bc imp is deprecated JT 9/24 
 
         self._input.__dict__.update(self._input_usr.__dict__)                 # Update self._input with user values
 
@@ -68,7 +72,8 @@ class Loadin(object):
 
         user_input_file = path
 
-        self._input = imp.load_source("input", user_input_file)            # Load inputs into self._input
+        #self._input = imp.load_source("input", user_input_file)            # Load inputs into self._input ; imp deprecated JT 9/24 
+        self._input = importlib.import_module("input", user_input_file)            # Load inputs into self._input
 
         inp_dict = self._input.__dict__
 

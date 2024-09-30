@@ -22,11 +22,12 @@ from bokeh.client import push_session
 
 from bokeh.themes import Theme 
 import yaml 
-from bokeh.plotting import Figure
+from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, HoverTool, Paragraph, Range1d, DataRange1d, Label, DataSource
 from bokeh.models.glyphs import Text, Rect
 from bokeh.layouts import column, row
-from bokeh.models.widgets import Slider, Panel, Tabs, Div, TextInput, RadioButtonGroup, Select, RadioButtonGroup
+from bokeh.models.layouts import TabPanel, Tabs
+from bokeh.models.widgets import Slider, Div, TextInput, RadioButtonGroup, Select, RadioButtonGroup
 from bokeh.io import curdoc, output_file, show
 from bokeh.models.callbacks import CustomJS
 from bokeh.embed import components
@@ -205,16 +206,16 @@ nir_bandpasses = ColumnDataSource(data=dict(x=x_nir, y=y_nir, width=x_nirwidth))
 # BOKEH PLOTTING
 ################################
 #plots spectrum and exposure time
-snr_plot = Figure(plot_height=500, plot_width=750, border_fill_color='black', 
+snr_plot = figure(height=500, width=750, border_fill_color='black', 
                   tools="crosshair,pan,reset,save,box_zoom,wheel_zoom,hover",
                   toolbar_location='right', x_range=[0.2, 2.0], y_range=[0, 0.2])
 
-exp_plot = Figure(plot_height=500, plot_width=750, border_fill_color='black', 
+exp_plot = figure(height=500, width=750, border_fill_color='black', 
                   tools="crosshair,pan,reset,save,box_zoom,wheel_zoom,hover", 
                   toolbar_location='right', x_range=[0.2, 2.0], y_range=[1e-3, 1e10],
                   y_axis_type="log")
 
-counts_plot = Figure(plot_height=500, plot_width=750, border_fill_color='black', 
+counts_plot = figure(height=500, width=750, border_fill_color='black', 
                   tools="crosshair,pan,reset,save,box_zoom,wheel_zoom,hover", 
                   toolbar_location='right', x_range=[0.2, 2.0], y_range=[1e-3, 1e6],
                   y_axis_type="log")
@@ -260,7 +261,7 @@ counts_plot.xaxis.major_label_text_color = 'white'
 
 snr_plot.line('lam','cratio',source=compare,line_width=2.0, color="#F59A0A", alpha=0.7)
 snr_plot.line('lam','cratio',source=planet,line_width=2.0, color="#212685", alpha=0.7)
-snr_plot.circle('lam', 'spec', source=planet, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+snr_plot.scatter('lam', 'spec', source=planet, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
 snr_plot.segment('lam', 'downerr', 'lam', 'uperr', source=planet, line_width=1, line_color='#82AFF6', line_alpha=0.5)
 
 exp_plot.line('lam','DtSNR',source=expcompare,line_width=2.0, color="#F59A0A", alpha=0.7, name='exp_plot_compare_hover')
@@ -382,90 +383,90 @@ exp_plot.add_glyph(nir_bandpasses, nir_rect1)
 #]
 
 
-snr_hover = HoverTool(names=['snr_plot_circle_hover'], mode='mouse', tooltips = """ 
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">wavelength: @lam microns</span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">planet-star contrast: @cratio </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">planet: @cp{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">zodi: @cz{int} counts</span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">exozodi: @cez{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">dark current: @cD{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">read noise: @cR{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">speckle noise: @csp{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">thermal: @cth{int} counts </span>
-            </div>
-              """)
-snr_plot.add_tools(snr_hover)
+#snr_hover = HoverTool(name=['snr_plot_circle_hover'], mode='mouse', tooltips = """ 
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">wavelength: @lam microns</span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">planet-star contrast: @cratio </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">planet: @cp{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">zodi: @cz{int} counts</span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">exozodi: @cez{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">dark current: @cD{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">read noise: @cR{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">speckle noise: @csp{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">thermal: @cth{int} counts </span>
+#            </div>
+#              """)
+##snr_plot.add_tools(snr_hover)
 
-exp_hover = HoverTool(names=['exp_plot_hover'], mode='mouse', tooltips = """ 
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">wavelength: @lam microns</span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">integration time: @DtSNR hours </span>
-            </div>
+#exp_hover = HoverTool(names=['exp_plot_hover'], mode='mouse', tooltips = """ 
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">wavelength: @lam microns</span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">integration time: @DtSNR hours </span>
+#            </div>
+#
+#              """)
+##exp_plot.add_tools(exp_hover)
 
-              """)
-exp_plot.add_tools(exp_hover)
-
-exp_compare_hover = HoverTool(names=['exp_plot_compare_hover'], mode='mouse', tooltips = """ 
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">wavelength: @lam microns</span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">comparison integration time: @DtSNR hours </span>
-            </div>
-
-              """)
-exp_plot.add_tools(exp_compare_hover)
+#exp_compare_hover = HoverTool(names=['exp_plot_compare_hover'], mode='mouse', tooltips = """ 
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">wavelength: @lam microns</span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">comparison integration time: @DtSNR hours </span>
+#            </div>
+#
+#              """)
+##exp_plot.add_tools(exp_compare_hover)
 
 
-counts_hover = HoverTool(names=['counts_plot_hover'], mode='mouse', tooltips = """ 
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">wavelength: @lam microns</span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">planet: @cp{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">zodi: @cz{int} counts</span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">exozodi: @cez{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">dark current: @cD{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">read noise: @cR{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">speckle noise: @csp{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">thermal: @cth{int} counts </span>
-            </div>
-            <div>
-                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">clock induced charge: @cCIC{int} counts </span>
-            </div>
-              """)
-counts_plot.add_tools(counts_hover)
+#counts_hover = HoverTool(names=['counts_plot_hover'], mode='mouse', tooltips = """ 
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">wavelength: @lam microns</span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">planet: @cp{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">zodi: @cz{int} counts</span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">exozodi: @cez{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">dark current: @cD{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">read noise: @cR{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">speckle noise: @csp{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">thermal: @cth{int} counts </span>
+#            </div>
+#            <div>
+#                <span style="font-size: 14px; font-weight: bold; color: #1D1B4D">clock induced charge: @cCIC{int} counts </span>
+#            </div>
+#              """)
+##counts_plot.add_tools(counts_hover)
 
 #hover = exp_plot.select(dict(type=HoverTool))
 #hover.tooltips = [
@@ -2220,16 +2221,16 @@ ii = column(children=[ins_text, inner_uv, inner, inner_nir, outer,  resolution_U
 tt = column(children=[tel_text, observatory,diameter,temperature, ntherm,  throughput_uv, throughput_vis, throughput_nir, o_throughput_uv, o_throughput_vis, o_throughput_nir, contrast])
 info = column(children=[info_text])
 
-observation_tab = Panel(child=oo, title='Observation') # , width=400)
-planet_tab = Panel(child=pp, title='Planet') # , width=400)
-telescope_tab = Panel(child=tt, title='Telescope') # , width=400)
-instrument_tab = Panel(child=ii, title='Instrument') # , width=400)
-download_tab = Panel(child=qq, title='Download') # , width=400)
-info_tab = Panel(child=info, title='Info') # , width=400)
+observation_tab = TabPanel(child=oo, title='Observation') # , width=400)
+planet_tab = TabPanel(child=pp, title='Planet') # , width=400)
+telescope_tab = TabPanel(child=tt, title='Telescope') # , width=400)
+instrument_tab = TabPanel(child=ii, title='Instrument') # , width=400)
+download_tab = TabPanel(child=qq, title='Download') # , width=400)
+info_tab = TabPanel(child=info, title='Info') # , width=400)
 
-for w in [text_input]: 
-    w.on_change('value', change_filename)
-format_button_group.on_click(i_clicked_a_button)
+#for w in [text_input]: 
+#    w.on_change('value', change_filename)
+##format_button_group.on_click(i_clicked_a_button)
 
 for ww in [template]: 
     ww.on_change('value', update_data)
@@ -2252,9 +2253,9 @@ for mimi in [mirror_type]:
 
 inputs = Tabs(tabs=[ planet_tab, observation_tab, telescope_tab, instrument_tab], width=450)
 
-ptab1 = Panel(child=snr_plot, title='Spectrum') #, width=800)
-ptab2 = Panel(child=exp_plot, title='Exposure Time') #, width=800)
-ptab3 = Panel(child=counts_plot, title='Count Rates') #, width=800)
+ptab1 = TabPanel(child=snr_plot, title='Spectrum') #, width=800)
+ptab2 = TabPanel(child=exp_plot, title='Exposure Time') #, width=800)
+ptab3 = TabPanel(child=counts_plot, title='Count Rates') #, width=800)
 #ptabs = Tabs(tabs=[ptab1, ptab2, ptab3, info_tab, download_tab]) #, width=800)
 ptabs = Tabs(tabs=[ptab1, ptab2, ptab3, info_tab]) #, width=800)
 

@@ -15,4 +15,5 @@ dependencies:
   - pip:
       - pysynphot==2.0.0
       - syotools 
+      - EXOSIMS 
 prefix: /Users/tumlinson/anaconda3/envs/hwotools

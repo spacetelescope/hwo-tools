@@ -1,6 +1,6 @@
 paths:
-  output: ./output
-  input: ./
+  output: ./exosims_wrapper/output
+  input: ./exosims_wrapper/
   temporary: ./temp
 
 # Basic EXOSIMS Parameters
@@ -59,18 +59,22 @@ initial_exosims:
       IWA: 0.1767766952966369
       OWA: 45.078057300642406
       input_angle_units: LAMBDA/D
-      occ_trans: ./occ_trans.fits
-      core_thruput: ./core_thruput.fits
-      core_mean_intensity: ./core_mean_intensity.fits
+      occ_trans: ./coron_imaging/exosims_wrapper/occ_trans.fits
+      core_thruput: ./coron_imaging/exosims_wrapper/core_thruput.fits
+      core_mean_intensity: ./coron_imaging/exosims_wrapper/core_mean_intensity.fits
 
 # iter_values: [1.0e-10, 5.0e-5]
 iter_values: [0.1, 1.0]
 
 working_angles:  # In units of EEID (which is target dependent).
   # HZ is defined as (0.95 - 1.67)*EEID
-  - 0.95
-  - 1.35
-  - 1.67
+  - 0.50 
+  - 0.75 
+  - 1.00 
+  - 1.25 
+  - 1.5  
+  - 1.75  
+  - 2.0  
 
 targets:
   star1:

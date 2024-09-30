@@ -13,10 +13,10 @@ from bokeh.io import curdoc
 import astropy.units as u
 from syotools.sci_eng_interface import read_json 
 
+from exosims_wrapper.exosims_wrapper_classes import ExosimsWrapper, ErrorBudget 
+
 # This import supports the new exptime panel for coronagraphic imaging - JT 091124 
 from syotools.models import Telescope, Coronagraph
-
-import phot_compute_snr as phot_etc 
 
 import Telescope as T 
 import cor_help as h 
@@ -29,20 +29,12 @@ tel.add_coronagraph(cac)
 cac_exp = cac.create_exposure() 
 cac._calc_count_rates_imaging() 
 cac._signal_to_noise
-#end of new stuff 
-
-spec_dict = get_cor_seds.add_spectrum_to_library() 
-template_to_start_with = 'Flat (AB)' 
-spec_dict[template_to_start_with].wave 
-spec_dict[template_to_start_with].flux # <---- these are the variables you need to make the plot 
-spec_dict[template_to_start_with].convert('abmag') 
+#end of new stuff for coron_imaging model 
 
 # set up ColumnDataSources for the coron texptime plot 
 source_exp = ColumnDataSource(data=dict(x=[1,2,3,4,5], y=[38,43,55,63,254], desc=['RC = 10^-10 no post', 'RC=10^-10 with post', 'RC = 10^-9 no post', 'RC = 10^-9 with post', 'RC = 10^-8 no post'] ))
-#source2 = ColumnDataSource(data=dict(x=hdi.pivotwave[0:2], y=snr[0:2], desc=hdi.bandnames[0:2]))
-#source3 = ColumnDataSource(data=dict(x=hdi.pivotwave[-3:], y=snr[-3:], desc=hdi.bandnames[-3:]))
 
-hover = HoverTool(point_policy="snap_to_data", 
+hover1 = HoverTool(point_policy="snap_to_data", 
         tooltips="""
         <div>
             <div>
@@ -56,25 +48,57 @@ hover = HoverTool(point_policy="snap_to_data",
         """
     )
 
+hover2 = HoverTool(point_policy="snap_to_data", 
+        tooltips="""
+        <div>
+            <div>
+                <span style="font-size: 17px; font-weight: bold; color: #696">Working Angle = </span>
+                <span style="font-size: 17px; font-weight: bold; color: #696">@working_angle </span>
+            </div>
+            <div>
+                <span style="font-size: 15px; font-weight: bold; color: #696">Exptime = </span>
+                <span style="font-size: 15px; font-weight: bold; color: #696;">@exptime</span>
+            </div>
+        </div>
+        """
+    )
+
 
 texp_plot = figure(height=400, width=700, tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
 	x_range=[0, 6], y_range=[0, 100], border_fill_color='black', toolbar_location='right')
 texp_plot.xaxis.major_label_overrides = {0:' ', 1:"10^-10, no post", 2:"10^-10 with post", 3:"10^-9 no post", 4:"10^-9 with post", 5:"RC = 10-8", 6:" "} 
 texp_plot.line('x', 'y', source=source_exp, line_width=3, line_color='blue', line_alpha=1.0) 
 texp_plot.scatter('x', 'y', source=source_exp, fill_color='white', line_color='blue', size=10)
-texp_plot.add_tools(hover)
+texp_plot.add_tools(hover1)
 texp_plot.xaxis.axis_label = 'Contrast and Degree of Post-processing' 
 texp_plot.yaxis.axis_label = 'Exposured Time Required in Hours' 
 
-spectrum_template = ColumnDataSource(data=dict(w=spec_dict[template_to_start_with].wave, f=spec_dict[template_to_start_with].flux, \
-                                   w0=spec_dict[template_to_start_with].wave, f0=spec_dict[template_to_start_with].flux))
+# first use of EXOSIMS
+config_file = "./coron_imaging/exosims_wrapper/exosims_sample_parameters.yml"
+error_budget = ErrorBudget(config_file)
+error_budget.initialize_for_exosims()
+int_time, C_p, C_b, C_sp, C_sr, C_z, C_ez, C_dc, C_rn, C_star = error_budget.run_exosims()
+int_time_in_hr = int_time[0].to('hr') 
+print('Hello from EXOSIMS : ', int_time_in_hr) 
 
-sed_plot = figure(height=400, width=700,tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
-              x_range=[120, 2300], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
-sed_plot.x_range = Range1d(100, 2300, bounds=(120, 2300)) 
-sed_plot.yaxis.axis_label = 'AB Magnitude'
-sed_plot.xaxis.axis_label = 'Wavelength [nm]'
-sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
+exosims_exp = ColumnDataSource(data=dict(working_angle=[0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00], exptime=np.array(int_time_in_hr))) 
+
+exos_plot = figure(height=400, width=700, tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
+	x_range=[0, 3], y_range=[0, 100], border_fill_color='black', toolbar_location='right')
+exos_plot.line('working_angle', 'exptime', source=exosims_exp, line_width=3, line_color='blue', line_alpha=1.0) 
+exos_plot.scatter('working_angle', 'exptime', source=exosims_exp, fill_color='white', line_color='blue', size=10)
+exos_plot.add_tools(hover2)
+exos_plot.xaxis.axis_label = 'Working Angle within the Dark Hole [lambda/D]' 
+exos_plot.yaxis.axis_label = 'Exposured Time Required in Hours' 
+
+def update_exosims(attrname, old, new):
+
+    error_budget.update_attributes(subsystem='observingModes', name='SNR', value=snr_goal.value) 
+    int_time, C_p, C_b, C_sp, C_sr, C_z, C_ez, C_dc, C_rn, C_star = error_budget.run_exosims()
+    int_time_in_hr = int_time[0].to('hr') 
+    print('Hello from EXOSIMS : ', int_time_in_hr) 
+
+    exosims_exp.data = dict(working_angle=[0.5, 0.75, 1.00, 1.25, 1.50, 1.75, 2.00], exptime=np.array(int_time_in_hr) ) 
 
 def update_exptime(attrname, old, new):
 
@@ -93,7 +117,7 @@ def update_exptime(attrname, old, new):
     print("And your asked for Starlight Suppression Method = ", ss_method.value, " eta_p =", cac.eta_p, "telescope = ",  cac.telescope.aperture) 
 
     x = [1,2,3,4,5] 
-    y = [1., 5, 6, 11, 3]
+    y = [1.,5,6,11,3]
 
     # case 1 
     cac.raw_contrast = 1e-10 
@@ -165,6 +189,7 @@ def update_exptime(attrname, old, new):
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_exptime)
+source.on_change('data', update_exosims)
 
 # Set up widgets
 aperture = Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, tags=[4,5,6,6], width=250) 
@@ -201,8 +226,7 @@ controls_tab = TabPanel(child=controls, title='Controls')
 info_tab = TabPanel(child=Div(text = h.help()), title='Info')
 inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 
 
-#plots = Tabs(tabs=[ TabPanel(child=texp_plot, title='Exposure Time'), TabPanel(child=sed_plot, title='SED')] ) 
-plots = Tabs(tabs=[ TabPanel(child=texp_plot, title='Exposure Time') ]) 
+plots = Tabs(tabs=[ TabPanel(child=texp_plot, title='Exposure Time (Mennesson)'), TabPanel(child=exos_plot, title='Exposure Time (EXOSIMS)')] ) 
 
 curdoc().add_root(row(children=[inputs, plots])) 
 curdoc().add_root(source) 

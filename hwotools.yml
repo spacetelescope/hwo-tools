@@ -9,7 +9,7 @@ dependencies:
   - specutils=1.14.0
   - numpy=1.26.4
   - pandas=2.2.2
-  - scipy=1.13.0
+  - scipy=1.11.4
   - setuptools=69.5.1
   - jupyter=1.0.0
   - pip 

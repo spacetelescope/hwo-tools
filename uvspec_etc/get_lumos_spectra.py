@@ -89,6 +89,30 @@ def add_spectrum_to_library():
     flat = flatsp.renorm(21., 'abmag', S.ObsBandpass('galex,fuv'))
     spec_dict['Flat in F_lambda'] = flat  
 
+    bb = S.BlackBody(5000) 
+    bb.convert('flam')
+    bb_renorm = bb.renorm(21., 'abmag', S.ObsBandpass('galex,fuv')) 
+    spec_dict['Blackbody (5000 K)'] = bb_renorm 
+    
+    bb = S.BlackBody(20000) 
+    bb.convert('flam')
+    bb_renorm = bb.renorm(21., 'abmag', S.ObsBandpass('galex,fuv')) 
+    spec_dict['Blackbody (20,000 K)'] = bb_renorm 
+    spec_dict['Blackbody'] = bb_renorm #<--- this is the generic blackbody 
+    
+    bb = S.BlackBody(50000) 
+    bb.convert('flam')
+    bb_renorm = bb.renorm(21., 'abmag', S.ObsBandpass('galex,fuv')) 
+    spec_dict['Blackbody (50,000 K)'] = bb_renorm 
+    
+    bb = S.BlackBody(100000) 
+    bb.convert('flam')
+    bb_renorm = bb.renorm(21., 'abmag', S.ObsBandpass('galex,fuv')) 
+    spec_dict['Blackbody (100,000 K)'] = bb_renorm 
 
     return spec_dict
+
+
+
+
 

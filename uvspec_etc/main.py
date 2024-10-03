@@ -8,6 +8,7 @@ from bokeh.models.widgets import Slider, TextInput, Select, Div
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.io import curdoc
 from bokeh.models.callbacks import CustomJS
+import pysynphot as S 
 import astropy.constants as const
 import get_lumos_spectra
 import Telescope as T 
@@ -73,7 +74,7 @@ sn_plot.line('w', 'sn', source=spectrum_template, line_width=3, line_color='oran
 sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 sn_plot.yaxis.axis_label = 'S/N per resel' 
 
-def update_data(attrname, old, new): # use this one for updating pysynphot tempaltes 
+def update_data(attrname, old, new): # use this one for updating pysynphot templates 
    
     print("You have chosen template ", template.value, np.size(spec_dict[template.value].wave)) 
     print('Selected grating = ', grating.value) 
@@ -83,6 +84,13 @@ def update_data(attrname, old, new): # use this one for updating pysynphot tempa
 
     new_w0 = spec_dict[template.value].wave 
     new_f0 = spec_dict[template.value].flux 
+
+    if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
+       bb = S.BlackBody(bb_temperature.value) 
+       bb.convert('flam')
+       bb_renorm = bb.renorm(magnitude.value, 'abmag', S.ObsBandpass('galex,fuv')) 
+       new_w0 = bb_renorm.wave 
+       new_f0 = bb_renorm.flux 
  
     #OOPS, SHOULD USE PYSYNPHOT FOR REDSHIFT HERE, THE NORMALIZATION IS NOT QUITE CORRECT 
     new_w = np.array(new_w0) * (1. + redshift.value)
@@ -114,11 +122,12 @@ source.on_change('data', update_data)
 
 # Set up widgets and their callbacks (faking the mouseup policy via "source" b/c functional callback doesn't do that. 
 template = Select(title="Template Spectrum", value="QSO", width=200, \
-                options=["Flat in F_lambda", "QSO", "10 Myr Starburst", "O5V Star", \
+                options=["Flat in F_lambda", "QSO", "10 Myr Starburst", "O5V Star",\
                          "G2V Star", "G191B2B (WD)", "GD71 (WD)", "GD153 (WD)", \
                          "Classical T Tauri", "M1 Dwarf", "Orion Nebula", \
                          "Starburst, No Dust", "Starburst, E(B-V) = 0.6", \
-                         "Galaxy with f_esc, HI=1, HeI=1", "Galaxy with f_esc, HI=0.001, HeI=1"])
+                         "Galaxy with f_esc, HI=1, HeI=1", "Galaxy with f_esc, HI=0.001, HeI=1",\
+			 "Blackbody"]) 
 
 redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
 redshift_callback = CustomJS(args=dict(source=source), code="""
@@ -132,7 +141,11 @@ magnitude_callback = CustomJS(args=dict(source=source), code="""
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
 
-
+bb_temperature = Slider(title="Blackbody Temperature [K]", value=20000., start=8000., end=200000.0, step=1000., width=200)
+temperature_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+bb_temperature.js_on_change("value_throttled", temperature_callback) 
 
 grating = Select(title="Grating / Setting", value="G150M (R = 30,000)", width=200, \
                  options=["G120M (R = 30,000)", "G150M (R = 30,000)", "G180M (R = 30,000)", "G155L (R = 5,000)", "G145LL (R = 500)"])
@@ -143,7 +156,6 @@ aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
 aperture.js_on_change("value_throttled", aperture_callback) 
-
 
 exptime = Slider(title="Exposure Time [hr]", value=1.0, start=0.1, end=10.0, step=0.1, width=200)
 exptime_callback = CustomJS(args=dict(source=source), code="""
@@ -156,8 +168,8 @@ for w in [template, grating]:  w.on_change('value', update_data)
  
 # Set up layouts and add to document
 help_text = Div(text = h.help(), width=200) 
-source_inputs = column(children=[template, redshift, magnitude], sizing_mode='fixed', max_width=300, width=250, height=300)
-controls_panel = TabPanel(child=source_inputs, title='Controls') 
+source_inputs = column(children=[template, redshift, magnitude, bb_temperature], sizing_mode='fixed', max_width=300, width=250, height=300)
+controls_panel = TabPanel(child=source_inputs, title='Source') 
 help_panel = TabPanel(child=help_text, title='Info') 
 source_inputs = Tabs(tabs=[ controls_panel, help_panel], width=300) 
 source_inputs = Tabs(tabs=[ controls_panel], width=300) 

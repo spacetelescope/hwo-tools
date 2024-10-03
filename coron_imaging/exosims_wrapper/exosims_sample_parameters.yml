@@ -1,6 +1,6 @@
 paths:
-  output: ./exosims_wrapper/output
-  input: ./exosims_wrapper/
+  output: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/output
+  input: $HWOTOOLS_DIR/exosims_wrapper/
   temporary: ./temp
 
 # Basic EXOSIMS Parameters
@@ -59,9 +59,9 @@ initial_exosims:
       IWA: 0.1767766952966369
       OWA: 45.078057300642406
       input_angle_units: LAMBDA/D
-      occ_trans: ./coron_imaging/exosims_wrapper/occ_trans.fits
-      core_thruput: ./coron_imaging/exosims_wrapper/core_thruput.fits
-      core_mean_intensity: ./coron_imaging/exosims_wrapper/core_mean_intensity.fits
+      occ_trans: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/occ_trans.fits
+      core_thruput: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/core_thruput.fits
+      core_mean_intensity: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/core_mean_intensity.fits
 
 # iter_values: [1.0e-10, 5.0e-5]
 iter_values: [0.1, 1.0]

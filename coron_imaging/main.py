@@ -1,6 +1,7 @@
 # basic coron imaging ETC fored from hri_etc on Sept 11, 2024 - JT
 
 import numpy as np
+import os 
 from bokeh.io import output_file
 from bokeh.plotting import figure
 from bokeh.embed import components
@@ -74,7 +75,7 @@ texp_plot.xaxis.axis_label = 'Contrast and Degree of Post-processing'
 texp_plot.yaxis.axis_label = 'Exposured Time Required in Hours' 
 
 # first use of EXOSIMS
-config_file = "./coron_imaging/exosims_wrapper/exosims_sample_parameters.yml"
+config_file = os.getenv('HWOTOOLS_DIR')+ "/coron_imaging/exosims_wrapper/exosims_sample_parameters.yml"
 error_budget = ErrorBudget(config_file)
 error_budget.initialize_for_exosims()
 int_time, C_p, C_b, C_sp, C_sr, C_z, C_ez, C_dc, C_rn, C_star = error_budget.run_exosims()

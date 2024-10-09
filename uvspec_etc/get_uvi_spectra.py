@@ -5,22 +5,21 @@ from astropy.io import ascii
 
 def add_spectrum_to_library():
 
-    cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
-    cwd = './' 
+    cwd = os.getenv('HWOTOOLS_DIR')
 
     spec_dict = {}
 
-    tab = ascii.read(cwd+'data/CTTS_etc_d140pc_101116.txt', names=['wave','flux'])
+    tab = ascii.read(cwd+'/data/CTTS_etc_d140pc_101116.txt', names=['wave','flux'])
     sp = S.ArraySpectrum(wave=tab['wave'], flux=tab['flux'], waveunits='Angstrom', fluxunits='flam')
     ctts = sp.renorm(21., 'abmag', S.ObsBandpass('galex,fuv'))
     spec_dict['Classical T Tauri'] = ctts
 
-    tab = ascii.read(cwd+'data/dM1_etc_d5pc_101116.txt', names=['wave','flux'])
+    tab = ascii.read(cwd+'/data/dM1_etc_d5pc_101116.txt', names=['wave','flux'])
     sp = S.ArraySpectrum(wave=tab['wave'], flux=tab['flux'], waveunits='Angstrom', fluxunits='flam')
     Mdwarf = sp.renorm(21., 'abmag', S.ObsBandpass('galex,fuv'))
     spec_dict['M1 Dwarf'] = Mdwarf
 
-    tab = ascii.read(cwd+'data/10Myr_Starburst_nodust.dat', names=['wave', 'flux'])
+    tab = ascii.read(cwd+'/data/10Myr_Starburst_nodust.dat', names=['wave', 'flux'])
     sp = S.ArraySpectrum(wave=tab['wave'], flux=tab['flux'], waveunits='Angstrom', fluxunits='flam')
     s99 = sp.renorm(21., 'abmag', S.ObsBandpass('galex,fuv'))
     spec_dict['10 Myr Starburst'] = s99
@@ -73,13 +72,13 @@ def add_spectrum_to_library():
     s = star.renorm(21., 'abmag', S.ObsBandpass('galex,fuv'))
     spec_dict['Starburst, E(B-V) = 0.6'] = s
 
-    filename_fesc = cwd+'data/fesc/fe_lyccontrot1.000hi1.000hei.txt'
+    filename_fesc = cwd+'/data/fesc/fe_lyccontrot1.000hi1.000hei.txt'
     tab = ascii.read(filename_fesc)
     sp = S.ArraySpectrum(wave=tab['lam'], flux=tab['lh1=17.5'], waveunits='Angstrom', fluxunits='flam')
     fesc1 = sp.renorm(21., 'abmag', S.ObsBandpass('galex,fuv'))
     spec_dict['Galaxy with f_esc, HI=1, HeI=1'] = fesc1
 
-    filename_fesc = cwd+'data/fesc/fe_lyccontrot0.001hi1.000hei.txt'
+    filename_fesc = cwd+'/data/fesc/fe_lyccontrot0.001hi1.000hei.txt'
     tab = ascii.read(filename_fesc)
     sp = S.ArraySpectrum(wave=tab['lam'], flux=tab['lh1=17.5'], waveunits='Angstrom', fluxunits='flam')
     fesc1 = sp.renorm(21., 'abmag', S.ObsBandpass('galex,fuv'))

@@ -2,7 +2,6 @@
 
 def help(): 
    return """
-
       <div class="container"> 
           <p align="justify">This is the basic ETC for UV spectroscopy with HWO's UV spectrograph.<br> 
           <p align="justify">The top controls model the source spectrum with various templates,  

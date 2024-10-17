@@ -15,7 +15,8 @@ The $INSTALL_DIR is just any local directory of your choice.
 - add to your .bashrc / .bash_profile:
    - export PYSYN_CDBS=/Users/tumlinson/anaconda3/envs/hwotools/lib/python3.12/site-packages/syotools/pysynphot_data
    - export SCI_ENG_DIR=/Users/tumlinson/anaconda3/envs/hwotools/lib/python3.12/site-packages/syotools/sci_eng_interface
-   - The two exact pathnames above depend on where and how you have installed the SYTools package. 
+   - These exact pathnames will vary by system, please do your best.
+   - Your root directory (here, Users/tumlinson/anaconda3/) may vary, and your python version may as well. 
    - in the likely event that you already have PYTHONPATH set in your .*rc file, append these:
         - export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/hwo-tools/
 - open and run BasicRun.ipynb

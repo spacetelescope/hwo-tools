@@ -11,8 +11,8 @@ from syotools.utils.jsonunit import str_jsunit
 # if called without arguments, you get the defaults 
 t, c, e = Telescope(), Camera(), PhotometricExposure()
 
-#set the telescope to EAC2 
-t.set_from_json('EAC2')
+#set the telescope to EAC1 
+t.set_from_yaml('EAC1')
 
 t.add_camera(c)
 c.add_exposure(e)

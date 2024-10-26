@@ -16,7 +16,7 @@ dependencies:
   - numba 
   - pip:
       - pysynphot==2.0.0
-      - syotools==1.1.8
-      - hwo_sci_eng==0.1.3 
+      - syotools==1.1.11
+      - hwo_sci_eng==0.1.8
       - EXOSIMS 
 prefix: /Users/tumlinson/anaconda3/envs/hwotools

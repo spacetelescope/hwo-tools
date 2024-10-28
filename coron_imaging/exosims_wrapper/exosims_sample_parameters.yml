@@ -48,7 +48,9 @@ initial_exosims:
     scienceInstruments:
   # Foreground:
     - name: CONF_NF_Imager
-      FoV: 3.5 #Angular half-field of view (FOV radius), units of arcsec
+      ##FoV: 3.5 #Angular half-field of view (FOV radius), units of arcsec
+      #output error from main.py: UserWarning: Input FoV (3.5 arcsec) is larger than FoV computed from pixelScale (3.35 arcsec) for instrument CONF_NF_Imager. This feels like a mistkae.
+      FoV: 3.35
       Rs: 5 # Spectral resolving power lam/dlam
       optics: 0.532 #attenuation due to optics specific to science instrument
       sread: 0 #detector effective read nose per frame per pixel
@@ -62,6 +64,7 @@ initial_exosims:
       pixelScale: 6.55e-3 #instantaneous filed of view of each detector pixel, units of arcsec
       CIC: 1.3e-3 #clock-induced-charge per frame per pixel
       radDos: 0 #radiation dosage
+      # output error from main.py: UserWarning: "Unknown key(s): radDos for science instrument CONF_NF_Imager"
       ENF: 1.0 #Excess noise factor, specific to EM-CCDs
   # Unused: None
 
@@ -91,6 +94,12 @@ initial_exosims:
       #Mean starlight residual normalized intensity per pixel of the simulated PSF
       #Totcal core intensity computed as core_mean_intensity * number of intensity map pixels in the photometric aperture (determined from core_platescale and core_area). 
       #If not specified, then the total core intensity is computed as core_contrast * core_thruput
+      ################################################################################
+      #Note: We need to define core_platescale if we want to use core_mean_intensity.#
+      ################################################################################
+      # for now, I'm going to assume core_platescale = pixelscale ... why would this NOT be the case?
+      core_platescale: 6.55e-3
+
   # Unused:
     # deltaLam: Quantity, Bandwidth in units of nm.
     # contrast_floor: float, an absolute limit on achievable core_contrast
@@ -138,7 +147,7 @@ initial_exosims:
   # Unused: None
 
 
-# Note: I don't actually know what this is for. Commenting it pout throws no errors.
+# Note: I don't actually know what this is for. Commenting it out throws no errors.
 # iter_values: [0.1, 1.0]
 
 

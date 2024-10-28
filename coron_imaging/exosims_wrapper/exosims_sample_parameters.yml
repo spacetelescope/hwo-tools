@@ -1,6 +1,6 @@
 paths:
-  output: $HWOTOOLS_DIR/exosims_wrapper/output
-  input: $HWOTOOLS_DIR/exosims_wrapper/
+  output: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/output
+  input: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/
   temporary: ./temp
 
 ################################

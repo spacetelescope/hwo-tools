@@ -76,16 +76,8 @@ sed_plot.yaxis.axis_label = 'AB Magnitude'
 sed_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
 
-no_plot_source = ColumnDataSource(data=dict(w=[5000,8000,15000], f=[25, 26, 27])) 
-no_plot = figure(height=400, width=700,tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
-              x_range=[800, 24000], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
-no_plot.line('w','f',line_color='orange', line_width=3, source=no_plot_source, line_alpha=1.0)  
-
-
 def update_data(attrname, old, new):
-
-    print() 
-    print() 
+    
     print("You have chosen template ", template.value) 
     hwo.aperture = aperture.value * u.m 
 
@@ -97,9 +89,7 @@ def update_data(attrname, old, new):
     print('SED Waveunits: ', hri_source.sed.waveunits)
     print('SED Fluxunits: ', hri_source.sed.fluxunits)
     
-    new_w = pysyn_spectra_library[template.value].wave
-    new_f = pysyn_spectra_library[template.value].flux
-    spectrum_template.data = {'w':new_w, 'f':new_f}    
+    spectrum_template.data = {'w':hri_source.sed.wave, 'f':hri_source.sed.flux}    
 
     hri_exp.exptime = [[exptime.value, exptime.value, exptime.value, 
                         exptime.value, exptime.value, exptime.value, 
@@ -113,10 +103,10 @@ def update_data(attrname, old, new):
     snr_plot.y_range.start = 0
     snr_plot.y_range.end = 1.3*np.max([np.max(hri_exp.snr.value),5.]) 
 
-    #sed_plot.y_range.start = np.min(hri_exp.source.sed.flux)+5. 
-    #sed_plot.y_range.end = np.min(hri_exp.source.sed.flux)-5. 
-    #text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(pysyn_spectra_library[template.value].band) + ' band'
-    #sed_plot.title.text = text
+    sed_plot.y_range.start = np.min(hri_exp.source.sed.flux)+5. 
+    sed_plot.y_range.end = np.min(hri_exp.source.sed.flux)-5. 
+    text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(pysyn_spectra_library[template.value].band) + ' band'
+    sed_plot.title.text = text
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))
@@ -149,7 +139,7 @@ controls = column(children=[aperture, exptime, magnitude, template ], sizing_mod
 controls_tab = TabPanel(child=controls, title='Controls')
 info_tab = TabPanel(child=Div(text = h.help()), title='Info')
 inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 
-plots = Tabs(tabs=[ TabPanel(child=snr_plot, title='SNR'), TabPanel(child=sed_plot, title='SED'),  TabPanel(child=no_plot, title='NO PLOT') ]) 
+plots = Tabs(tabs=[ TabPanel(child=snr_plot, title='SNR'), TabPanel(child=sed_plot, title='SED') ]) 
 
 curdoc().add_root(row(children=[inputs, plots])) 
 curdoc().add_root(source) 

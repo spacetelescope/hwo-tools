@@ -1,59 +1,43 @@
-from __future__ import print_function
 import numpy as np
-import copy 
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource, HoverTool, Range1d 
+from bokeh.models import ColumnDataSource, Range1d 
 from bokeh.layouts import row, column
-from bokeh.models.widgets import Slider, TextInput, Select, Div 
+from bokeh.models.widgets import Slider, Select, Div 
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.io import curdoc
 from bokeh.models.callbacks import CustomJS
 import pysynphot as S 
 import astropy.constants as const
-import get_uvi_spectra
-import Telescope as T 
 import uvi_help as h 
 
-luvoir = T.Telescope(15., 280., 500.) # set up LUVOIR with 15 meters, T = 280, and diff limit at 500 nm 
-uvi = T.Spectrograph() # set up LUVOIR with 10 meters, T = 280, and diff limit at 500 nm 
-uvi.set_mode('G120M') 
+from syotools.spectra.spec_defaults import pysyn_spectra_library
+from syotools.models import Telescope, Spectrograph, Source, SourceSpectrographicExposure
 
-def simulate_exposure(telescope, spectrograph, wave, flux, exptime): 
-    print("Attempting to create an exposure for Telescope: ", telescope.name, telescope.aperture, ' m') 
-    print("                                 and Spectrograph: ", spectrograph.name, " in mode ", spectrograph.mode_name) 
+hwo = Telescope() 
+hwo.set_from_json('EAC1')
+uvi = Spectrograph()   
+hwo.add_spectrograph(uvi)              
 
-    # obtain the interpolated effective areas for the input spectrum 
-    aeff_interp = np.interp(wave, spectrograph.wave, spectrograph.aeff, left=0., right=0.) * (telescope.aperture/15.)**2 
-    bef_interp = np.interp(wave, spectrograph.wave, spectrograph.bef, left=0., right=0.) # background to use 
-    phot_energy = const.h.to('erg s').value * const.c.to('cm/s').value / (wave * 1e-8) # now convert from erg cm^-2 s^-1 A^-1  
-    source_counts = flux / phot_energy * aeff_interp * (exptime*3600.) * (wave / uvi.R) 
-
-    source_counts[(wave < spectrograph.lambda_range[0])] = 0. 
-    source_counts[(wave > spectrograph.lambda_range[1])] = 0. 
-
-    background_counts = bef_interp / phot_energy * aeff_interp * (exptime*3600.) * (wave / uvi.R) 
-    signal_to_noise = source_counts / (source_counts + background_counts)** 0.5 
-    return signal_to_noise 
-
-##### START FOR NEW WAY TO GET TEMPLATE SPECTRA 
-spec_dict = get_uvi_spectra.add_spectrum_to_library() 
 template_to_start_with = 'QSO' 
-spec_dict[template_to_start_with].wave 
-spec_dict[template_to_start_with].flux # <---- these are the variables you need 
 
-signal_to_noise = simulate_exposure(luvoir, uvi, spec_dict[template_to_start_with].wave, spec_dict[template_to_start_with].flux, 1.0) 
+uvi_source = Source() 
+uvi_source.set_sed(template_to_start_with, 21., 0., 0.)
+uvi_source.sed.convert('flam')
 
-flux_cut = spec_dict[template_to_start_with].flux 
-flux_cut[spec_dict[template_to_start_with].wave < uvi.lambda_range[0]] = -999.  
-flux_cut[spec_dict[template_to_start_with].wave > uvi.lambda_range[0]] = -999.  
+uvi_exp = SourceSpectrographicExposure() 
+uvi_exp.source = uvi_source
+uvi_exp.verbose = True 
+uvi_exp.unknown = 'snr'
+uvi.add_exposure(uvi_exp) 
+uvi_exp._update_snr() 
 
-spectrum_template = ColumnDataSource(data=dict(w=spec_dict[template_to_start_with].wave, f=spec_dict[template_to_start_with].flux, \
-                                   w0=spec_dict[template_to_start_with].wave, f0=spec_dict[template_to_start_with].flux, \
-                                   flux_cut=flux_cut, sn=signal_to_noise)) 
+spectrum_template = ColumnDataSource(data=dict(w=uvi_source.sed.wave, f=uvi_source.sed.flux)) 
+print(' flux = ', uvi_source.sed.flux)
 
-instrument_info = ColumnDataSource(data=dict(wave=uvi.wave, bef=uvi.bef))
+snr_results = ColumnDataSource(data=dict(w=uvi.wave.value, sn = uvi_exp.snr.value)) 
 
-# set up the flux plot 
+instrument_info = ColumnDataSource(data=dict(wave=uvi.wave.value, bef=uvi.bef.value))
+
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
               x_range=[900, 2000], y_range=[0, 4e-16], toolbar_location='right') 
@@ -64,70 +48,65 @@ flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 flux_plot.line('w', 'f', source=spectrum_template, line_width=3, line_color='firebrick', line_alpha=0.7, legend_label='Source Flux')
 flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
 
-# set up the flux plot 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
               x_range=[900, 2000], y_range=[0, 40], toolbar_location='right')
 sn_plot.x_range=Range1d(900,3000,bounds=(900,3000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
-sn_plot.line('w', 'sn', source=spectrum_template, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
+sn_plot.line('w', 'sn', source=snr_results, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
 sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 sn_plot.yaxis.axis_label = 'S/N per resel' 
 
 def update_data(attrname, old, new): # use this one for updating pysynphot templates 
-   
-    print("You have chosen template ", template.value, np.size(spec_dict[template.value].wave)) 
+    
+    print() 
+    print() 
+    print("You have chosen template ", template.value) 
     print('Selected grating = ', grating.value) 
-    luvoir.aperture = aperture.value 
-    print('Your telescope is set to', luvoir.aperture) 
-    uvi.set_mode(grating.value) 
+    print('Your telescope is set to', hwo.aperture) 
+    print('You asked for redshift', redshift.value) 
+    hwo.aperture = aperture.value     
+    
+    uvi_source = Source() 
+    uvi_source.set_sed(template.value, magnitude.value, redshift.value, 0.)
+    uvi_source.sed.convert('flam')
 
-    new_w0 = spec_dict[template.value].wave 
-    new_f0 = spec_dict[template.value].flux 
+    uvi_exp.exptime = [[exptime.value, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'hr'] 
+    uvi_exp.source = uvi_source
+    uvi_exp.verbose = True 
+    uvi_exp.unknown = 'snr'
+    uvi.add_exposure(uvi_exp) 
+    uvi.mode = str.split(grating.value,' ')[0] #<-- becuase text after the space not in mode keys  
+
+    uvi_source.sed.convert('flam')
 
     if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
-       bb = S.BlackBody(bb_temperature.value) 
-       bb.convert('flam')
-       bb_renorm = bb.renorm(magnitude.value, 'abmag', S.ObsBandpass('galex,fuv')) 
-       new_w0 = bb_renorm.wave 
-       new_f0 = bb_renorm.flux 
- 
-    #OOPS, SHOULD USE PYSYNPHOT FOR REDSHIFT HERE, THE NORMALIZATION IS NOT QUITE CORRECT 
-    new_w = np.array(new_w0) * (1. + redshift.value)
-    new_f = np.array(new_f0) * 10.**( (21.-magnitude.value) / 2.5)
-    new_sn = np.nan_to_num(simulate_exposure(luvoir, uvi, new_w, new_f, exptime.value)) 
+       uvi_source = S.BlackBody(bb_temperature.value) 
+       uvi_source.convert('flam')
+       uvi_source = uvi_source.renorm(magnitude.value, 'abmag', S.ObsBandpass('galex,fuv')) 
 
-    flux_cut = copy.deepcopy(new_f) 
-    flux_cut[new_w < uvi.lambda_range[0]] = -999.  
-    flux_cut[new_w > uvi.lambda_range[1]] = -999.  
-    print('RANGE', uvi.lambda_range[0], uvi.lambda_range[1]) 
+    uvi_exp._update_snr() 
 
-    new_dict = {'w':new_w, 'f':new_f, 'w0':new_w0, 'f0':new_f0, 'flux_cut':flux_cut, 'sn':new_sn} 
-    spectrum_template.data = new_dict 
+    snr_fixed = np.nan_to_num(uvi_exp.snr.value, nan=0)
 
+    spectrum_template.data = dict(w=uvi_source.sed.wave, f=uvi_source.sed.flux) 
+    snr_results.data = dict(w=uvi.wave.value, sn = snr_fixed) 
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
-    flux_plot.y_range.end = 1.5*np.max(flux_cut)
+    flux_plot.y_range.end = 1.5*np.max(uvi_source.sed.flux)
     sn_plot.y_range.start = 0 
-    sn_plot.y_range.end = 1.3*np.max(spectrum_template.data['sn'])
-    print('MAX MAX', np.max(spectrum_template.data['f']), np.max(flux_cut)) 
+    sn_plot.y_range.end = 1.3*np.max(snr_results.data['sn'])
 
-    #instrument_info.data['wave'] = uvi.wave 
-    #instrument_info.data['bef'] = uvi.bef  
+    print() 
+    print() 
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
 
 # Set up widgets and their callbacks (faking the mouseup policy via "source" b/c functional callback doesn't do that. 
-template = Select(title="Template Spectrum", value="QSO", width=200, \
-                options=["Flat in F_lambda", "QSO", "10 Myr Starburst", "O5V Star",\
-                         "G2V Star", "G191B2B (WD)", "GD71 (WD)", "GD153 (WD)", \
-                         "Classical T Tauri", "M1 Dwarf", "Orion Nebula", \
-                         "Starburst, No Dust", "Starburst, E(B-V) = 0.6", \
-                         "Galaxy with f_esc, HI=1, HeI=1", "Galaxy with f_esc, HI=0.001, HeI=1",\
-			 "Blackbody"]) 
+template = Select(title="Template Spectrum", value="QSO", options=list(pysyn_spectra_library.keys()), width=200)
 
 redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
 redshift_callback = CustomJS(args=dict(source=source), code="""
@@ -149,7 +128,6 @@ bb_temperature.js_on_change("value_throttled", temperature_callback)
 
 grating = Select(title="Grating / Setting", value="G150M (R = 30,000)", width=200, \
                  options=["G120M (R = 30,000)", "G150M (R = 30,000)", "G180M (R = 30,000)", "G155L (R = 5,000)", "G145LL (R = 500)"])
-
 
 aperture= Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, width=200)
 aperture_callback = CustomJS(args=dict(source=source), code="""

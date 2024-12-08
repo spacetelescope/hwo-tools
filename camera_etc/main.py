@@ -1,36 +1,42 @@
-import numpy as np
-from bokeh.io import output_file
+import numpy as np, astropy.units as u 
+
 from bokeh.plotting import figure
-from bokeh.embed import components
-from bokeh.models import ColumnDataSource, HoverTool, Paragraph, Range1d  
+from bokeh.models import ColumnDataSource, HoverTool, Range1d  
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import Slider, Div, Select 
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import row, column 
 from bokeh.io import curdoc
 
-import phot_compute_snr as phot_etc 
+from syotools.spectra.spec_defaults import pysyn_spectra_library
+from syotools.models import Telescope, Camera, Source, SourcePhotometricExposure
 
-import Telescope as T 
 import hdi_help as h 
-import get_hdi_seds 
 import pysynphot as S 
 
-hwo = T.Telescope(6., 280., 500.) # set up HWO with 10 meters, T = 280, and diff limit at 500 nm 
-hdi = T.Camera()                  # an HDI camera with default bandpasses 
-hdi.set_pixel_sizes(hwo) 
+hwo = Telescope() 
+hwo.set_from_json('EAC1')
+hri = Camera()   
+hwo.add_camera(hri)              
 
-spec_dict = get_hdi_seds.add_spectrum_to_library() 
 template_to_start_with = 'Flat (AB)' 
-spec_dict[template_to_start_with].wave 
-spec_dict[template_to_start_with].flux # <---- these are the variables you need to make the plot 
-spec_dict[template_to_start_with].convert('abmag') 
 
-# set up ColumnDataSources for main SNR plot 
-snr = phot_etc.compute_snr(hwo, hdi, 1., 32.)
-source1 = ColumnDataSource(data=dict(x=hdi.pivotwave[2:-3], y=snr[2:-3], desc=hdi.bandnames[2:-3] ))
-source2 = ColumnDataSource(data=dict(x=hdi.pivotwave[0:2], y=snr[0:2], desc=hdi.bandnames[0:2]))
-source3 = ColumnDataSource(data=dict(x=hdi.pivotwave[-3:], y=snr[-3:], desc=hdi.bandnames[-3:]))
+hri_source = Source() 
+hri_source.set_sed(template_to_start_with, 30., 0., 0.)
+
+hri_exp = SourcePhotometricExposure() 
+hri_exp.source = hri_source
+hri_exp.verbose = True 
+hri_exp.unknown = 'snr'
+hri.add_exposure(hri_exp) 
+hri_exp._update_snr() 
+
+snr = hri_exp.snr
+pivotwave = np.array(hri.pivotwave[0]) * 10. 
+
+source1 = ColumnDataSource(data=dict(x=pivotwave[2:-3], y=snr[2:-3], desc=hri.bandnames[2:-3] ))
+source2 = ColumnDataSource(data=dict(x=pivotwave[0:2], y=snr[0:2], desc=hri.bandnames[0:2]))
+source3 = ColumnDataSource(data=dict(x=pivotwave[-3:], y=snr[-3:], desc=hri.bandnames[-3:]))
 
 hover = HoverTool(point_policy="snap_to_data", 
         tooltips="""
@@ -46,103 +52,95 @@ hover = HoverTool(point_policy="snap_to_data",
         """
     )
 
-snr_plot = figure(height=400, width=700, 
-              tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
-              x_range=[120, 2300], y_range=[0, 40], border_fill_color='black', toolbar_location='right')
-snr_plot.x_range = Range1d(100, 2300, bounds=(120, 2300)) 
+snr_plot = figure(height=400, width=700, tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
+              x_range=[1200, 23000], y_range=[0, 10], border_fill_color='black', toolbar_location='right')
+snr_plot.x_range = Range1d(1000, 23000, bounds=(1200, 23000)) 
 snr_plot.add_tools(hover)
 snr_plot.yaxis.axis_label = 'Signal to Noise Ratio'
-snr_plot.xaxis.axis_label = 'Wavelength [nm]'
-snr_plot.text(5500, 20, text=['V'], text_align='center', text_color='red')
+snr_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 
 snr_plot.line('x', 'y', source=source1, line_width=3, line_alpha=1.0) 
 snr_plot.scatter('x', 'y', source=source1, fill_color='white', line_color='blue', size=10)
-    
 snr_plot.line('x', 'y', source=source2, line_width=3, line_color='orange', line_alpha=1.0)
 snr_plot.scatter('x', 'y', source=source2, fill_color='white', line_color='orange', size=8) 
-    
 snr_plot.line('x', 'y', source=source3, line_width=3, line_color='red', line_alpha=1.0)
 snr_plot.scatter('x', 'y', source=source3, fill_color='white', line_color='red', size=8) 
 
-spectrum_template = ColumnDataSource(data=dict(w=spec_dict[template_to_start_with].wave, f=spec_dict[template_to_start_with].flux, \
-                                   w0=spec_dict[template_to_start_with].wave, f0=spec_dict[template_to_start_with].flux))
+spectrum_template = ColumnDataSource(data=dict(w=pysyn_spectra_library[template_to_start_with].wave, 
+                                               f=pysyn_spectra_library[template_to_start_with].flux)) 
 
 sed_plot = figure(height=400, width=700,tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
-              x_range=[120, 2300], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
-sed_plot.x_range = Range1d(100, 2300, bounds=(120, 2300)) 
+              x_range=[800, 24000], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
+sed_plot.x_range = Range1d(800, 24000, bounds=(800, 24000)) 
 sed_plot.yaxis.axis_label = 'AB Magnitude'
-sed_plot.xaxis.axis_label = 'Wavelength [nm]'
+sed_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
+
+no_plot_source = ColumnDataSource(data=dict(w=[5000,8000,15000], f=[25, 26, 27])) 
+no_plot = figure(height=400, width=700,tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
+              x_range=[800, 24000], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
+no_plot.line('w','f',line_color='orange', line_width=3, source=no_plot_source, line_alpha=1.0)  
+
 
 def update_data(attrname, old, new):
 
-    print("You have chosen template ", template.value, np.size(spec_dict[template.value].wave)) 
+    print() 
+    print() 
+    print("You have chosen template ", template.value) 
+    hwo.aperture = aperture.value * u.m 
 
-    hwo.aperture = aperture.value 
-    hdi.set_pixel_sizes(hwo) # adaptively set the pixel sizes 
+    hri_source.set_sed(template.value, magnitude.value, 0., 0.)
 
-    #CHANGE THE SED TEMPLATE IN THE SED PLOT 
-    spectrum = spec_dict[template.value]
-    band = S.ObsBandpass('johnson,v')
-    band.convert('nm') 
-    print(spectrum.waveunits.name) 
-    ss = spectrum.renorm(magnitude.value+2.5, 'abmag', band) #### OH MY GOD WHAT A HACK!!!! 
+    normalization_band = S.ObsBandpass(pysyn_spectra_library[template.value].band)
+    hri_source.sed.renorm(magnitude.value, 'abmag', normalization_band) 
     print('Renorming to ', magnitude.value) 
-    new_w0 = ss.wave 
-    new_f0 = ss.flux 
-    new_w = np.array(new_w0) 
-    new_f = np.array(new_f0) 
-    spectrum_template.data = {'w':new_w, 'f':new_f, 'w0':new_w0, 'f0':new_f0} 
-
-    interp_mags = spec_dict[template.value]
-    mag_arr = np.array([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]) 
-    for pwave,index in zip(hdi.pivotwave,np.arange(10)): 
-       mag_arr[index] = ss.sample(pwave) 
-       print(index, pwave, ss.sample(pwave), mag_arr[index]) 
+    print('SED Waveunits: ', hri_source.sed.waveunits)
+    print('SED Fluxunits: ', hri_source.sed.fluxunits)
     
-    snr = phot_etc.compute_snr(hwo, hdi, exptime.value, mag_arr)
-    
-    print(mag_arr) 
-    print(snr) 
+    new_w = pysyn_spectra_library[template.value].wave
+    new_f = pysyn_spectra_library[template.value].flux
+    spectrum_template.data = {'w':new_w, 'f':new_f}    
 
-    wave = hdi.pivotwave 
-    source1.data = dict(x=wave[2:-3], y=snr[2:-3], desc=hdi.bandnames[2:-3]) 
-    source2.data = dict(x=hdi.pivotwave[0:2], y=snr[0:2], desc=hdi.bandnames[0:2]) 
-    source3.data = dict(x=hdi.pivotwave[-3:], y=snr[-3:], desc=hdi.bandnames[-3:]) 
+    hri_exp.exptime = [[exptime.value, exptime.value, exptime.value, 
+                        exptime.value, exptime.value, exptime.value, 
+                        exptime.value, exptime.value, exptime.value, exptime.value], 'hr']
+    hri_exp._update_snr() 
+
+    source1.data = dict(x=pivotwave[2:-3], y=hri_exp.snr[2:-3], desc=hri.bandnames[2:-3]) 
+    source2.data = dict(x=pivotwave[0:2], y=hri_exp.snr[0:2], desc=hri.bandnames[0:2]) 
+    source3.data = dict(x=pivotwave[-3:], y=hri_exp.snr[-3:], desc=hri.bandnames[-3:]) 
 
     snr_plot.y_range.start = 0
-    snr_plot.y_range.end = 1.3*np.max([np.max(snr),5.]) 
+    snr_plot.y_range.end = 1.3*np.max([np.max(hri_exp.snr.value),5.]) 
 
-    sed_plot.y_range.start = np.min(ss.flux)+5. 
-    sed_plot.y_range.end = np.min(ss.flux)-5. 
+    #sed_plot.y_range.start = np.min(hri_exp.source.sed.flux)+5. 
+    #sed_plot.y_range.end = np.min(hri_exp.source.sed.flux)-5. 
+    #text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(pysyn_spectra_library[template.value].band) + ' band'
+    #sed_plot.title.text = text
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
 
-# Set up widgets
 aperture = Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, tags=[4,5,6,6], width=250) 
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
 aperture.js_on_change('value_throttled', aperture_callback) 
 
-exptime = Slider(title="Exptime (hours)", value=1., start=0.1, end=10.0, step=0.1, width=250) 
+exptime = Slider(title="Exptime (hours)", value=1., start=0.1, end=20.0, step=0.1, width=250) 
 exptime_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
 exptime.js_on_change("value_throttled", exptime_callback) 
 
-magnitude = Slider(title="V Magnitude (AB)", value=28.0, start=20.0, end=35., width=250) 
+magnitude = Slider(title="Magnitude (AB)", value=30.0, start=20.0, end=35., step=0.1, width=250) 
 magnitude_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
 
-template = Select(title="Template Spectrum", value="Flat (AB)", 
-                options=["Flat (AB)", "Blackbody (5000K)", "O5V Star", \
-                         "B5V Star", "G2V Star", "M2V Star", "Orion Nebula", "Elliptical Galaxy", "Sbc Galaxy", \
-                         "Starburst Galaxy", "NGC 1068"], width=250) 
+template = Select(title="Template Spectrum", value="Flat (AB)", options=list(pysyn_spectra_library.keys()), width=250) 
 
 for w in [template]: 
     w.on_change('value', update_data)
@@ -151,8 +149,7 @@ controls = column(children=[aperture, exptime, magnitude, template ], sizing_mod
 controls_tab = TabPanel(child=controls, title='Controls')
 info_tab = TabPanel(child=Div(text = h.help()), title='Info')
 inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 
-
-plots = Tabs(tabs=[ TabPanel(child=snr_plot, title='SNR'), TabPanel(child=sed_plot, title='SED')]) 
+plots = Tabs(tabs=[ TabPanel(child=snr_plot, title='SNR'), TabPanel(child=sed_plot, title='SED'),  TabPanel(child=no_plot, title='NO PLOT') ]) 
 
 curdoc().add_root(row(children=[inputs, plots])) 
 curdoc().add_root(source) 

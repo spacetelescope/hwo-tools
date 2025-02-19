@@ -62,21 +62,21 @@ def add_spectrum_to_library():
     a.convert('nm') 
     spec_dict['NGC 1068'] = a
 
-    filename = os.path.join(os.environ['PYSYN_CDBS'], 'grid', 'etc_models', 'el_cww_fuv_001.fits')
+    filename = os.path.join(os.environ['PYSYN_CDBS'], 'etc', 'source', 'el_cww_fuv_001.fits')
     ell  = S.FileSpectrum(filename)
     e = ell.renorm(30., 'abmag', S.ObsBandpass('johnson,v'))
     e.convert('abmag') 
     e.convert('nm') 
     spec_dict['Elliptical Galaxy'] = e
 
-    filename = os.path.join(os.environ['PYSYN_CDBS'], 'grid', 'etc_models', 'sbc_cb2004a_001.fits')
+    filename = os.path.join(os.environ['PYSYN_CDBS'], 'etc', 'source', 'sbc_cb2004a_001.fits')
     ell  = S.FileSpectrum(filename)
     e = ell.renorm(30., 'abmag', S.ObsBandpass('johnson,v'))
     e.convert('abmag') 
     e.convert('nm') 
     spec_dict['Sbc Galaxy'] = e
 
-    filename = os.path.join(os.environ['PYSYN_CDBS'], 'grid', 'etc_models', 'sb1_kinney_fuv_001.fits')
+    filename = os.path.join(os.environ['PYSYN_CDBS'], 'etc', 'source', 'sb1_kinney_fuv_001.fits')
     ell  = S.FileSpectrum(filename)
     e = ell.renorm(30., 'abmag', S.ObsBandpass('johnson,v'))
     e.convert('abmag') 

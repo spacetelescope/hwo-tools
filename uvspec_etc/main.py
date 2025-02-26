@@ -97,12 +97,13 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
     new_f = np.array(new_f0) * 10.**( (21.-magnitude.value) / 2.5)
     new_sn = np.nan_to_num(simulate_exposure(luvoir, uvi, new_w, new_f, exptime.value)) 
 
-    flux_cut = copy.deepcopy(new_f) 
-    flux_cut[new_w < uvi.lambda_range[0]] = -999.  
-    flux_cut[new_w > uvi.lambda_range[1]] = -999.  
+    flux_cut = copy.deepcopy(new_f)
+    flux_cut[new_w < uvi.lambda_range[0]] = -999.
+    flux_cut[new_w > uvi.lambda_range[1]] = -999.
+    print('RANGE', uvi.lambda_range[0], uvi.lambda_range[1]) 
 
-    new_dict = {'w':new_w, 'f':new_f, 'w0':new_w0, 'f0':new_f0, 'flux_cut':flux_cut, 'sn':new_sn} 
-    spectrum_template.data = new_dict 
+    new_dict = {'w':new_w, 'f':new_f, 'w0':new_w0, 'f0':new_f0, 'flux_cut':flux_cut, 'sn':new_sn}
+    spectrum_template.data = new_dict
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 

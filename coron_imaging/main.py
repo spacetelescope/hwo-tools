@@ -21,7 +21,7 @@ from syotools.models import Telescope, Coronagraph
 
 import Telescope as T 
 import cor_help as h 
-import get_cor_seds 
+#import get_cor_seds 
 import pysynphot as S 
 
 cac, tel = Coronagraph(), Telescope() 

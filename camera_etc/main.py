@@ -10,17 +10,18 @@ from bokeh.layouts import row, column
 from bokeh.io import curdoc
 
 import phot_compute_snr as phot_etc 
+from syotools.spectra.spec_defaults import pysyn_spectra_library
 
 import Telescope as T 
 import hdi_help as h 
-import get_hdi_seds 
+#import get_hdi_seds 
 import pysynphot as S 
 
 hwo = T.Telescope(6., 280., 500.) # set up HWO with 10 meters, T = 280, and diff limit at 500 nm 
 hdi = T.Camera()                  # an HDI camera with default bandpasses 
 hdi.set_pixel_sizes(hwo) 
 
-spec_dict = get_hdi_seds.add_spectrum_to_library() 
+spec_dict = pysyn_spectra_library
 template_to_start_with = 'Flat (AB)' 
 spec_dict[template_to_start_with].wave 
 spec_dict[template_to_start_with].flux # <---- these are the variables you need to make the plot 

@@ -48,62 +48,20 @@ class Spectrograph():
 
     def __init__(self): 
 
-        cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
-        cwd = './' 
-
-        self.name = 'LUMOS' 
-        print(cwd+'/data/LUMOS_vals.dat') 
-        lumos = Table.read(cwd+'/data/LUMOS_vals.dat', format='ascii') 
-        self.wave = lumos['Wave']
-        self.aeff = lumos['A_eff']
-        self.bef = lumos['Med_Res_BEF'] 
-        self.med_bef = lumos['Med_Res_BEF'] 
-        self.low_bef = lumos['Low_Res_BEF'] 
-        self.delta_lambda = self.wave / 30000. #  EXTREMELY ROUGH resel width 
-        self.lumos_table = lumos 
-        self.mode_name = 'G150M' 
-        self.R = 30000. 
+        self.name = 'LUMOS'
+        self.set_mode("G150M")
 
     def set_mode(self, mode_name): 
 
-        self.mode_names = mode_name 
-        if 'G120M' in mode_name:
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['Med_Res_BEF'] 
-            self.delta_lambda = self.wave / 30000. 
-            self.lambda_range = np.array([1000., 1425.]) 
-            self.mode_name = 'G120M' 
-            self.R = 30000. 
-          
-        if 'G150M' in mode_name: 
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['Med_Res_BEF'] 
-            self.delta_lambda = self.wave / 30000. 
-            self.lambda_range = np.array([1225., 1600.]) 
-            self.mode_name = 'G150M' 
-            self.R = 30000. 
-          
-        if 'G180M' in mode_name: 
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['Med_Res_BEF'] 
-            self.delta_lambda = self.wave / 30000. 
-            self.lambda_range = np.array([1550., 1900.]) 
-            self.mode_name = 'G180M' 
-            self.R = 30000. 
-          
-        if 'G155L' in mode_name: 
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['Low_Res_BEF'] 
-            self.delta_lambda = self.wave / 5000. 
-            self.lambda_range = np.array([1000., 2000.]) 
-            self.mode_name = 'G155L' 
-            self.R = 5000.  
+        print('Setting the spectrograph to mode: ', mode_name) 
+        cwd = os.getenv('SYOTOOLS_DATA_DIR')
+        self.mode_name = mode_name
+        lumos = Table.read(cwd+'/LUMOS_ETC.fits', format='fits') 
+        self.wave = lumos[self.mode_name]['Wave']
+        self.aeff = lumos[self.mode_name]['A_eff']
+        self.bef = lumos[self.mode_name]['BEF'] 
+        self.delta_lambda = lumos[self.mode_name]['Disp_Width']
+        self.lambda_range = np.array([np.min(self.wave),np.max(self.wave)])
+        self.lumos_table = lumos 
 
-        if 'G145LL' in mode_name: 
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['LL_mode_BEF'] 
-            self.delta_lambda = self.wave / 500. 
-            self.lambda_range = np.array([900., 2000.]) 
-            self.mode_name = 'G145LL' 
-            self.R = 500. 
-
+        self.R = 30000. 

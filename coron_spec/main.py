@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import scipy as sc
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import ColumnDataSource, HoverTool, Paragraph, Range1d  
@@ -33,6 +34,16 @@ target_catalog = catalog.load_catalog()
 
 parameters = {}
 
+def compute_blackbody_photon_flux(temp, wavelengths, dist):
+    """Generate photon flux density (photon/s/cm^2/um) for a blackbody at 1 cm^2."""
+    bb = SourceSpectrum(BlackBodyNorm1D, temperature=temp)
+    
+
+    flux_photlam = bb(wavelengths).to(u.photon / (u.s * u.cm**2 * u.nm)) #.value * 1/(u.s * u.cm**2 * u.AA) # photons/s/cm2/A
+    #flux_photlam = flux_photlam.to(1 / (u.s * u.cm**2 * u.nm)) # convert to 1/nm
+    flux_photlam = flux_photlam * (1000*u.pc/dist)**2
+    return flux_photlam
+
 def update_scene(updates):
 
     parameters.update(updates)
@@ -55,7 +66,30 @@ def update_observation(updates):
     return observation
 
 def update_observatory(updates, observation, scene):
+
     parameters.update(updates)
+
+    observatory_config = pE.parse_input.get_observatory_config(parameters)
+    observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
+    pE.ObservatoryBuilder.configure_observatory(
+        observatory, parameters, observation, scene
+    )
+    observatory.validate_configuration()
+
+# Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
+def update_calculation(updates):
+
+    parameters.update(updates)
+
+    scene = pE.AstrophysicalScene()
+    scene.load_configuration(parameters)
+    scene.calculate_zodi_exozodi(parameters)
+    scene.validate_configuration()
+
+    observation = pE.Observation() # define the observation object
+    observation.load_configuration(parameters) # load the specified configuration in the parameters dict 
+    observation.set_output_arrays()
+    observation.validate_configuration()
 
     observatory_config = pE.parse_input.get_observatory_config(parameters)
     observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
@@ -98,19 +132,24 @@ def load_initial():
     parameters["spectral_resolution"] = np.array([50, 140, 50]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
     parameters["channel_bounds"] = np.array([0.4, 1.0]) #np.array([]) # specify the boundaries between the channels in um
 
-    observation = update_observation({})
 
-    # The Astrophysical Scene
+    # The Astrophysical 
+    target = catalog.load_catalog()
     # STAR
     parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
     parameters["distance"] = 10. # distance to the system in pc
     # Note: we can work in either mag or flux units. Let's choose to work in flux units. 
+    Fstar_obs_10pc = compute_blackbody_photon_flux(5770 * u.K, parameters["wavelength"] << u.AA, parameters["distance"] << u.pc)
 
     parameters["stellar_angular_diameter"] = 1.5e-4 # angular diameter of the star = 0.01 lam/D == about 1.5e-4 arcsec for lam=0.5 um and D~6.5 m
     parameters["Fstar_10pc"] = Fstar_obs_10pc.value # Fstar modeled as a blackbody (see above)
     #parameters["FstarV_10pc"] = v_band_flux.value # V-band flux of the star; you don't have to pre-calculate this, ETC will do it for you
 
     # PLANET
+    FpFs = 1e-10
+    plan_interp_func = sc.interp.interp1d(target["Earth"]["lamhr_"]<<u.micron, target["Earth"]["Ahr_"])
+    reflect_planet = plan_interp_func(parameters["wavelength"] << u.AA)
+    flux_planet = Fstar_obs_10pc * FpFs
     parameters["separation"] = 0.1 # planetary separation in arcsec
     parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
     parameters["Fp_min/Fs"] = 1e-11 # minimum detectable planet 
@@ -121,8 +160,6 @@ def load_initial():
     parameters["ra"] = 176.6292 # approximate ra of HD 102365. WARNING: do not use this number for science. 
     parameters["dec"] = -40.5003 # approximate dec of HD 102365. WARNING: do not use this number for science. 
 
-    scene = update_scene({})
-
     # Observatory parameters
     parameters["observing_mode"] = "IFS" # ETC should use IFS mode
     parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
@@ -130,7 +167,7 @@ def load_initial():
     parameters["npix_multiplier"] = np.ones_like(parameters["wavelength"]) # number of detector pixels per spectral bin
     parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
 
-    observatory = update_observatory({}, observation, scene)
+    observation = update_calculation({})
 
 
 

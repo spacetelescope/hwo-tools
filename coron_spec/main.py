@@ -30,7 +30,7 @@ eacy.load_detector("IFS", plotting=True, verbose=True) # load the detector instr
 
 param_snr=10
 
-target_catalog = catalog.load_catalog()
+target_planet, target_star = catalog.load_catalog()
 
 parameters = {}
 
@@ -44,9 +44,10 @@ def compute_blackbody_photon_flux(temp, wavelengths, dist):
     flux_photlam = flux_photlam * (1000*u.pc/dist)**2
     return flux_photlam
 
-def update_scene(updates):
+def update_scene():
 
-    parameters.update(updates)
+    #parameters.update(updates)
+
     scene = pE.AstrophysicalScene()
     scene.load_configuration(parameters)
     scene.calculate_zodi_exozodi(parameters)
@@ -54,9 +55,9 @@ def update_scene(updates):
 
     return scene
 
-def update_observation(updates):
+def update_observation():
 
-    parameters.update(updates)
+    #parameters.update(updates)
 
     observation = pE.Observation() # define the observation object
     observation.load_configuration(parameters) # load the specified configuration in the parameters dict 
@@ -65,31 +66,17 @@ def update_observation(updates):
     
     return observation
 
-def update_observatory(updates, observation, scene):
-
-    parameters.update(updates)
-
-    observatory_config = pE.parse_input.get_observatory_config(parameters)
-    observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
-    pE.ObservatoryBuilder.configure_observatory(
-        observatory, parameters, observation, scene
-    )
-    observatory.validate_configuration()
 
 # Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
+# it is, particularly, unclear what 
 def update_calculation(updates):
+    global parameters
 
     parameters.update(updates)
 
-    scene = pE.AstrophysicalScene()
-    scene.load_configuration(parameters)
-    scene.calculate_zodi_exozodi(parameters)
-    scene.validate_configuration()
+    scene = update_scene()
 
-    observation = pE.Observation() # define the observation object
-    observation.load_configuration(parameters) # load the specified configuration in the parameters dict 
-    observation.set_output_arrays()
-    observation.validate_configuration()
+    observation = update_observation()
 
     observatory_config = pE.parse_input.get_observatory_config(parameters)
     observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
@@ -97,6 +84,8 @@ def update_calculation(updates):
         observatory, parameters, observation, scene
     )
     observatory.validate_configuration()
+
+    return observatory, scene, observation
 
 def print_observatory(observatory):
     print("Parameters in observatory:")
@@ -109,9 +98,10 @@ def print_observatory(observatory):
         else:
             print("-->",key)
 
-def recalculate_snr(observation, scene, observatory):
+def recalculate_exptime(observation, scene, observatory):
     pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=False)
 
+    return observation.exptime
 
 def load_initial():
     """
@@ -147,9 +137,9 @@ def load_initial():
 
     # PLANET
     FpFs = 1e-10
-    plan_interp_func = sc.interp.interp1d(target["Earth"]["lamhr_"]<<u.micron, target["Earth"]["Ahr_"])
-    reflect_planet = plan_interp_func(parameters["wavelength"] << u.AA)
-    flux_planet = Fstar_obs_10pc * FpFs
+    reflect_planet = target_planet["Earth"]["spectrum"](parameters["wavelength"])
+    flux_planet = Fstar_obs_10pc * reflect_planet
+    parameters["F0"] = flux_planet
     parameters["separation"] = 0.1 # planetary separation in arcsec
     parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
     parameters["Fp_min/Fs"] = 1e-11 # minimum detectable planet 
@@ -167,7 +157,41 @@ def load_initial():
     parameters["npix_multiplier"] = np.ones_like(parameters["wavelength"]) # number of detector pixels per spectral bin
     parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
 
-    observation = update_calculation({})
+    observatory, scene, observation = update_calculation({})
+
+    exptime = recalculate_exptime(observation, scene, observatory)
 
 
+source = ColumnDataSource(data=dict(value=[]))
+source.on_change('data', update_calculation)
+snr  = Slider(title="Target SNR", value=10., start=0.1, end=100.0, step=0.1, ) 
+snr_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+snr.js_on_change("value", snr_callback)
 
+def load_planet(sourceID, star):
+    plan_interp_func = sc.interp.interp1d(target_planet[sourceID]["lamhr_"]<<u.micron, target_planet[sourceID]["Ahr_"])
+    reflect_planet = plan_interp_func(parameters["wavelength"] << u.AA)
+
+    flux_planet = star * reflect_planet
+    parameters["F0"] = flux_planet
+
+    return reflect_planet
+
+def load_star(sourceID):
+    plan_interp_func = sc.interp.interp1d(target_star[sourceID]["lamhr_"]<<u.micron, target_star[sourceID]["Ahr_"])
+    reflect_planet = plan_interp_func(parameters["wavelength"] << u.AA)
+
+
+    parameters["Fstar_10pc"] = Fstar_obs_10pc.value # Fstar modeled as a blackbody (see above)
+
+    return reflect_planet
+
+star = Select(title="Template Star Spectrum", value="G2V star", 
+                options=[target_star.keys()], width=250) 
+
+planet = Select(title="Template Spectrum", value="Earth", 
+                options=[target_planet.keys()], width=250) 
+
+load_initial()

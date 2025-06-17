@@ -1,12 +1,13 @@
 import os
+from functools import partial
 
 import numpy as np
 import scipy as sc
 from bokeh.plotting import figure
 from bokeh.embed import components
-from bokeh.models import ColumnDataSource, Paragraph, Range1d, RadioButtonGroup 
+from bokeh.models import ColumnDataSource, Paragraph, Range1d, RadioButtonGroup, SetValue
 from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import Slider, Div, Select 
+from bokeh.models.widgets import Slider, Div, Select, Button
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import row, column, layout
 from bokeh.io import curdoc, output_file
@@ -32,9 +33,10 @@ import catalog
 Notes to fix:
 
 1. Because each changed value needs to be escaped from the list it's in, we can and should easily divide up which parts of PyEDITH need to be rerun
-2. Implement a "Calculate" button because PyEdith takes time, instead of any change to data.
-3. Implement the load_star and load_planet features
-4. Get the hover-text working
+2. I don't think the plot data is actually reloading each time it runs.
+3. Implement a "Calculate" button because PyEdith takes time, instead of any change to data.
+4. Implement the load_star and load_planet features
+5. Get the hover-text working
 '''
 
 param_snr=10
@@ -45,6 +47,9 @@ target_planet, target_star = catalog.load_catalog()
 parameters = {}
 scene = None
 observation = None
+obsdata = ColumnDataSource(data=dict(value=[]))
+inputs = ColumnDataSource(data=dict(value=[]))
+
 
 def compute_blackbody_photon_flux(temp, wavelengths, dist):
     """Generate photon flux density (photon/s/cm^2/um) for a blackbody at 1 cm^2."""
@@ -92,62 +97,6 @@ def print_observatory(observatory):
         else:
             print("-->",key)
 
-# Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
-# it is, particularly, unclear what 
-def update_calculation(updates):
-    global parameters
-
-    if "startemplate" in updates:
-        parameters = load_star(updates)
-    if "planettemplate" in updates:
-        parameters = load_planet(updates)
-    if "newsnr" in updates:
-        parameters["snr"] = updates["newsnr"][0]
-
-    if "eacnum" in parameters:
-        parameters["observatory_preset"] = EACS[updates["eacnum"][0]]
-    else:
-        parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
-
-    scene = update_scene()
-
-    observation = update_observation()
-
-    if parameters["regrid_wavelength"] is True:
-        scene.regrid_spectra(parameters, observation)
-
-
-    observatory_config = pE.parse_input.get_observatory_config(parameters)
-
-    observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
-    pE.ObservatoryBuilder.configure_observatory(
-        observatory, parameters, observation, scene
-    )
-    observatory.validate_configuration()
-    print_observatory(observatory)
-
-    return observatory, scene, observation
-
-def recalculate_exptime(updates, old, new):
-    print(updates)
-    print(old)
-    print(new)
-    observatory, scene, observation = update_calculation(new)
-
-    pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
-
-    good = np.where(observation.exptime < 1e7 * u.s)
-
-    return observation.wavelength[good], observation.exptime[good]
-
-def recalculate_snr(updates):
-    observatory, scene, observation = update_calculation(updates)
-
-    pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="signal_to_noise", verbose=False)
-
-    good = np.where(~np.isinf(observation.fullsnr))
-
-    return observation.wavelength, observation.fullsnr
 
 def load_initial():
     """
@@ -191,12 +140,12 @@ def load_initial():
     Fplan_obs = Fstar_obs_10pc*contrast
     FpFs = (Fplan_obs / Fstar_obs_10pc).value
 
-    from matplotlib import pyplot as plt
-    plt.plot(parameters["wavelength"] * u.um, Fstar_obs_10pc)
-    plt.plot(parameters["wavelength"] * u.um, Fplan_obs)
-    plt.yscale("log")
+    # from matplotlib import pyplot as plt
+    # plt.plot(parameters["wavelength"] * u.um, Fstar_obs_10pc)
+    # plt.plot(parameters["wavelength"] * u.um, Fplan_obs)
+    # plt.yscale("log")
 
-    plt.show()
+    # plt.show()
 
     #FpFs = FpFs * np.median(Fstar_obs_10pc) - syn.units.convert_flux(parameters["wavelength"], FpFs, parameters["delta_mag"]
     print("Planet", FpFs, Fplan_obs)
@@ -222,9 +171,8 @@ def load_initial():
     parameters["npix_multiplier"] = np.ones_like(parameters["wavelength"]) # number of detector pixels per spectral bin
     parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
 
-    wavelength, exptime = recalculate_exptime(parameters, [], [])
+    recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
-    return wavelength, exptime
 
 def load_planet(sourceID, star):
     global parameters
@@ -245,51 +193,122 @@ def load_star(sourceID):
 
     return flux_star
 
+# Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
+# it is, particularly, unclear what 
+def update_calculation(newvalues):
+    global parameters
+    global observation
+    global scene
+    action = SetValue(compute, "label", "Please Wait...")
+    print("------------------------------------")
+    print(newvalues.data)
 
-wavelength, exptime = load_initial()
-obsdata = ColumnDataSource(data={"wavelength": wavelength, "exptime": exptime})
+    if "startemplate" in newvalues.data:
+        print("Changed star")
+        parameters = load_star(newvalues.data)
+    if "planettemplate" in newvalues.data:
+        print("Changed planet")
+        parameters = load_planet(newvalues.data)
+    if "newsnr" in newvalues.data:
+        print("Changed SNR")
+        parameters["snr"] = newvalues.data["newsnr"][0]
 
-print("Resulting Exposure Time", exptime)
+    if "eacnum" in newvalues.data:
+        parameters["observatory_preset"] = EACS[newvalues.data["eacnum"][0]]
+        print("Changed EAC")
+    else:
+        parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
 
-inputs = ColumnDataSource(data=dict(value=[]))
-inputs.on_change('data', recalculate_exptime)
+    if "observation" in newvalues.data and newvalues.data["observation"][0]:
+        print("Rerun observation...")
+        observation = update_observation()
 
+    if "scene" in newvalues.data and newvalues.data["scene"][0]:
+        print("Rerun scene")
+        scene = update_scene()
+        if parameters["regrid_wavelength"] is True:
+            scene.regrid_spectra(parameters, observation)
+
+    observatory_config = pE.parse_input.get_observatory_config(parameters)
+
+    observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
+    pE.ObservatoryBuilder.configure_observatory(
+        observatory, parameters, observation, scene
+    )
+    observatory.validate_configuration()
+    print_observatory(observatory)
+
+    return observatory, scene, observation
+
+def recalculate_exptime(newvalues):
+    # so we can redo all data
+    global obsdata
+    #global inputs
+
+    observatory, scene, observation = update_calculation(newvalues)
+
+    pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
+
+    good = np.where(observation.exptime < 1e6 * u.s)
+
+    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr)}
+    print("New Data", obsdata.data)
+
+    action = SetValue(compute, "label", "Compute")
+    #obsdata.change.emit()
+
+def recalculate_snr(newvalues):
+    # so we can redo all data
+    global obsdata
+    observatory, scene, observation = update_calculation(newvalues)
+
+    pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="signal_to_ noise", verbose=False)
+
+    good = np.where(~np.isinf(observation.fullsnr))
+
+    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.fullsnr[good]}
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
 eac_buttons.js_on_event("button_click", CustomJS(args=dict(source=inputs, btn=eac_buttons), code="""
-    source.data = { eacnum: [btn.active] }
+    source.data = { eacnum: [btn.active], observatory: [true] }
 """))
 
 newsnr  = Slider(title="Target SNR", value=10., start=0.1, end=100.0, step=0.1, ) 
 newsnr_callback = CustomJS(args=dict(source=inputs), code="""
-    source.data = { snr: [cb_obj.value] }
+    source.data = { snr: [cb_obj.value], observation: [true] }
 """)
 newsnr.js_on_change("value", newsnr_callback)
 
 star = Select(title="Template Star Spectrum", value="G2V star", 
                 options=list(target_star.keys()), width=250) 
 star_callback = CustomJS(args=dict(source=inputs), code="""
-    source.data = { startemplate: [cb_obj.value] }
+    source.data = { startemplate: [cb_obj.value], scene: [true] }
 """)
 star.js_on_change("value", star_callback)
 
 planet = Select(title="Template Spectrum", value="Earth", 
                 options=list(target_planet.keys()), width=250) 
 planet_callback = CustomJS(args=dict(source=inputs), code="""
-    source.data = { planettemplate: [cb_obj.value] }
+    source.data = { planettemplate: [cb_obj.value], scene: [true] }
 """)
 planet.js_on_change("value", planet_callback)
 
 delta_mag  = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
 dm_callback = CustomJS(args=dict(source=inputs), code="""
-    source.data = { delta_mag: [cb_obj.value] }
+    source.data = { delta_mag: [cb_obj.value], observation: [true] }
 """)
 delta_mag.js_on_change("value", dm_callback)
 
-texp_plot = figure(width=640, height=400, tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wave", "@flux")], toolbar_location="below")
+compute = Button(label="Calculate", button_type="primary")
+compute.on_click(partial(recalculate_exptime, inputs))
+
+load_initial()
+
+texp_plot = figure(width=640, height=400, title=f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}", x_axis_label='microns $$\{mu}$$ m', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
 texp_plot.line("wavelength", "exptime", source=obsdata)
 
-controls = column(children=[eac_buttons,newsnr, star, planet, delta_mag], sizing_mode='fixed', max_width=300, width=300, height=700) 
+
+controls = column(children=[eac_buttons,newsnr, star, planet, delta_mag, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
 l = layout([[controls, texp_plot]],sizing_mode='scale_width')

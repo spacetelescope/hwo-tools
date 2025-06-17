@@ -178,20 +178,19 @@ def load_planet(sourceID, star):
     global parameters
     reflect_planet = target_planet[sourceID]["spectrum"]
 
-    flux_planet = star * reflect_planet(parameters["wavelengths"])
+    flux_planet = star * reflect_planet(parameters["wavelength"])
     parameters["F0"] = flux_planet
 
-    return flux_planet
 
 def load_star(sourceID):
     global parameters
-    flux_star = target_star[sourceID]["spectrum"]
+    new_star = target_star[sourceID]["spectrum"]
 
-    parameters["Fstar_10pc"] = flux_star(parameters["wavelengths"])
+    flux = new_star(parameters["wavelength"])
+    parameters["Fstar_10pc"] = syn.units.convert_flux(parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
 
-    print("Star Flux", flux_star)
+    print("Star Flux", flux)
 
-    return flux_star
 
 # Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
 # it is, particularly, unclear what 
@@ -203,19 +202,22 @@ def update_calculation(newvalues):
     print("------------------------------------")
     print(newvalues.data)
 
-    if "startemplate" in newvalues.data:
+    if "new_star" in newvalues.data:
         print("Changed star")
-        parameters = load_star(newvalues.data)
-    if "planettemplate" in newvalues.data:
+        load_star(newvalues.data["new_star"][0])
+        del newvalues.data["new_star"]
+    if "new_planet" in newvalues.data:
         print("Changed planet")
-        parameters = load_planet(newvalues.data)
-    if "newsnr" in newvalues.data:
+        load_planet(newvalues.data["new_planet"][0])
+        del newvalues.data["new_planet"]
+    if "new_snr" in newvalues.data:
         print("Changed SNR")
-        parameters["snr"] = newvalues.data["newsnr"][0]
-
-    if "eacnum" in newvalues.data:
-        parameters["observatory_preset"] = EACS[newvalues.data["eacnum"][0]]
+        parameters["snr"] = newvalues.data["new_snr"][0] * np.ones_like(parameters["wavelength"])
+        del newvalues.data["new_snr"]
+    if "new_eac" in newvalues.data:
+        parameters["observatory_preset"] = newvalues.data["new_eac"][0]
         print("Changed EAC")
+        del newvalues.data["new_eac"]
     else:
         parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
 
@@ -238,12 +240,12 @@ def update_calculation(newvalues):
     observatory.validate_configuration()
     print_observatory(observatory)
 
+
     return observatory, scene, observation
 
 def recalculate_exptime(newvalues):
     # so we can redo all data
     global obsdata
-    #global inputs
 
     observatory, scene, observation = update_calculation(newvalues)
 
@@ -257,6 +259,7 @@ def recalculate_exptime(newvalues):
     action = SetValue(compute, "label", "Compute")
     #obsdata.change.emit()
 
+
 def recalculate_snr(newvalues):
     # so we can redo all data
     global obsdata
@@ -269,29 +272,39 @@ def recalculate_snr(newvalues):
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.fullsnr[good]}
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
-eac_buttons.js_on_event("button_click", CustomJS(args=dict(source=inputs, btn=eac_buttons), code="""
-    source.data = { eacnum: [btn.active], observatory: [true] }
-"""))
+
+def eac_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_eac": [EACS[new]], "observatory": [True]})
+eac_buttons.on_change("active", eac_callback)
 
 newsnr  = Slider(title="Target SNR", value=10., start=0.1, end=100.0, step=0.1, ) 
-newsnr_callback = CustomJS(args=dict(source=inputs), code="""
-    source.data = { snr: [cb_obj.value], observation: [true] }
-""")
-newsnr.js_on_change("value", newsnr_callback)
+def snr_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_snr": [new], "observation": [True]})
+newsnr.on_change("value", snr_callback)
 
 star = Select(title="Template Star Spectrum", value="G2V star", 
                 options=list(target_star.keys()), width=250) 
-star_callback = CustomJS(args=dict(source=inputs), code="""
-    source.data = { startemplate: [cb_obj.value], scene: [true] }
-""")
-star.js_on_change("value", star_callback)
+#star_callback = CustomJS(args=dict(source=inputs), code="""
+#    source.data = { startemplate: [cb_obj.value], scene: [true] }
+#""")
+def star_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_star": [new], "scene": [True]})
+star.on_change("value", star_callback)
+#star.js_on_change("value", star_callback)
 
 planet = Select(title="Template Spectrum", value="Earth", 
                 options=list(target_planet.keys()), width=250) 
-planet_callback = CustomJS(args=dict(source=inputs), code="""
-    source.data = { planettemplate: [cb_obj.value], scene: [true] }
-""")
-planet.js_on_change("value", planet_callback)
+def planet_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_planet": [new], "scene": [True]})
+planet.on_change("value", planet_callback)
 
 delta_mag  = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
 dm_callback = CustomJS(args=dict(source=inputs), code="""

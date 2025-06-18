@@ -174,11 +174,11 @@ def load_initial():
     recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
 
-def load_planet(sourceID, star):
+def load_planet(sourceID):
     global parameters
     reflect_planet = target_planet[sourceID]["spectrum"]
 
-    flux_planet = star * reflect_planet(parameters["wavelength"])
+    flux_planet = parameters["Fstar_10pc"] * reflect_planet(parameters["wavelength"])
     parameters["F0"] = flux_planet
 
 
@@ -198,7 +198,6 @@ def update_calculation(newvalues):
     global parameters
     global observation
     global scene
-    action = SetValue(compute, "label", "Please Wait...")
     print("------------------------------------")
     print(newvalues.data)
 
@@ -246,6 +245,9 @@ def update_calculation(newvalues):
 def recalculate_exptime(newvalues):
     # so we can redo all data
     global obsdata
+    global compute
+    
+    SetValue(compute, "label", "Please Wait...")
 
     observatory, scene, observation = update_calculation(newvalues)
 
@@ -256,7 +258,7 @@ def recalculate_exptime(newvalues):
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr)}
     print("New Data", obsdata.data)
 
-    action = SetValue(compute, "label", "Compute")
+    SetValue(compute, "label", "Compute")
     #obsdata.change.emit()
 
 
@@ -286,17 +288,20 @@ def snr_callback(attr, old, new):
     inputs.data.update({"new_snr": [new], "observation": [True]})
 newsnr.on_change("value", snr_callback)
 
+newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, ) 
+def diameter_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_diameter": [new], "observatory": [True]})
+newdiameter.on_change("value", diameter_callback)
+
 star = Select(title="Template Star Spectrum", value="G2V star", 
                 options=list(target_star.keys()), width=250) 
-#star_callback = CustomJS(args=dict(source=inputs), code="""
-#    source.data = { startemplate: [cb_obj.value], scene: [true] }
-#""")
 def star_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_star": [new], "scene": [True]})
 star.on_change("value", star_callback)
-#star.js_on_change("value", star_callback)
 
 planet = Select(title="Template Spectrum", value="Earth", 
                 options=list(target_planet.keys()), width=250) 
@@ -307,10 +312,11 @@ def planet_callback(attr, old, new):
 planet.on_change("value", planet_callback)
 
 delta_mag  = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
-dm_callback = CustomJS(args=dict(source=inputs), code="""
-    source.data = { delta_mag: [cb_obj.value], observation: [true] }
-""")
-delta_mag.js_on_change("value", dm_callback)
+def dmag_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_dMag": [new], "scene": [True]})
+delta_mag.on_change("value", dmag_callback)
 
 compute = Button(label="Calculate", button_type="primary")
 compute.on_click(partial(recalculate_exptime, inputs))
@@ -321,10 +327,11 @@ texp_plot = figure(width=640, height=400, title=f"{planet.value} - {star.value} 
 texp_plot.line("wavelength", "exptime", source=obsdata)
 
 
-controls = column(children=[eac_buttons,newsnr, star, planet, delta_mag, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
+controls = column(children=[eac_buttons,newdiameter, newsnr, star, planet, delta_mag, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
 l = layout([[controls, texp_plot]],sizing_mode='scale_width')
 
+curdoc().theme = 'dark_minimal'
 curdoc().add_root(l) 
 curdoc().add_root(obsdata) 

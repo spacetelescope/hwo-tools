@@ -15,7 +15,6 @@ from bokeh.io import curdoc, output_file
 import astropy.units as u
 import astropy.constants as c
 import synphot as syn
-from syotools.sci_eng_interface import read_json 
 
 import pyEDITH as pE
 import pickle
@@ -45,11 +44,17 @@ EACS = ["EAC1", "EAC2", "EAC3"]
 target_planet, target_star = catalog.load_catalog()
 
 parameters = {}
-scene = None
-observation = None
+scene = pE.AstrophysicalScene()
+observation = pE.Observation() # define the observation object
+observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
 obsdata = ColumnDataSource(data=dict(value=[]))
 inputs = ColumnDataSource(data=dict(value=[]))
 
+texp_plot = figure(width=640, height=400, title=f"", x_axis_label='microns $$\{mu}$$ m', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
+texp_plot.line("wavelength", "exptime", source=obsdata)
+
+compute = Button(label="Calculate", button_type="primary")
+# Can't set up the callback here because we need to define its callback (recalculate_exptime) first.
 
 def compute_blackbody_photon_flux(temp, wavelengths, dist):
     """Generate photon flux density (photon/s/cm^2/um) for a blackbody at 1 cm^2."""
@@ -64,9 +69,9 @@ def compute_blackbody_photon_flux(temp, wavelengths, dist):
 
 def update_scene():
     global parameters
+    global scene
     #parameters.update(updates)
 
-    scene = pE.AstrophysicalScene()
     scene.load_configuration(parameters)
     scene.calculate_zodi_exozodi(parameters)
     scene.validate_configuration()
@@ -77,9 +82,9 @@ def update_scene():
 
 def update_observation():
     global parameters
+    global observation
     #parameters.update(updates)
 
-    observation = pE.Observation() # define the observation object
     observation.load_configuration(parameters) # load the specified configuration in the parameters dict 
     observation.set_output_arrays()
     observation.validate_configuration()
@@ -103,6 +108,7 @@ def load_initial():
     Load initial parameters for the ETC on load
     """
     global parameters
+    global observatory
 
     # observation parameters
     # set up wavelengths
@@ -171,6 +177,12 @@ def load_initial():
     parameters["npix_multiplier"] = np.ones_like(parameters["wavelength"]) # number of detector pixels per spectral bin
     parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
 
+    # this piece, alone, has to be created WITH some configured parameters.
+    observatory_config = pE.parse_input.get_observatory_config(parameters)
+
+    observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
+
+
     recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
 
@@ -198,17 +210,26 @@ def update_calculation(newvalues):
     global parameters
     global observation
     global scene
+    global observatory
     print("------------------------------------")
     print(newvalues.data)
 
     if "new_star" in newvalues.data:
         print("Changed star")
         load_star(newvalues.data["new_star"][0])
-        del newvalues.data["new_star"]
+        del newvalues.data["new_star"] # consume the new value
+    if "new_magnitude" in newvalues.data:
+        print("Changed stellar magnitude")
+        load_star(newvalues.data["new_magnitude"][0])
+        del newvalues.data["new_magnitude"] # consume the new value
     if "new_planet" in newvalues.data:
         print("Changed planet")
         load_planet(newvalues.data["new_planet"][0])
         del newvalues.data["new_planet"]
+    if "new_separation" in newvalues.data:
+        print("Changed Separation")
+        parameters["separation"] = newvalues.data["new_separation"][0]
+        del newvalues.data["new_separation"]
     if "new_snr" in newvalues.data:
         print("Changed SNR")
         parameters["snr"] = newvalues.data["new_snr"][0] * np.ones_like(parameters["wavelength"])
@@ -217,6 +238,10 @@ def update_calculation(newvalues):
         parameters["observatory_preset"] = newvalues.data["new_eac"][0]
         print("Changed EAC")
         del newvalues.data["new_eac"]
+    if "new_diameter" in newvalues.data:
+        print("Changed Diameter")
+        parameters["diameter"] = newvalues.data["new_diameter"][0]
+        del newvalues.data["new_diameter"]
     else:
         parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
 
@@ -230,24 +255,17 @@ def update_calculation(newvalues):
         if parameters["regrid_wavelength"] is True:
             scene.regrid_spectra(parameters, observation)
 
-    observatory_config = pE.parse_input.get_observatory_config(parameters)
-
-    observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
     pE.ObservatoryBuilder.configure_observatory(
         observatory, parameters, observation, scene
     )
     observatory.validate_configuration()
+    print(observatory.telescope.__dict__)
     print_observatory(observatory)
 
 
     return observatory, scene, observation
 
-def recalculate_exptime(newvalues):
-    # so we can redo all data
-    global obsdata
-    global compute
-    
-    SetValue(compute, "label", "Please Wait...")
+def do_recalculate_exptime(newvalues):
 
     observatory, scene, observation = update_calculation(newvalues)
 
@@ -257,10 +275,31 @@ def recalculate_exptime(newvalues):
 
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr)}
     print("New Data", obsdata.data)
+    texp_plot.title.text =  f"{planet.value} - {star.value} - {np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
 
-    SetValue(compute, "label", "Compute")
-    #obsdata.change.emit()
+    compute.label = "Compute"
 
+
+def recalculate_exptime(newvalues):
+    """
+    The trick here is that Bokeh only synchronizes the calls at the end of a function, so
+    if I want to change the button to "Please wait..." and THEN have it calculate, I have
+    to make this call, and have this call fire off another callback with add_next_tick_callback.
+
+    Parameters
+    ----------
+    newvalues : _type_
+        _description_
+    """
+    # so we can redo all data
+    global obsdata
+    global compute
+
+    compute.label = "Please Wait..."
+    curdoc().add_next_tick_callback(partial(do_recalculate_exptime, newvalues))
+
+
+compute.on_click(partial(recalculate_exptime, inputs))
 
 def recalculate_snr(newvalues):
     # so we can redo all data
@@ -279,12 +318,14 @@ def eac_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_eac": [EACS[new]], "observatory": [True]})
+    #texp_plot.title.text =  f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}"
 eac_buttons.on_change("active", eac_callback)
 
 newsnr  = Slider(title="Target SNR", value=10., start=0.1, end=100.0, step=0.1, ) 
 def snr_callback(attr, old, new):
     global inputs
     print(attr, old, new)
+    #texp_plot.title.text =  f"{planet.value} - {star.value} - {new} - {EACS[eac_buttons.active]}"
     inputs.data.update({"new_snr": [new], "observation": [True]})
 newsnr.on_change("value", snr_callback)
 
@@ -293,6 +334,7 @@ def diameter_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_diameter": [new], "observatory": [True]})
+    #texp_plot.title.text =  f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}"
 newdiameter.on_change("value", diameter_callback)
 
 star = Select(title="Template Star Spectrum", value="G2V star", 
@@ -301,7 +343,15 @@ def star_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_star": [new], "scene": [True]})
+    #texp_plot.title.text =  f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}"
 star.on_change("value", star_callback)
+
+magnitude  = Slider(title="Stellar Magnitude", value=15., start=20, end=10.0, step=-0.1 ) 
+def magnitude_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"magnitude": [new], "scene": [True]})
+magnitude.on_change("value", magnitude)
 
 planet = Select(title="Template Spectrum", value="Earth", 
                 options=list(target_planet.keys()), width=250) 
@@ -309,7 +359,15 @@ def planet_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_planet": [new], "scene": [True]})
+    #texp_plot.title.text =  f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}"
 planet.on_change("value", planet_callback)
+
+separation  = Slider(title="Separation (arcsec @ 10pc)", value=0.1, start=0.01, end=0.5, step=0.01, ) 
+def separation_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_separation": [new], "scene": [True]})
+separation.on_change("value", separation_callback)
 
 delta_mag  = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
 def dmag_callback(attr, old, new):
@@ -318,16 +376,11 @@ def dmag_callback(attr, old, new):
     inputs.data.update({"new_dMag": [new], "scene": [True]})
 delta_mag.on_change("value", dmag_callback)
 
-compute = Button(label="Calculate", button_type="primary")
-compute.on_click(partial(recalculate_exptime, inputs))
 
 load_initial()
 
-texp_plot = figure(width=640, height=400, title=f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}", x_axis_label='microns $$\{mu}$$ m', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
-texp_plot.line("wavelength", "exptime", source=obsdata)
 
-
-controls = column(children=[eac_buttons,newdiameter, newsnr, star, planet, delta_mag, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
+controls = column(children=[eac_buttons, newdiameter, newsnr, star, magnitude, planet, separation, delta_mag, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
 l = layout([[controls, texp_plot]],sizing_mode='scale_width')

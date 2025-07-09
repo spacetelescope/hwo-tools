@@ -15,6 +15,7 @@ from bokeh.io import curdoc, output_file
 import astropy.units as u
 import astropy.constants as c
 import synphot as syn
+import stsynphot as stsyn
 
 import pyEDITH as pE
 import pickle
@@ -47,10 +48,10 @@ parameters = {}
 scene = pE.AstrophysicalScene()
 observation = pE.Observation() # define the observation object
 observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
-obsdata = ColumnDataSource(data=dict(value=[]))
-inputs = ColumnDataSource(data=dict(value=[]))
+obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[]))
+inputs = ColumnDataSource(data=dict())
 
-texp_plot = figure(width=640, height=400, title=f"", x_axis_label='microns $$\{mu}$$ m', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
+texp_plot = figure(width=640, height=400, title=f"", x_axis_label=r'microns $$\{mu}$$ m', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
 texp_plot.line("wavelength", "exptime", source=obsdata)
 
 compute = Button(label="Calculate", button_type="primary")
@@ -112,7 +113,7 @@ def load_initial():
 
     # observation parameters
     # set up wavelengths
-    parameters["wavelength"] = np.linspace(0.3, 1.7, 1000)
+    parameters["wavelength"] = np.linspace(0.35, 1.7, 1000)
     parameters["nlambd"] = len(parameters["wavelength"]) # number of wavelengths
     parameters["snr"] = param_snr * np.ones_like(parameters["wavelength"]) # the SNR you want for each spectral bin 
     parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
@@ -120,8 +121,8 @@ def load_initial():
     parameters["psf_trunc_ratio"] = 0.3 # truncate the off-axis PSFs at this level 
 
     parameters["regrid_wavelength"] = True # set the flag to do this. We also need to specify a few other parameters.
-    parameters["spectral_resolution"] = np.array([70, 140, 70]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
-    parameters["channel_bounds"] = np.array([0.4, 1.0]) #np.array([]) # specify the boundaries between the channels in um
+    parameters["spectral_resolution"] = np.array([70, 140, 90]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
+    parameters["channel_bounds"] = np.array([0.5, 1.0]) #np.array([]) # specify the boundaries between the channels in um
 
 
     # The Astrophysical 
@@ -132,19 +133,24 @@ def load_initial():
     Fstar_obs_10pc = compute_blackbody_photon_flux(5770, parameters["wavelength"] << u.um, parameters["distance"] << u.pc)
 
     parameters["stellar_angular_diameter"] = 1.5e-4 # angular diameter of the star = 0.01 lam/D == about 1.5e-4 arcsec for lam=0.5 um and D~6.5 m
+    parameters["magnitude"] = 4.5
+    load_star("G2V star")
+
     parameters["Fstar_10pc"] = Fstar_obs_10pc.value # Fstar modeled as a blackbody (see above)
     #parameters["FstarV_10pc"] = v_band_flux.value # V-band flux of the star; you don't have to pre-calculate this, ETC will do it for you
     print("Star", parameters["Fstar_10pc"])
 
+
+
     # PLANET
     # Most of these input spectra are albedo for a system. Actual conversion would require knowing the system separation and relative sizes of the star and planet. OR we make that an input parameter.
     parameters["delta_mag"] = 15 * u.ABmag
-    FpFs = target_planet["Earth"]["spectrum"](parameters["wavelength"] << u.um)
-    # normalize
-    contrast = 1e-8
-    FpFs = FpFs/np.max(FpFs)
-    Fplan_obs = Fstar_obs_10pc*contrast
-    FpFs = (Fplan_obs / Fstar_obs_10pc).value
+    # FpFs = target_planet["Earth"]["spectrum"](parameters["wavelength"] << u.um)
+    # # normalize
+    # contrast = 1e-8
+    # FpFs = FpFs/np.max(FpFs)
+    # Fplan_obs = Fstar_obs_10pc*contrast
+    # FpFs = (Fplan_obs / Fstar_obs_10pc).value
 
     # from matplotlib import pyplot as plt
     # plt.plot(parameters["wavelength"] * u.um, Fstar_obs_10pc)
@@ -154,12 +160,13 @@ def load_initial():
     # plt.show()
 
     #FpFs = FpFs * np.median(Fstar_obs_10pc) - syn.units.convert_flux(parameters["wavelength"], FpFs, parameters["delta_mag"]
-    print("Planet", FpFs, Fplan_obs)
+    #print("Planet", FpFs, Fplan_obs)
     #flux_planet = Fstar_obs_10pc * FpFs * parameters["delta_mag"]
     #parameters["F0"] = flux_planet.value
     parameters["separation"] = 0.1 # planetary separation in arcsec
-    parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
+    #parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
     parameters["Fp_min/Fs"] = 1e-11 # minimum detectable planet 
+    load_planet("Earth")
     print("Star and Planet", parameters["Fstar_10pc"], parameters["Fp/Fs"])
 
     # SCENE
@@ -185,24 +192,46 @@ def load_initial():
 
     recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
+def recompute_planet_flux():
+    global parameters
+    global reflect_planet
+    flux_at_distance = parameters["Lstar"]/(4 * np.pi * (parameters["separation"]*parameters["distance"])**2)
+    flux_planet = parameters["Fstar_10pc"] * flux_at_distance * reflect_planet(parameters["wavelength"] << u.micron)
+    parameters["F0"] = flux_planet.value
+    parameters["Fp/Fs"] = (flux_planet / parameters["Fstar_10pc"]).value
+
+    print("Star:", parameters["Fstar_10pc"])
+    print("Planet:", reflect_planet(parameters["wavelength"] << u.micron), flux_at_distance)
 
 def load_planet(sourceID):
     global parameters
+    global reflect_planet
+    # this is an albedo; the amount of incident flux received at that distance
     reflect_planet = target_planet[sourceID]["spectrum"]
 
-    flux_planet = parameters["Fstar_10pc"] * reflect_planet(parameters["wavelength"])
-    parameters["F0"] = flux_planet
-
+    recompute_planet_flux() # trigger a recomputation of the planetary flux
 
 def load_star(sourceID):
     global parameters
-    new_star = target_star[sourceID]["spectrum"]
+    star = target_star[sourceID]["spectrum"]
+    parameters["Lstar"] = 10**target_star[sourceID]["logL"]
+    parameters["current_star"] = star
 
+    recompute_star_flux()
+
+def recompute_star_flux():
+
+    band = stsyn.spectrum.ObservationSpectralElement.from_obsmode("johnson,v")
+    print(band)
+
+    new_star = parameters["current_star"].normalize(parameters["magnitude"] * u.ABmag, band=band)
     flux = new_star(parameters["wavelength"])
+
     parameters["Fstar_10pc"] = syn.units.convert_flux(parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
 
-    print("Star Flux", flux)
+    recompute_planet_flux() # trigger a recomputation of the planetary flux
 
+    print("Star Flux", flux)
 
 # Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
 # it is, particularly, unclear what 
@@ -220,7 +249,8 @@ def update_calculation(newvalues):
         del newvalues.data["new_star"] # consume the new value
     if "new_magnitude" in newvalues.data:
         print("Changed stellar magnitude")
-        load_star(newvalues.data["new_magnitude"][0])
+        parameters["magnitude"] = newvalues.data["new_magnitude"][0]
+        recompute_star_flux()
         del newvalues.data["new_magnitude"] # consume the new value
     if "new_planet" in newvalues.data:
         print("Changed planet")
@@ -229,6 +259,7 @@ def update_calculation(newvalues):
     if "new_separation" in newvalues.data:
         print("Changed Separation")
         parameters["separation"] = newvalues.data["new_separation"][0]
+        recompute_planet_flux()
         del newvalues.data["new_separation"]
     if "new_snr" in newvalues.data:
         print("Changed SNR")
@@ -275,7 +306,7 @@ def do_recalculate_exptime(newvalues):
 
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr)}
     print("New Data", obsdata.data)
-    texp_plot.title.text =  f"{planet.value} - {star.value} - {np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    texp_plot.title.text =  f"{planet.value} - {star.value} - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
 
     compute.label = "Compute"
 
@@ -318,14 +349,12 @@ def eac_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_eac": [EACS[new]], "observatory": [True]})
-    #texp_plot.title.text =  f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}"
 eac_buttons.on_change("active", eac_callback)
 
 newsnr  = Slider(title="Target SNR", value=10., start=0.1, end=100.0, step=0.1, ) 
 def snr_callback(attr, old, new):
     global inputs
     print(attr, old, new)
-    #texp_plot.title.text =  f"{planet.value} - {star.value} - {new} - {EACS[eac_buttons.active]}"
     inputs.data.update({"new_snr": [new], "observation": [True]})
 newsnr.on_change("value", snr_callback)
 
@@ -334,7 +363,6 @@ def diameter_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_diameter": [new], "observatory": [True]})
-    #texp_plot.title.text =  f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}"
 newdiameter.on_change("value", diameter_callback)
 
 star = Select(title="Template Star Spectrum", value="G2V star", 
@@ -343,23 +371,21 @@ def star_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_star": [new], "scene": [True]})
-    #texp_plot.title.text =  f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}"
 star.on_change("value", star_callback)
 
-magnitude  = Slider(title="Stellar Magnitude", value=15., start=20, end=10.0, step=-0.1 ) 
+magnitude  = Slider(title="Stellar Magnitude", value=4.5, start=3, end=20.0, step=0.1) 
 def magnitude_callback(attr, old, new):
     global inputs
     print(attr, old, new)
-    inputs.data.update({"magnitude": [new], "scene": [True]})
-magnitude.on_change("value", magnitude)
+    inputs.data.update({"new_magnitude": [new], "scene": [True]})
+magnitude.on_change("value", magnitude_callback)
 
-planet = Select(title="Template Spectrum", value="Earth", 
-                options=list(target_planet.keys()), width=250) 
+planet = Select(title="Template Planet Spectrum", value="Earth", 
+                options=list(target_planet.keys()), width=250)
 def planet_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_planet": [new], "scene": [True]})
-    #texp_plot.title.text =  f"{planet.value} - {star.value} - {newsnr.value} - {EACS[eac_buttons.active]}"
 planet.on_change("value", planet_callback)
 
 separation  = Slider(title="Separation (arcsec @ 10pc)", value=0.1, start=0.01, end=0.5, step=0.01, ) 

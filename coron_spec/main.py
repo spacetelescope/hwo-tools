@@ -77,8 +77,6 @@ def update_scene():
     scene.calculate_zodi_exozodi(parameters)
     scene.validate_configuration()
 
-    print("Planetflux", scene.Fp_over_Fs)
-
     return scene
 
 def update_observation():
@@ -110,6 +108,7 @@ def load_initial():
     """
     global parameters
     global observatory
+    global reflect_planet
 
     # observation parameters
     # set up wavelengths
@@ -129,16 +128,23 @@ def load_initial():
     # STAR
     parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
     parameters["distance"] = 10. # distance to the system in pc
+    parameters["separation"] = 0.1 # planetary separation in arcsec
+    #parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
+    parameters["Fp_min/Fs"] = 1e-11 # minimum detectable planet 
     # Note: we can work in either mag or flux units. Let's choose to work in flux units. 
     Fstar_obs_10pc = compute_blackbody_photon_flux(5770, parameters["wavelength"] << u.um, parameters["distance"] << u.pc)
 
     parameters["stellar_angular_diameter"] = 1.5e-4 # angular diameter of the star = 0.01 lam/D == about 1.5e-4 arcsec for lam=0.5 um and D~6.5 m
     parameters["magnitude"] = 4.5
+    # just this first time, because we need to load a planet to start with
+    reflect_planet = target_planet["Earth"]["spectrum"]
+    parameters["planetary_radius"] = target_planet["Earth"]["planetary_radius"]
+
     load_star("G2V star")
 
-    parameters["Fstar_10pc"] = Fstar_obs_10pc.value # Fstar modeled as a blackbody (see above)
+    #parameters["Fstar_10pc"] = Fstar_obs_10pc.value # Fstar modeled as a blackbody (see above)
     #parameters["FstarV_10pc"] = v_band_flux.value # V-band flux of the star; you don't have to pre-calculate this, ETC will do it for you
-    print("Star", parameters["Fstar_10pc"])
+    #print("Star", parameters["Fstar_10pc"])
 
 
 
@@ -163,11 +169,9 @@ def load_initial():
     #print("Planet", FpFs, Fplan_obs)
     #flux_planet = Fstar_obs_10pc * FpFs * parameters["delta_mag"]
     #parameters["F0"] = flux_planet.value
-    parameters["separation"] = 0.1 # planetary separation in arcsec
-    #parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
-    parameters["Fp_min/Fs"] = 1e-11 # minimum detectable planet 
+
     load_planet("Earth")
-    print("Star and Planet", parameters["Fstar_10pc"], parameters["Fp/Fs"])
+    #print("Star and Planet", parameters["Fstar_10pc"], parameters["Fp/Fs"])
 
     # SCENE
     parameters["nzodis"] = 3. # number of zodis for exozodi estimate
@@ -195,43 +199,53 @@ def load_initial():
 def recompute_planet_flux():
     global parameters
     global reflect_planet
-    flux_at_distance = parameters["Lstar"]/(4 * np.pi * (parameters["separation"]*parameters["distance"])**2)
-    flux_planet = parameters["Fstar_10pc"] * flux_at_distance * reflect_planet(parameters["wavelength"] << u.micron)
+    solid_angle = parameters["planetary_radius"]**2/(4 * (parameters["separation"]*parameters["distance"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
+    flux_planet = parameters["Fstar_10pc"] * solid_angle * reflect_planet(parameters["wavelength"] << u.micron)
     parameters["F0"] = flux_planet.value
     parameters["Fp/Fs"] = (flux_planet / parameters["Fstar_10pc"]).value
+    separation.value = parameters["separation"] # Make sure it matches what was used
+
 
     print("Star:", parameters["Fstar_10pc"])
-    print("Planet:", reflect_planet(parameters["wavelength"] << u.micron), flux_at_distance)
+    print("Planet:", reflect_planet(parameters["wavelength"] << u.micron), solid_angle)
+    print(parameters["separation"], parameters["distance"])
 
 def load_planet(sourceID):
     global parameters
     global reflect_planet
     # this is an albedo; the amount of incident flux received at that distance
     reflect_planet = target_planet[sourceID]["spectrum"]
+    parameters["planetary_radius"] = target_planet[sourceID]["planetary_radius"]
+    parameters["separation"] = .1 * target_planet[sourceID]["separation"]
+    separation.value = .1 * target_planet[sourceID]["separation"]
+
 
     recompute_planet_flux() # trigger a recomputation of the planetary flux
 
 def load_star(sourceID):
     global parameters
     star = target_star[sourceID]["spectrum"]
-    parameters["Lstar"] = 10**target_star[sourceID]["logL"]
+    parameters["magnitude"] = target_star[sourceID]["magnitude"] # Johnson V magnitude, specifically.
+    magnitude.value = target_star[sourceID]["magnitude"]
     parameters["current_star"] = star
 
     recompute_star_flux()
 
 def recompute_star_flux():
 
-    band = stsyn.spectrum.ObservationSpectralElement.from_obsmode("johnson,v")
-    print(band)
+    bp = stsyn.band("johnson,v")
+    #print(bp)
+    #print(parameters["current_star"])
 
-    new_star = parameters["current_star"].normalize(parameters["magnitude"] * u.ABmag, band=band)
-    flux = new_star(parameters["wavelength"])
+    new_star = parameters["current_star"].normalize(parameters["magnitude"] * u.ABmag, band=bp)
+    flux = new_star(parameters["wavelength"]<< u.micron)
+    magnitude.value = parameters["magnitude"] # make sure it matches what was used
 
     parameters["Fstar_10pc"] = syn.units.convert_flux(parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
 
     recompute_planet_flux() # trigger a recomputation of the planetary flux
 
-    print("Star Flux", flux)
+    #print("Star Flux", flux)
 
 # Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
 # it is, particularly, unclear what 
@@ -290,8 +304,8 @@ def update_calculation(newvalues):
         observatory, parameters, observation, scene
     )
     observatory.validate_configuration()
-    print(observatory.telescope.__dict__)
-    print_observatory(observatory)
+    #print(observatory.telescope.__dict__)
+    #print_observatory(observatory)
 
 
     return observatory, scene, observation
@@ -302,10 +316,10 @@ def do_recalculate_exptime(newvalues):
 
     pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
 
-    good = np.where(observation.exptime < 1e6 * u.s)
+    good = np.where(observation.exptime < 1e8 * u.s)
 
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr)}
-    print("New Data", obsdata.data)
+    #print("New Data", obsdata.data)
     texp_plot.title.text =  f"{planet.value} - {star.value} - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
 
     compute.label = "Compute"
@@ -406,7 +420,7 @@ delta_mag.on_change("value", dmag_callback)
 load_initial()
 
 
-controls = column(children=[eac_buttons, newdiameter, newsnr, star, magnitude, planet, separation, delta_mag, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
+controls = column(children=[eac_buttons, newdiameter, newsnr, star, magnitude, planet, separation, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
 l = layout([[controls, texp_plot]],sizing_mode='scale_width')

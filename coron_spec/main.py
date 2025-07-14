@@ -51,7 +51,7 @@ observatory = None # this piece, alone, has to be created WITH some configured p
 obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[]))
 inputs = ColumnDataSource(data=dict())
 
-texp_plot = figure(width=640, height=400, title=f"", x_axis_label=r'microns $$\{mu}$$ m', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
+texp_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
 texp_plot.line("wavelength", "exptime", source=obsdata)
 
 compute = Button(label="Calculate", button_type="primary")
@@ -357,8 +357,10 @@ def recalculate_snr(newvalues):
 
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.fullsnr[good]}
 
-eac_buttons = RadioButtonGroup(labels=EACS, active=0)
 
+intro = Div(text='<p>This Coronagraphic ETC is powered by <a href="https://github.com/eleonoraalei/pyEDITH/tree/main">PyEDITH</a> (Alei & Currie).</p><p>The system is assumed to be at a fixed distance of 10 parsecs.</p>')
+
+eac_buttons = RadioButtonGroup(labels=EACS, active=0)
 def eac_callback(attr, old, new):
     global inputs
     print(attr, old, new)
@@ -387,7 +389,7 @@ def star_callback(attr, old, new):
     inputs.data.update({"new_star": [new], "scene": [True]})
 star.on_change("value", star_callback)
 
-magnitude  = Slider(title="Stellar Magnitude", value=4.5, start=3, end=20.0, step=0.1) 
+magnitude  = Slider(title="Stellar Magnitude (Johnson V)", value=4.5, start=3, end=20.0, step=0.1) 
 def magnitude_callback(attr, old, new):
     global inputs
     print(attr, old, new)
@@ -420,7 +422,7 @@ delta_mag.on_change("value", dmag_callback)
 load_initial()
 
 
-controls = column(children=[eac_buttons, newdiameter, newsnr, star, magnitude, planet, separation, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
+controls = column(children=[intro, eac_buttons, newdiameter, newsnr, star, magnitude, planet, separation, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
 l = layout([[controls, texp_plot]],sizing_mode='scale_width')

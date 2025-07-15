@@ -2,7 +2,7 @@
 from __future__ import print_function
 import numpy as np 
 import os 
-from astropy.table import Table 
+from astropy.io import fits 
 #from astropy.io import ascii 
 
 class Telescope: 
@@ -56,12 +56,13 @@ class Spectrograph():
         print('Setting the spectrograph to mode: ', mode_name) 
         cwd = os.getenv('SYOTOOLS_DATA_DIR')
         self.mode_name = mode_name
-        lumos = Table.read(cwd+'/LUMOS_ETC.fits', format='fits') 
-        self.wave = lumos[self.mode_name]['Wave']
-        self.aeff = lumos[self.mode_name]['A_eff']
-        self.bef = lumos[self.mode_name]['BEF'] 
-        self.delta_lambda = lumos[self.mode_name]['Disp_Width']
-        self.lambda_range = np.array([np.min(self.wave),np.max(self.wave)])
-        self.lumos_table = lumos 
+        with fits.open(cwd+'/LUMOS_ETC.fits', format='fits') as lumos:
+            print(lumos[self.mode_name].header)
+            self.wave = lumos[self.mode_name].data['Wavelength']
+            self.aeff = lumos[self.mode_name].data['A_Eff']
+            self.bef = lumos[self.mode_name].data['BEF'] 
+            self.delta_lambda = lumos[self.mode_name].data['Disp_Width']
+            self.lambda_range = np.array([np.min(self.wave),np.max(self.wave)])
+            self.lumos_table = lumos 
 
         self.R = 30000. 

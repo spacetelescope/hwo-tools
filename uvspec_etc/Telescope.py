@@ -57,7 +57,6 @@ class Spectrograph():
         cwd = os.getenv('SYOTOOLS_DATA_DIR')
         self.mode_name = mode_name
         with fits.open(cwd+'/LUMOS_ETC.fits', format='fits') as lumos:
-            print(lumos[self.mode_name].header)
             self.wave = lumos[self.mode_name].data['Wavelength']
             self.aeff = lumos[self.mode_name].data['A_Eff']
             self.bef = lumos[self.mode_name].data['BEF'] 

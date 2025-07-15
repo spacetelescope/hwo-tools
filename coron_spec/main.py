@@ -54,6 +54,8 @@ inputs = ColumnDataSource(data=dict())
 texp_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
 texp_plot.line("wavelength", "exptime", source=obsdata)
 
+exp_panel = TabPanel(child=texp_plot, title='Spectrum') #, width=800)
+
 compute = Button(label="Calculate", button_type="primary")
 # Can't set up the callback here because we need to define its callback (recalculate_exptime) first.
 
@@ -358,7 +360,9 @@ def recalculate_snr(newvalues):
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.fullsnr[good]}
 
 
-intro = Div(text='<p>This Coronagraphic ETC is powered by <a href="https://github.com/eleonoraalei/pyEDITH/tree/main">PyEDITH</a> (Alei & Currie).</p><p>The system is assumed to be at a fixed distance of 10 parsecs.</p>')
+intro = Div(text='<p>This Habworlds Coronagraphic ETC is powered by <a href="https://github.com/eleonoraalei/pyEDITH/tree/main">PyEDITH</a> (E. Alei, M. Currie, C. Stark).</p><p>The system is assumed to be at a fixed distance of 10 parsecs.</p><p>Selecting a star will reset the default magnitude; selecting a planet will reset the default separation.</p>')
+
+observation_tab = TabPanel(child=texp_plot, title='Observation') # , width=400)
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
 def eac_callback(attr, old, new):
@@ -389,7 +393,7 @@ def star_callback(attr, old, new):
     inputs.data.update({"new_star": [new], "scene": [True]})
 star.on_change("value", star_callback)
 
-magnitude  = Slider(title="Stellar Magnitude (Johnson V)", value=4.5, start=3, end=20.0, step=0.1) 
+magnitude  = Slider(title="Stellar Magnitude (Johnson V)", value=4.5, start=0.0, end=20.0, step=0.1) 
 def magnitude_callback(attr, old, new):
     global inputs
     print(attr, old, new)
@@ -404,20 +408,22 @@ def planet_callback(attr, old, new):
     inputs.data.update({"new_planet": [new], "scene": [True]})
 planet.on_change("value", planet_callback)
 
-separation  = Slider(title="Separation (arcsec @ 10pc)", value=0.1, start=0.01, end=0.5, step=0.01, ) 
+separation = Slider(title="Separation (arcsec @ 10pc)", value=0.1, start=0.01, end=0.5, step=0.01, ) 
 def separation_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_separation": [new], "scene": [True]})
 separation.on_change("value", separation_callback)
 
-delta_mag  = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
+delta_mag = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
 def dmag_callback(attr, old, new):
     global inputs
     print(attr, old, new)
     inputs.data.update({"new_dMag": [new], "scene": [True]})
 delta_mag.on_change("value", dmag_callback)
 
+snr_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
+snr_panel = TabPanel(child=snr_plot, title='Spectrum') #, width=800)
 
 load_initial()
 
@@ -425,7 +431,8 @@ load_initial()
 controls = column(children=[intro, eac_buttons, newdiameter, newsnr, star, magnitude, planet, separation, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
-l = layout([[controls, texp_plot]],sizing_mode='scale_width')
+outputs = Tabs(tabs=[ exp_panel, snr_panel], width=450)
+l = layout([[controls, outputs]],sizing_mode='fixed')
 
 curdoc().theme = 'dark_minimal'
 curdoc().add_root(l) 

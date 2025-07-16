@@ -8,10 +8,10 @@ from astropy.io import fits
 class Telescope: 
 
     def __init__(self, aperture,temperature,diff_limit_wavelength):
-        self.name = 'LUVOIR' 
-        self.aperture = 10. # aperture in meters 
-        self.temperature = 270. # temperature in Kelvin 
-        self.ota_emissivity = 0.09 # emissivity factor for a TMA 
+        self.name = 'Habworlds' 
+        self.aperture = 7. # aperture in meters 
+        self.temperature = 290. # temperature in Kelvin 
+        self.ota_emissivity = 0.635 # emissivity factor for a TMA 
         self.diff_limit_wavelength = 500. # in nanometers 
         diff_limit_in_arcsec = 1.22*(self.diff_limit_wavelength*0.000000001)*206264.8062/self.aperture
 
@@ -19,7 +19,7 @@ class Camera():
 
     def __init__(self): 
 
-        self.name = 'HDI' 
+        self.name = 'HRI' 
         self.pivotwave = np.array([155., 228., 360., 440., 550., 640., 790., 1260., 1600., 2220.])
         self.bandnames = ['FUV', 'NUV', 'U','B','V','R','I', 'J', 'H', 'K'] 
         self.R_effective = np.array([5., 5., 5., 5., 5., 5., 5., 5., 5., 5.])

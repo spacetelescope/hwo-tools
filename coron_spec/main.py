@@ -40,7 +40,7 @@ Notes to fix:
 '''
 
 param_snr=10
-EACS = ["EAC1", "EAC2", "EAC3"]
+EACS = ["EAC1"]
 
 target_planet, target_star = catalog.load_catalog()
 
@@ -54,7 +54,7 @@ inputs = ColumnDataSource(data=dict())
 texp_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
 texp_plot.line("wavelength", "exptime", source=obsdata)
 
-exp_panel = TabPanel(child=texp_plot, title='Spectrum') #, width=800)
+exp_panel = TabPanel(child=texp_plot, title='Exposure Time') #, width=800)
 
 compute = Button(label="Calculate", button_type="primary")
 # Can't set up the callback here because we need to define its callback (recalculate_exptime) first.
@@ -130,14 +130,13 @@ def load_initial():
     # STAR
     parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
     parameters["distance"] = 10. # distance to the system in pc
-    parameters["separation"] = 0.1 # planetary separation in arcsec
+    parameters["semimajor_axis"] = 1 # planetary separation in AU
     #parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
-    parameters["Fp_min/Fs"] = 1e-11 # minimum detectable planet 
     # Note: we can work in either mag or flux units. Let's choose to work in flux units. 
     Fstar_obs_10pc = compute_blackbody_photon_flux(5770, parameters["wavelength"] << u.um, parameters["distance"] << u.pc)
 
-    parameters["stellar_angular_diameter"] = 1.5e-4 # angular diameter of the star = 0.01 lam/D == about 1.5e-4 arcsec for lam=0.5 um and D~6.5 m
-    parameters["magnitude"] = 4.5
+    parameters["stellar_radius"] = 1 # physical diameter of the star in Rsun units
+    parameters["magV"] = 4.5 # ABMag
     # just this first time, because we need to load a planet to start with
     reflect_planet = target_planet["Earth"]["spectrum"]
     parameters["planetary_radius"] = target_planet["Earth"]["planetary_radius"]
@@ -201,16 +200,16 @@ def load_initial():
 def recompute_planet_flux():
     global parameters
     global reflect_planet
-    solid_angle = parameters["planetary_radius"]**2/(4 * (parameters["separation"]*parameters["distance"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
+    solid_angle = parameters["planetary_radius"]**2/(4 * (parameters["semimajor_axis"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
     flux_planet = parameters["Fstar_10pc"] * solid_angle * reflect_planet(parameters["wavelength"] << u.micron)
     parameters["F0"] = flux_planet.value
     parameters["Fp/Fs"] = (flux_planet / parameters["Fstar_10pc"]).value
-    separation.value = parameters["separation"] # Make sure it matches what was used
+    semimajor.value = parameters["semimajor_axis"] # Make sure it matches what was used
 
 
     print("Star:", parameters["Fstar_10pc"])
     print("Planet:", reflect_planet(parameters["wavelength"] << u.micron), solid_angle)
-    print(parameters["separation"], parameters["distance"])
+    print(parameters["semimajor_axis"], parameters["distance"])
 
 def load_planet(sourceID):
     global parameters
@@ -218,8 +217,8 @@ def load_planet(sourceID):
     # this is an albedo; the amount of incident flux received at that distance
     reflect_planet = target_planet[sourceID]["spectrum"]
     parameters["planetary_radius"] = target_planet[sourceID]["planetary_radius"]
-    parameters["separation"] = .1 * target_planet[sourceID]["separation"]
-    separation.value = .1 * target_planet[sourceID]["separation"]
+    parameters["semimajor_axis"] = target_planet[sourceID]["semimajor_axis"]
+    semimajor.value = target_planet[sourceID]["semimajor_axis"]
 
 
     recompute_planet_flux() # trigger a recomputation of the planetary flux
@@ -227,8 +226,8 @@ def load_planet(sourceID):
 def load_star(sourceID):
     global parameters
     star = target_star[sourceID]["spectrum"]
-    parameters["magnitude"] = target_star[sourceID]["magnitude"] # Johnson V magnitude, specifically.
-    magnitude.value = target_star[sourceID]["magnitude"]
+    parameters["magV"] = target_star[sourceID]["magV"] # Johnson V magnitude, specifically.
+    #magnitude.value = target_star[sourceID]["magV"]
     parameters["current_star"] = star
 
     recompute_star_flux()
@@ -239,9 +238,11 @@ def recompute_star_flux():
     #print(bp)
     #print(parameters["current_star"])
 
-    new_star = parameters["current_star"].normalize(parameters["magnitude"] * u.ABmag, band=bp)
+    current_magnitude = parameters["magV"] - 5 * np.log10(parameters["distance"] - 1)
+
+    new_star = parameters["current_star"].normalize(current_magnitude * u.ABmag, band=bp)
     flux = new_star(parameters["wavelength"]<< u.micron)
-    magnitude.value = parameters["magnitude"] # make sure it matches what was used
+    #magnitude.value = parameters["magV"] # make sure it matches what was used
 
     parameters["Fstar_10pc"] = syn.units.convert_flux(parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
 
@@ -265,18 +266,23 @@ def update_calculation(newvalues):
         del newvalues.data["new_star"] # consume the new value
     if "new_magnitude" in newvalues.data:
         print("Changed stellar magnitude")
-        parameters["magnitude"] = newvalues.data["new_magnitude"][0]
+        parameters["magV"] = newvalues.data["new_magnitude"][0]
         recompute_star_flux()
         del newvalues.data["new_magnitude"] # consume the new value
     if "new_planet" in newvalues.data:
         print("Changed planet")
         load_planet(newvalues.data["new_planet"][0])
         del newvalues.data["new_planet"]
-    if "new_separation" in newvalues.data:
-        print("Changed Separation")
-        parameters["separation"] = newvalues.data["new_separation"][0]
+    if "new_semimajor" in newvalues.data:
+        print("Changed Semimajor Axis")
+        parameters["semimajor_axis"] = newvalues.data["new_semimajor"][0]
         recompute_planet_flux()
-        del newvalues.data["new_separation"]
+        del newvalues.data["new_semimajor"]
+    if "new_distance" in newvalues.data:
+        print("Changed System distance")
+        parameters["distance"] = newvalues.data["new_distance"][0]
+        recompute_planet_flux()
+        del newvalues.data["new_distance"]
     if "new_snr" in newvalues.data:
         print("Changed SNR")
         parameters["snr"] = newvalues.data["new_snr"][0] * np.ones_like(parameters["wavelength"])
@@ -360,8 +366,9 @@ def recalculate_snr(newvalues):
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.fullsnr[good]}
 
 
-intro = Div(text='<p>This Habworlds Coronagraphic ETC is powered by <a href="https://github.com/eleonoraalei/pyEDITH/tree/main">PyEDITH</a> (E. Alei, M. Currie, C. Stark).</p><p>The system is assumed to be at a fixed distance of 10 parsecs.</p><p>Selecting a star will reset the default magnitude; selecting a planet will reset the default separation.</p>')
+intro = Div(text='<p>This Habworlds Coronagraphic ETC is powered by PyEDITH (E. Alei, M. Currie, C. Stark).</p><p>Selecting a planet will reset the default separation.</p>')
 
+info_panel = Div(text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO).<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators.")
 observation_tab = TabPanel(child=texp_plot, title='Observation') # , width=400)
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
@@ -393,12 +400,19 @@ def star_callback(attr, old, new):
     inputs.data.update({"new_star": [new], "scene": [True]})
 star.on_change("value", star_callback)
 
-magnitude  = Slider(title="Stellar Magnitude (Johnson V)", value=4.5, start=0.0, end=20.0, step=0.1) 
-def magnitude_callback(attr, old, new):
+# magnitude  = Slider(title="Stellar Magnitude (Johnson V)", value=4.5, start=0.0, end=20.0, step=0.1) 
+# def magnitude_callback(attr, old, new):
+#     global inputs
+#     print(attr, old, new)
+#     inputs.data.update({"new_magnitude": [new], "scene": [True]})
+# magnitude.on_change("value", magnitude_callback)
+
+distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=100.0, step=0.1) 
+def distance_callback(attr, old, new):
     global inputs
     print(attr, old, new)
-    inputs.data.update({"new_magnitude": [new], "scene": [True]})
-magnitude.on_change("value", magnitude_callback)
+    inputs.data.update({"new_distance": [new], "scene": [True]})
+distance.on_change("value", distance_callback)
 
 planet = Select(title="Template Planet Spectrum", value="Earth", 
                 options=list(target_planet.keys()), width=250)
@@ -408,12 +422,12 @@ def planet_callback(attr, old, new):
     inputs.data.update({"new_planet": [new], "scene": [True]})
 planet.on_change("value", planet_callback)
 
-separation = Slider(title="Separation (arcsec @ 10pc)", value=0.1, start=0.01, end=0.5, step=0.01, ) 
-def separation_callback(attr, old, new):
+semimajor = Slider(title="Semimajor Axis (AU)", value=0.1, start=0.01, end=10, step=0.01, ) 
+def semimajor_callback(attr, old, new):
     global inputs
     print(attr, old, new)
-    inputs.data.update({"new_separation": [new], "scene": [True]})
-separation.on_change("value", separation_callback)
+    inputs.data.update({"new_semimajor": [new], "scene": [True]})
+semimajor.on_change("value", semimajor_callback)
 
 delta_mag = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
 def dmag_callback(attr, old, new):
@@ -424,14 +438,14 @@ delta_mag.on_change("value", dmag_callback)
 
 snr_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
 snr_panel = TabPanel(child=snr_plot, title='Spectrum') #, width=800)
-
+info_panel = TabPanel(child=info_panel, title='Info') #, width=800)
 load_initial()
 
 
-controls = column(children=[intro, eac_buttons, newdiameter, newsnr, star, magnitude, planet, separation, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
+controls = column(children=[intro, eac_buttons, newdiameter, newsnr, star, planet, semimajor, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
-outputs = Tabs(tabs=[ exp_panel, snr_panel], width=450)
+outputs = Tabs(tabs=[ snr_panel, exp_panel, info_panel], width=450)
 l = layout([[controls, outputs]],sizing_mode='fixed')
 
 curdoc().theme = 'dark_minimal'

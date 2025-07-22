@@ -79,7 +79,7 @@ sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_templat
 def update_data(attrname, old, new):
     
     print("You have chosen template ", template.value) 
-    hwo.aperture = aperture.value * u.m 
+    hwo.effective_aperture = aperture.value * u.m 
 
     hri_source.set_sed(template.value, magnitude.value, 0., 0.)
 

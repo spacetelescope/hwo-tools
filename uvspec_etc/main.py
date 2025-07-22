@@ -63,9 +63,9 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
     print() 
     print("You have chosen template ", template.value) 
     print('Selected grating = ', grating.value) 
-    print('Your telescope is set to', hwo.aperture) 
+    print('Your telescope is set to', aperture.value) 
     print('You asked for redshift', redshift.value) 
-    hwo.aperture = aperture.value     
+    hwo.effective_aperture = aperture.value     
     
     uvi_source = Source() 
     uvi_source.set_sed(template.value, magnitude.value, redshift.value, 0.)

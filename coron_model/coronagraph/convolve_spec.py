@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 from .degrade_spec import degrade_spec
-from scipy import interp
+from scipy import interpolate as interp
 from scipy import ndimage
 
 __all__ = ['convolve_spec']

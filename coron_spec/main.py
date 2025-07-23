@@ -114,7 +114,7 @@ def load_initial():
 
     # observation parameters
     # set up wavelengths
-    parameters["wavelength"] = np.linspace(0.35, 1.7, 1000)
+    parameters["wavelength"] = np.linspace(0.35, 1.71, 1000)
     parameters["nlambd"] = len(parameters["wavelength"]) # number of wavelengths
     parameters["snr"] = param_snr * np.ones_like(parameters["wavelength"]) # the SNR you want for each spectral bin 
     parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
@@ -124,7 +124,8 @@ def load_initial():
     parameters["regrid_wavelength"] = True # set the flag to do this. We also need to specify a few other parameters.
     parameters["spectral_resolution"] = np.array([70, 140, 90]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
     parameters["channel_bounds"] = np.array([0.5, 1.0]) #np.array([]) # specify the boundaries between the channels in um
-
+    parameters["lam_low"] = [0.4, 0.5, 1.0]
+    parameters["lam_high"] = [0.5, 1.0, 1.7]
 
     # The Astrophysical 
     # STAR
@@ -201,13 +202,13 @@ def recompute_planet_flux():
     global parameters
     global reflect_planet
     solid_angle = parameters["planetary_radius"]**2/(4 * (parameters["semimajor_axis"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
-    flux_planet = parameters["Fstar_10pc"] * solid_angle * reflect_planet(parameters["wavelength"] << u.micron)
+    flux_planet = parameters["FstarV_10pc"] * solid_angle * reflect_planet(parameters["wavelength"] << u.micron)
     parameters["F0"] = flux_planet.value
-    parameters["Fp/Fs"] = (flux_planet / parameters["Fstar_10pc"]).value
+    parameters["Fp/Fs"] = (flux_planet / parameters["FstarV_10pc"]).value
     semimajor.value = parameters["semimajor_axis"] # Make sure it matches what was used
 
 
-    print("Star:", parameters["Fstar_10pc"])
+    print("Star:", parameters["FstarV_10pc"])
     print("Planet:", reflect_planet(parameters["wavelength"] << u.micron), solid_angle)
     print(parameters["semimajor_axis"], parameters["distance"])
 
@@ -238,13 +239,14 @@ def recompute_star_flux():
     #print(bp)
     #print(parameters["current_star"])
 
-    current_magnitude = parameters["magV"] - 5 * np.log10(parameters["distance"] - 1)
-
-    new_star = parameters["current_star"].normalize(current_magnitude * u.ABmag, band=bp)
+    # we do not move the star from 10 pc, we merely provide the magnitude (and flux) at 10 pc and pyEDITH does the rest
+    new_star = parameters["current_star"].normalize(parameters["magV"] * u.ABmag, band=bp)
     flux = new_star(parameters["wavelength"]<< u.micron)
     #magnitude.value = parameters["magV"] # make sure it matches what was used
 
     parameters["Fstar_10pc"] = syn.units.convert_flux(parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
+    # get the flux at 10 pc in the V band
+    parameters["FstarV_10pc"] = syn.units.convert_flux(parameters["wavelength"], syn.Observation(new_star, bp).effstim(), u.photon / (u.s * u.cm**2 * u.nm)).value
 
     recompute_planet_flux() # trigger a recomputation of the planetary flux
 
@@ -323,10 +325,18 @@ def do_recalculate_exptime(newvalues):
     observatory, scene, observation = update_calculation(newvalues)
 
     pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
+    obs, noise = pE.utils.synthesize_observation(observation.fullsnr,
+                                             observation.exptime,
+                                             parameters["wavelength"],
+                                             observation,
+                                             scene, 
+                                             random_seed=42, # seed defaults to None
+                                             set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
+                                             )
 
     good = np.where(observation.exptime < 1e8 * u.s)
 
-    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr)}
+    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr), "FpFs": scene.Fp_over_Fs, "obs": obs, "noise": noise}
     #print("New Data", obsdata.data)
     texp_plot.title.text =  f"{planet.value} - {star.value} - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
 
@@ -359,7 +369,7 @@ def recalculate_snr(newvalues):
     global obsdata
     observatory, scene, observation = update_calculation(newvalues)
 
-    pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="signal_to_ noise", verbose=False)
+    pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="signal_to_noise", verbose=False)
 
     good = np.where(~np.isinf(observation.fullsnr))
 
@@ -436,13 +446,16 @@ def dmag_callback(attr, old, new):
     inputs.data.update({"new_dMag": [new], "scene": [True]})
 delta_mag.on_change("value", dmag_callback)
 
-snr_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
+snr_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
+snr_plot.line("wavelength", "Fp/Fs", source=obsdata)
+snr_plot.scatter('wavelength', 'obs', source=obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+snr_plot.segment('wavelength', 'noise', 'wavelength', 'noise', source=obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
 snr_panel = TabPanel(child=snr_plot, title='Spectrum') #, width=800)
 info_panel = TabPanel(child=info_panel, title='Info') #, width=800)
 load_initial()
 
 
-controls = column(children=[intro, eac_buttons, newdiameter, newsnr, star, planet, semimajor, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
+controls = column(children=[intro, newdiameter, newsnr, star, distance, planet, semimajor, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
 outputs = Tabs(tabs=[ snr_panel, exp_panel, info_panel], width=450)

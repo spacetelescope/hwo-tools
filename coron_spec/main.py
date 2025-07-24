@@ -48,13 +48,19 @@ parameters = {}
 scene = pE.AstrophysicalScene()
 observation = pE.Observation() # define the observation object
 observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
-obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[]))
+obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
 inputs = ColumnDataSource(data=dict())
 
-texp_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
+texp_plot = figure(width=640, height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
 texp_plot.line("wavelength", "exptime", source=obsdata)
 
 exp_panel = TabPanel(child=texp_plot, title='Exposure Time') #, width=800)
+
+snr_plot = figure(width=640, height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
+snr_plot.line("wavelength", "FpFs", source=obsdata)
+snr_plot.scatter('wavelength', 'obs', source=obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+snr_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+snr_panel = TabPanel(child=snr_plot, title='Spectrum') #, width=800)
 
 compute = Button(label="Calculate", button_type="primary")
 # Can't set up the callback here because we need to define its callback (recalculate_exptime) first.
@@ -124,7 +130,7 @@ def load_initial():
     parameters["regrid_wavelength"] = True # set the flag to do this. We also need to specify a few other parameters.
     parameters["spectral_resolution"] = np.array([70, 140, 90]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
     parameters["channel_bounds"] = np.array([0.5, 1.0]) #np.array([]) # specify the boundaries between the channels in um
-    parameters["lam_low"] = [0.4, 0.5, 1.0]
+    parameters["lam_low"] = [0.36, 0.5, 1.0]
     parameters["lam_high"] = [0.5, 1.0, 1.7]
 
     # The Astrophysical 
@@ -303,12 +309,14 @@ def update_calculation(newvalues):
     if "observation" in newvalues.data and newvalues.data["observation"][0]:
         print("Rerun observation...")
         observation = update_observation()
+        newvalues.data["observation"][0] = False
 
     if "scene" in newvalues.data and newvalues.data["scene"][0]:
         print("Rerun scene")
         scene = update_scene()
         if parameters["regrid_wavelength"] is True:
             scene.regrid_spectra(parameters, observation)
+        newvalues.data["scene"][0] = False
 
     pE.ObservatoryBuilder.configure_observatory(
         observatory, parameters, observation, scene
@@ -325,20 +333,26 @@ def do_recalculate_exptime(newvalues):
     observatory, scene, observation = update_calculation(newvalues)
 
     pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
-    obs, noise = pE.utils.synthesize_observation(observation.fullsnr,
+    print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
+    print("Exptime", observation.exptime)
+    obs, noise = pE.utils.synthesize_observation(newsnr.value * np.ones_like(observation.wavelength.value),
                                              observation.exptime,
-                                             parameters["wavelength"],
+                                             observation.wavelength,
                                              observation,
                                              scene, 
-                                             random_seed=42, # seed defaults to None
+                                             random_seed=None, # seed defaults to None
                                              set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                              )
 
-    good = np.where(observation.exptime < 1e8 * u.s)
+    print("Obs", obs)
+    print("Noise", noise)
 
-    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr), "FpFs": scene.Fp_over_Fs, "obs": obs, "noise": noise}
+    good = np.where(observation.exptime < 1e8 * u.s) # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+
+    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr), "FpFs": scene.Fp_over_Fs[good], "obs": obs[good], "noise_hi": obs[good] + noise[good]/2., "noise_lo": obs[good] - noise[good]/2., "snr": newsnr.value * np.ones_like(observation.wavelength[good].value)}
     #print("New Data", obsdata.data)
-    texp_plot.title.text =  f"{planet.value} - {star.value} - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    texp_plot.title.text =  f"{planet.value} - {star.value} - {distance.value} pc - {semimajor.value} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    snr_plot.title.text =  f"{planet.value} - {star.value} - {distance.value} pc - {semimajor.value} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
 
     compute.label = "Compute"
 
@@ -378,7 +392,7 @@ def recalculate_snr(newvalues):
 
 intro = Div(text='<p>This Habworlds Coronagraphic ETC is powered by PyEDITH (E. Alei, M. Currie, C. Stark).</p><p>Selecting a planet will reset the default separation.</p>')
 
-info_panel = Div(text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO).<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators.")
+info_panel = Div(width=640, height=480, text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO).<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators.")
 observation_tab = TabPanel(child=texp_plot, title='Observation') # , width=400)
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
@@ -446,20 +460,15 @@ def dmag_callback(attr, old, new):
     inputs.data.update({"new_dMag": [new], "scene": [True]})
 delta_mag.on_change("value", dmag_callback)
 
-snr_plot = figure(width=640, height=400, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("hover", "box_zoom", "wheel_zoom", "reset"), tooltips=[("@wavelength", "@exptime")], toolbar_location="below")
-snr_plot.line("wavelength", "Fp/Fs", source=obsdata)
-snr_plot.scatter('wavelength', 'obs', source=obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
-snr_plot.segment('wavelength', 'noise', 'wavelength', 'noise', source=obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
-snr_panel = TabPanel(child=snr_plot, title='Spectrum') #, width=800)
 info_panel = TabPanel(child=info_panel, title='Info') #, width=800)
 load_initial()
 
 
-controls = column(children=[intro, newdiameter, newsnr, star, distance, planet, semimajor, compute], sizing_mode='fixed', max_width=300, width=300, height=700) 
+controls = column(children=[intro, newdiameter, newsnr, star, distance, planet, semimajor, compute], sizing_mode='fixed', max_width=300, width=300, height=540) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
-outputs = Tabs(tabs=[ snr_panel, exp_panel, info_panel], width=450)
-l = layout([[controls, outputs]],sizing_mode='fixed')
+outputs = Tabs(tabs=[ snr_panel, exp_panel, info_panel], width=640, height=540)
+l = layout([[controls, outputs]],sizing_mode='fixed', width=960, height=540)
 
 curdoc().theme = 'dark_minimal'
 curdoc().add_root(l) 

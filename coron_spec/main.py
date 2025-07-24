@@ -550,7 +550,7 @@ load_initial()
 
 controls = column(children=[], sizing_mode='fixed', width=320, height=480) 
 
-exp_snr_toggle = RadioGroup(labels=["For Exp", "For SNR"], active=0)
+exp_snr_toggle = RadioGroup(labels=["Solve For Exp", "Solve For SNR"], active=0)
 def exp_snr_callback(active, old, new):
     if (new == 0):
         print(controls.children)

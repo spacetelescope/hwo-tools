@@ -5,7 +5,7 @@ import numpy as np
 import scipy as sc
 from bokeh.plotting import figure
 from bokeh.embed import components
-from bokeh.models import ColumnDataSource, Paragraph, Range1d, RadioButtonGroup, SetValue
+from bokeh.models import ColumnDataSource, Paragraph, Range1d, RadioGroup, RadioButtonGroup, SetValue
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import Slider, Div, Select, Button
 from bokeh.models.layouts import TabPanel, Tabs
@@ -51,19 +51,26 @@ observatory = None # this piece, alone, has to be created WITH some configured p
 obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
 inputs = ColumnDataSource(data=dict())
 
-texp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
-texp_plot.line("wavelength", "exptime", source=obsdata)
+exp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
+exp_plot.line("wavelength", "exptime", source=obsdata)
+exp_panel = TabPanel(child=exp_plot, title='Exposure Time') #, width=800)
 
-exp_panel = TabPanel(child=texp_plot, title='Exposure Time') #, width=800)
+snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
+snr_plot.line("wavelength", "snr", source=obsdata)
+snr_panel = TabPanel(child=snr_plot, title='SNR') #, width=800)
 
-snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
-snr_plot.line("wavelength", "FpFs", source=obsdata)
-snr_plot.scatter('wavelength', 'obs', source=obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
-snr_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
-snr_panel = TabPanel(child=snr_plot, title='Spectrum') #, width=800)
 
-compute = Button(label="Calculate", button_type="primary")
+spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
+spec_plot.line("wavelength", "FpFs", source=obsdata)
+spec_plot.scatter('wavelength', 'obs', source=obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+spec_panel = TabPanel(child=spec_plot, title='Spectrum') #, width=800)
+
+exptime_compute = Button(label="Calculate", button_type="primary")
 # Can't set up the callback here because we need to define its callback (recalculate_exptime) first.
+
+snr_compute = Button(label="Calculate", button_type="primary")
+# Can't set up the callback here because we need to define its callback (recalculate_snr) first.
 
 warning = Div(text='<p></p>')
 
@@ -203,7 +210,6 @@ def load_initial():
 
     observatory = pE.ObservatoryBuilder.create_observatory(observatory_config)
 
-
     recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
 def recompute_planet_flux():
@@ -298,6 +304,10 @@ def update_calculation(newvalues):
         print("Changed SNR")
         parameters["snr"] = newvalues.data["new_snr"][0] * np.ones_like(parameters["wavelength"])
         del newvalues.data["new_snr"]
+    if "new_exp" in newvalues.data:
+        print("Changed Exposure Time")
+        parameters["exptime"] = (newvalues.data["new_exp"][0] * np.ones_like(parameters["wavelength"]) << u.hr).to_value(u.s)
+        del newvalues.data["new_exp"]
     if "new_eac" in newvalues.data:
         parameters["observatory_preset"] = newvalues.data["new_eac"][0]
         print("Changed EAC")
@@ -332,6 +342,8 @@ def update_calculation(newvalues):
     return observatory, scene, observation
 
 def do_recalculate_exptime(newvalues):
+    global obsdata
+    global exptime_compute
 
     observatory, scene, observation = update_calculation(newvalues)
 
@@ -339,7 +351,7 @@ def do_recalculate_exptime(newvalues):
         pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
     except UnboundLocalError:
         warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
-        compute.label = "Compute"
+        exptime_compute.label = "Compute"
         obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
         return
@@ -365,10 +377,10 @@ def do_recalculate_exptime(newvalues):
 
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr), "FpFs": scene.Fp_over_Fs[good], "obs": obs[good], "noise_hi": obs[good] + noise[good]/2., "noise_lo": obs[good] - noise[good]/2., "snr": newsnr.value * np.ones_like(observation.wavelength[good].value)}
     #print("New Data", obsdata.data)
-    texp_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
-    snr_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    exp_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    spec_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
 
-    compute.label = "Compute"
+    exptime_compute.label = "Compute"
 
 
 def recalculate_exptime(newvalues):
@@ -384,30 +396,82 @@ def recalculate_exptime(newvalues):
     """
     # so we can redo all data
     global obsdata
-    global compute
+    global exptime_compute
 
-    compute.label = "Please Wait..."
+    exptime_compute.label = "Please Wait..."
     curdoc().add_next_tick_callback(partial(do_recalculate_exptime, newvalues))
 
+exptime_compute.on_click(partial(recalculate_exptime, inputs))
 
-compute.on_click(partial(recalculate_exptime, inputs))
 
-def recalculate_snr(newvalues):
-    # so we can redo all data
+def do_recalculate_snr(newvalues):
     global obsdata
+    global snr_compute
     observatory, scene, observation = update_calculation(newvalues)
 
-    pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="signal_to_noise", verbose=False)
+    observation.obstime = (newexp.value * u.hr).to(u.s)
+    print((newexp.value * u.hr).to(u.s))
 
-    good = np.where(~np.isinf(observation.fullsnr))
+    try:
+        pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="signal_to_noise", verbose=True)
+    except UnboundLocalError:
+        warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
+        snr_compute.label = "Compute"
+        obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
-    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.fullsnr[good]}
+        return
+    #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
+    #print("Exptime", observation.exptime)
+    if any(np.isinf(observation.exptime)):
+        warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
+    else:
+        warning.text = "<p></p>"
+    obs, noise = pE.utils.synthesize_observation(observation.fullsnr,
+                                             newexp.value * np.ones_like(observation.wavelength.value),
+                                             observation.wavelength,
+                                             observation,
+                                             scene, 
+                                             random_seed=None, # seed defaults to None
+                                             set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
+                                             )
 
+    print("Obs", obs)
+    print("Noise", noise)
+
+    good = np.where(observation.exptime < 1e8 * u.s) # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+
+    obsdata.data={"wavelength": observation.wavelength, "exptime": newexp.value * np.ones_like(observation.wavelength.value), "FpFs": scene.Fp_over_Fs, "obs": obs, "noise_hi": obs + noise/2., "noise_lo": obs - noise/2., "snr": observation.fullsnr}
+    #print("New Data", obsdata.data)
+    snr_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - Exptime={np.round(newexp.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    spec_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - Exptime={np.round(newexp.value, decimals=2)} - {EACS[eac_buttons.active]}"
+
+    snr_compute.label = "Compute"
+
+
+def recalculate_snr(newvalues):
+    """
+    The trick here is that Bokeh only synchronizes the calls at the end of a function, so
+    if I want to change the button to "Please wait..." and THEN have it calculate, I have
+    to make this call, and have this call fire off another callback with add_next_tick_callback.
+
+    Parameters
+    ----------
+    newvalues : _type_
+        _description_
+    """
+    # so we can redo all data
+    global obsdata
+    global snr_compute
+
+    snr_compute.label = "Please Wait..."
+    curdoc().add_next_tick_callback(partial(do_recalculate_snr, newvalues))
+
+snr_compute.on_click(partial(recalculate_snr, inputs))
 
 intro = Div(text='<p>This Habworlds Coronagraphic ETC is powered by PyEDITH (E. Alei, M. Currie, C. Stark).</p><p>Selecting a planet will reset the default separation.</p>')
 
 info_panel = Div(sizing_mode="inherit", text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO).<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators.")
-observation_tab = TabPanel(child=texp_plot, title='Observation') # , width=400)
+observation_tab = TabPanel(child=exp_plot, title='Observation') # , width=400)
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
 def eac_callback(attr, old, new):
@@ -422,6 +486,13 @@ def snr_callback(attr, old, new):
     print(attr, old, new)
     inputs.data.update({"new_snr": [new], "observation": [True]})
 newsnr.on_change("value", snr_callback)
+
+newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, ) 
+def exp_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_exp": [new], "observation": [True]})
+newexp.on_change("value", exp_callback)
 
 newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, ) 
 def diameter_callback(attr, old, new):
@@ -477,11 +548,27 @@ delta_mag.on_change("value", dmag_callback)
 info_panel = TabPanel(child=info_panel, title='Info') #, width=800)
 load_initial()
 
+controls = column(children=[], sizing_mode='fixed', width=320, height=480) 
 
-controls = column(children=[intro, newdiameter, newsnr, star, distance, planet, semimajor, compute, warning], sizing_mode='fixed', width=320, height=480) 
-#controls_tab = TabPanel(child=controls, title='Controls')
-#plots_tab = TabPanel(child=texp_plot, title='Info')
-outputs = Tabs(tabs=[ snr_panel, exp_panel, info_panel], sizing_mode="inherit")
+exp_snr_toggle = RadioGroup(labels=["For Exp", "For SNR"], active=0)
+def exp_snr_callback(active, old, new):
+    if (new == 0):
+        print(controls.children)
+        controls.children = [intro, newdiameter, exp_snr_toggle, newsnr, star, distance, planet, semimajor, exptime_compute, warning]
+        outputs.tabs = [spec_panel, exp_panel, info_panel]
+    elif new == 1:
+        print(controls.children)
+        controls.children = [intro, newdiameter, exp_snr_toggle, newexp, star, distance, planet, semimajor, snr_compute, warning]
+        outputs.tabs = [spec_panel, snr_panel, info_panel]                   
+    #controls.change.emit()
+    #outputs.change.emit()
+
+exp_snr_toggle.on_change("active", exp_snr_callback)
+
+# this is the initial for-exptime selection
+controls.children=[intro, newdiameter, exp_snr_toggle, newsnr, star, distance, planet, semimajor, exptime_compute, warning]
+
+outputs = Tabs(tabs=[spec_panel, exp_panel, info_panel], sizing_mode="inherit")
 plots = column(children=[outputs], sizing_mode='fixed', width=640, height=480)
 l = layout([[controls, plots]],sizing_mode='fixed', width=960, height=480)
 

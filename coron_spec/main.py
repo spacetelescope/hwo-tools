@@ -135,7 +135,7 @@ def load_initial():
 
     # The Astrophysical 
     # STAR
-    parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
+    #parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
     parameters["distance"] = 10. # distance to the system in pc
     parameters["semimajor_axis"] = 1 # planetary separation in AU
     #parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
@@ -334,8 +334,8 @@ def do_recalculate_exptime(newvalues):
     observatory, scene, observation = update_calculation(newvalues)
 
     pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
-    print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
-    print("Exptime", observation.exptime)
+    #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
+    #print("Exptime", observation.exptime)
     obs, noise = pE.utils.synthesize_observation(newsnr.value * np.ones_like(observation.wavelength.value),
                                              observation.exptime,
                                              observation.wavelength,
@@ -352,8 +352,8 @@ def do_recalculate_exptime(newvalues):
 
     obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr), "FpFs": scene.Fp_over_Fs[good], "obs": obs[good], "noise_hi": obs[good] + noise[good]/2., "noise_lo": obs[good] - noise[good]/2., "snr": newsnr.value * np.ones_like(observation.wavelength[good].value)}
     #print("New Data", obsdata.data)
-    texp_plot.title.text =  f"{planet.value} - {star.value} - {distance.value} pc - {semimajor.value} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
-    snr_plot.title.text =  f"{planet.value} - {star.value} - {distance.value} pc - {semimajor.value} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    texp_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    snr_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
 
     compute.label = "Compute"
 

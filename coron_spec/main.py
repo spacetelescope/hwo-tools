@@ -442,8 +442,8 @@ def do_recalculate_snr(newvalues):
 
     obsdata.data={"wavelength": observation.wavelength, "exptime": newexp.value * np.ones_like(observation.wavelength.value), "FpFs": scene.Fp_over_Fs, "obs": obs, "noise_hi": obs + noise/2., "noise_lo": obs - noise/2., "snr": observation.fullsnr}
     #print("New Data", obsdata.data)
-    snr_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - Exptime={np.round(newexp.value, decimals=2)} - {EACS[eac_buttons.active]}"
-    spec_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - Exptime={np.round(newexp.value, decimals=2)} - {EACS[eac_buttons.active]}"
+    snr_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - Exptime={np.round(newexp.value, decimals=2)} hrs - {EACS[eac_buttons.active]}"
+    spec_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - Exptime={np.round(newexp.value, decimals=2)} hrs - {EACS[eac_buttons.active]}"
 
     snr_compute.label = "Compute"
 

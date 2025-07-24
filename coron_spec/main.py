@@ -65,6 +65,8 @@ snr_panel = TabPanel(child=snr_plot, title='Spectrum') #, width=800)
 compute = Button(label="Calculate", button_type="primary")
 # Can't set up the callback here because we need to define its callback (recalculate_exptime) first.
 
+warning = Div(text='<p></p>')
+
 def compute_blackbody_photon_flux(temp, wavelengths, dist):
     """Generate photon flux density (photon/s/cm^2/um) for a blackbody at 1 cm^2."""
     bb = SourceSpectrum(BlackBodyNorm1D, temperature=temp)
@@ -333,9 +335,20 @@ def do_recalculate_exptime(newvalues):
 
     observatory, scene, observation = update_calculation(newvalues)
 
-    pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
+    try:
+        pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
+    except UnboundLocalError:
+        warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
+        compute.label = "Compute"
+        obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+
+        return
     #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
     #print("Exptime", observation.exptime)
+    if any(np.isinf(observation.exptime)):
+        warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
+    else:
+        warning.text = "<p></p>"
     obs, noise = pE.utils.synthesize_observation(newsnr.value * np.ones_like(observation.wavelength.value),
                                              observation.exptime,
                                              observation.wavelength,
@@ -465,7 +478,7 @@ info_panel = TabPanel(child=info_panel, title='Info') #, width=800)
 load_initial()
 
 
-controls = column(children=[intro, newdiameter, newsnr, star, distance, planet, semimajor, compute], sizing_mode='fixed', width=320, height=480) 
+controls = column(children=[intro, newdiameter, newsnr, star, distance, planet, semimajor, compute, warning], sizing_mode='fixed', width=320, height=480) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
 outputs = Tabs(tabs=[ snr_panel, exp_panel, info_panel], sizing_mode="inherit")

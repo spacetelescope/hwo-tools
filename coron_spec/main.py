@@ -51,12 +51,12 @@ observatory = None # this piece, alone, has to be created WITH some configured p
 obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
 inputs = ColumnDataSource(data=dict())
 
-texp_plot = figure(width=640, height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
+texp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
 texp_plot.line("wavelength", "exptime", source=obsdata)
 
 exp_panel = TabPanel(child=texp_plot, title='Exposure Time') #, width=800)
 
-snr_plot = figure(width=640, height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
+snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
 snr_plot.line("wavelength", "FpFs", source=obsdata)
 snr_plot.scatter('wavelength', 'obs', source=obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
 snr_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
@@ -393,7 +393,7 @@ def recalculate_snr(newvalues):
 
 intro = Div(text='<p>This Habworlds Coronagraphic ETC is powered by PyEDITH (E. Alei, M. Currie, C. Stark).</p><p>Selecting a planet will reset the default separation.</p>')
 
-info_panel = Div(width=640, height=480, text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO).<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators.")
+info_panel = Div(sizing_mode="inherit", text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO).<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators.")
 observation_tab = TabPanel(child=texp_plot, title='Observation') # , width=400)
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
@@ -465,11 +465,12 @@ info_panel = TabPanel(child=info_panel, title='Info') #, width=800)
 load_initial()
 
 
-controls = column(children=[intro, newdiameter, newsnr, star, distance, planet, semimajor, compute], sizing_mode='fixed', max_width=300, width=300, height=540) 
+controls = column(children=[intro, newdiameter, newsnr, star, distance, planet, semimajor, compute], sizing_mode='fixed', width=320, height=480) 
 #controls_tab = TabPanel(child=controls, title='Controls')
 #plots_tab = TabPanel(child=texp_plot, title='Info')
-outputs = Tabs(tabs=[ snr_panel, exp_panel, info_panel], width=640, height=540)
-l = layout([[controls, outputs]],sizing_mode='fixed', width=960, height=540)
+outputs = Tabs(tabs=[ snr_panel, exp_panel, info_panel], sizing_mode="inherit")
+plots = column(children=[outputs], sizing_mode='fixed', width=640, height=480)
+l = layout([[controls, plots]],sizing_mode='fixed', width=960, height=480)
 
 curdoc().theme = 'dark_minimal'
 curdoc().add_root(l) 

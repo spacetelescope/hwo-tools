@@ -28,7 +28,7 @@ def load_solar(filename, label, planetary_radius=None, semimajor_axis=None, skip
 
     return planet
 
-def load_normal(filename, label, planetary_radius=None, semimajor_axis=None, skiprows=0, angstroms=False, mult=1.0, lamhr_idx=0, Ahr_idx=1, magV=10, stargalaxy=False):
+def load_normal(filename, label, planetary_radius=None, semimajor_axis=None, skiprows=0, angstroms=False, mult=1.0, lamhr_idx=0, Ahr_idx=1, magV=10, stellar_radius=1, stargalaxy=False):
     planet = {}
     fn = filename
     if stargalaxy:
@@ -50,6 +50,7 @@ def load_normal(filename, label, planetary_radius=None, semimajor_axis=None, ski
     planet["Label"] = label
     if stargalaxy: # store the luminosity
         planet["magV"] = magV
+        planet["stellar_radius"] = stellar_radius
     else:
         planet["planetary_radius"] = planetary_radius
         planet["semimajor_axis"] = semimajor_axis
@@ -155,27 +156,30 @@ def load_catalog():
     #for now I'm just adding these in like the others to save time on reworkign the code. This will need to be tidied up in future. 
     # All magnitude values come from Eric Mamajek's table, https://www.pas.rochester.edu/%7Eemamajek/EEM_dwarf_UBVIJHK_colors_Teff.txt
 
-    catalog_star["O5V star"]                         = load_normal('pickles_uk_1.ascii',  'Pickles stellar catalog ', magV=-5.8, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["B5V star"]                         = load_normal('pickles_uk_6.ascii',  'Pickles stellar catalog ', magV=-0.85, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["A0V star"]                         = load_normal('pickles_uk_9.ascii',  'Pickles stellar catalog ', magV=0.99, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["A5V star"]                         = load_normal('pickles_uk_12.ascii',  'Pickles stellar catalog ', magV=2.01, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["F0V star"]                         = load_normal('pickles_uk_14.ascii',  'Pickles stellar catalog ', magV=2.57, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["F5V star"]                         = load_normal('pickles_uk_16.ascii',  'Pickles stellar catalog ', magV=3.37, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["G0V star"]                         = load_normal('pickles_uk_23.ascii',  'Pickles stellar catalog ', magV=4.48, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["G2V star"]                         = load_normal('pickles_uk_26.ascii',  'Pickles stellar catalog ', magV=4.80, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["G5V star"]                         = load_normal('pickles_uk_27.ascii',  'Pickles stellar catalog ', magV=4.98, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["K2V star"]                         = load_normal('pickles_uk_33.ascii',  'Pickles stellar catalog ', magV=6.07, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["K5V star"]                         = load_normal('pickles_uk_36.ascii',  'Pickles stellar catalog ', magV=7.28, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["M0V star"]                         = load_normal('pickles_uk_38.ascii',  'Pickles stellar catalog ', magV=8.80, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["M2V star"]                         = load_normal('pickles_uk_40.ascii',  'Pickles stellar catalog ', magV=10.21, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["M4V star"]                         = load_normal('pickles_uk_43.ascii',  'Pickles stellar catalog ', magV=12.61, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["M5V star"]                         = load_normal('pickles_uk_44.ascii',  'Pickles stellar catalog ', magV=14.15, skiprows=39, angstroms=True, stargalaxy=True)
-    catalog_star["Proxima Centauri star"]            = load_normal('proxima_cen_sed.txt',  'Andrew Lincowski, Eddie Schwieterman, Giada Arney, and Jacob Lustig-Yaeger', magV=15.60, skiprows=25, stargalaxy=True)
-    catalog_star['L5 brown dwarf']                   = load_normal('L5_2MASS1821p1414_full_fluxed.txt',  'Looper et al. (2008)', magV=24, skiprows=13, stargalaxy=True)
-    catalog_star['L8 brown dwarf']                   = load_normal('L8_SDSS0857p5708_full_fluxed.txt',  'Kirkpatrick et al. (2008) and Burgasser et al. (2010)', magV=23.15, skiprows=13, stargalaxy=True)
-    catalog_star['T0 brown dwarf']                   = load_normal('T0_SDSS0837m0000_full_fluxed.txt',  'Kirkpatrick et al. (2008) and Burgasser et al. (2006)', magV=25.5, skiprows=13, stargalaxy=True)
-    catalog_star['T9 brown dwarf']                   = load_normal('T9_WISE1741p2553_full_fluxed.txt',  'Kirkpatrick et al. (2011)', magV=30, skiprows=13, stargalaxy=True)
-    catalog_star['NGC 337 spiral galaxy']            = load_normal('NGC_0337_S_Uv-MIr_bms2014.txt',  'Brown et al. (2014)', magV=12.46, skiprows=9, angstroms=True, stargalaxy=True)
+    catalog_star["O5V star"]                         = load_normal('pickles_uk_1.ascii',  'Pickles stellar catalog ', magV=-5.8, stellar_radius=11.45, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["B5V star"]                         = load_normal('pickles_uk_6.ascii',  'Pickles stellar catalog ', magV=-0.85, stellar_radius=3.36, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["A0V star"]                         = load_normal('pickles_uk_9.ascii',  'Pickles stellar catalog ', magV=0.99, stellar_radius=2.193, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["A5V star"]                         = load_normal('pickles_uk_12.ascii',  'Pickles stellar catalog ', magV=2.01, stellar_radius=1.785, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["F0V star"]                         = load_normal('pickles_uk_14.ascii',  'Pickles stellar catalog ', magV=2.57, stellar_radius=1.728, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["F5V star"]                         = load_normal('pickles_uk_16.ascii',  'Pickles stellar catalog ', magV=3.37, stellar_radius=1.473, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["G0V star"]                         = load_normal('pickles_uk_23.ascii',  'Pickles stellar catalog ', magV=4.48, stellar_radius=1.100, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["G2V star"]                         = load_normal('pickles_uk_26.ascii',  'Pickles stellar catalog ', magV=4.80, stellar_radius=1.012, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["G5V star"]                         = load_normal('pickles_uk_27.ascii',  'Pickles stellar catalog ', magV=4.98, stellar_radius=0.977, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["G8V star"]                         = load_normal('pickles_uk_30.ascii',  'Pickles stellar catalog ', magV=5.30, stellar_radius=0.914, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["K0V star"]                         = load_normal('pickles_uk_31.ascii',  'Pickles stellar catalog ', magV=5.78, stellar_radius=0.813, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["K2V star"]                         = load_normal('pickles_uk_33.ascii',  'Pickles stellar catalog ', magV=6.07, stellar_radius=0.783, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["K5V star"]                         = load_normal('pickles_uk_36.ascii',  'Pickles stellar catalog ', magV=7.28, stellar_radius=0.701, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["M0V star"]                         = load_normal('pickles_uk_38.ascii',  'Pickles stellar catalog ', magV=8.80, stellar_radius=0.588, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["M2V star"]                         = load_normal('pickles_uk_40.ascii',  'Pickles stellar catalog ', magV=10.21, stellar_radius=0.446, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["M4V star"]                         = load_normal('pickles_uk_43.ascii',  'Pickles stellar catalog ', magV=12.61, stellar_radius=0.274, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["M5V star"]                         = load_normal('pickles_uk_44.ascii',  'Pickles stellar catalog ', magV=14.15, stellar_radius=0.196, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["M6V star"]                         = load_normal('pickles_uk_45.ascii',  'Pickles stellar catalog ', magV=16.23, stellar_radius=0.137, skiprows=39, angstroms=True, stargalaxy=True)
+    catalog_star["Proxima Centauri star"]            = load_normal('proxima_cen_sed.txt',  'Andrew Lincowski, Eddie Schwieterman, Giada Arney, and Jacob Lustig-Yaeger', magV=15.60, stellar_radius=0.154, skiprows=25, stargalaxy=True)
+    catalog_star['L5 brown dwarf']                   = load_normal('L5_2MASS1821p1414_full_fluxed.txt',  'Looper et al. (2008)', magV=24, stellar_radius=0.0909, skiprows=13, stargalaxy=True)
+    catalog_star['L8 brown dwarf']                   = load_normal('L8_SDSS0857p5708_full_fluxed.txt',  'Kirkpatrick et al. (2008) and Burgasser et al. (2010)', magV=23.15, stellar_radius=0.0875, skiprows=13, stargalaxy=True)
+    catalog_star['T0 brown dwarf']                   = load_normal('T0_SDSS0837m0000_full_fluxed.txt',  'Kirkpatrick et al. (2008) and Burgasser et al. (2006)', magV=25.5, stellar_radius=0.98, skiprows=13, stargalaxy=True)
+    catalog_star['T9 brown dwarf']                   = load_normal('T9_WISE1741p2553_full_fluxed.txt',  'Kirkpatrick et al. (2011)', magV=30, stellar_radius=0.100, skiprows=13, stargalaxy=True)
+    #catalog_star['NGC 337 spiral galaxy']            = load_normal('NGC_0337_S_Uv-MIr_bms2014.txt',  'Brown et al. (2014)', magV=12.46, stellar_radius=1.0, skiprows=9, angstroms=True, stargalaxy=True)
     # catalog_star['NGC 660 peculiar galaxy']          = load_normal('NGC_0660_S_Uv-MIr_bms2014.txt',  '', skiprows=9, angstroms=True, stargalaxy=True)
     # catalog_star['NGC 4621 elliptical galaxy']       = load_normal('NGC_4621_S_Uv-MIr_bms2014.txt',  '', skiprows=9, angstroms=True, stargalaxy=True)
     # catalog_star['NGC 5033 spiral galaxy']           = load_normal('NGC_5033_S_Uv-MIr_bms2014.txt',  '', skiprows=9, angstroms=True, stargalaxy=True)

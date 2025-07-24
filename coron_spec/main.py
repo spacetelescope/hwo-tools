@@ -234,6 +234,7 @@ def load_star(sourceID):
     global parameters
     star = target_star[sourceID]["spectrum"]
     parameters["magV"] = target_star[sourceID]["magV"] # Johnson V magnitude, specifically.
+    parameters["stellar_radius"] = target_star[sourceID]["stellar_radius"]
     #magnitude.value = target_star[sourceID]["magV"]
     parameters["current_star"] = star
 

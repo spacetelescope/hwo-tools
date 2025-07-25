@@ -5,7 +5,7 @@ from astropy.io import ascii
 
 def add_spectrum_to_library():
 
-    cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
+    cwd = os.getenv('SYOTOOLS_DATA_DIR')
     cwd = './' 
 
     spec_dict = {}

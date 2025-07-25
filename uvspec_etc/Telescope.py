@@ -2,16 +2,16 @@
 from __future__ import print_function
 import numpy as np 
 import os 
-from astropy.table import Table 
+from astropy.io import fits 
 #from astropy.io import ascii 
 
 class Telescope: 
 
     def __init__(self, aperture,temperature,diff_limit_wavelength):
-        self.name = 'LUVOIR' 
-        self.aperture = 10. # aperture in meters 
-        self.temperature = 270. # temperature in Kelvin 
-        self.ota_emissivity = 0.09 # emissivity factor for a TMA 
+        self.name = 'Habworlds' 
+        self.aperture = 7. # aperture in meters 
+        self.temperature = 290. # temperature in Kelvin 
+        self.ota_emissivity = 0.635 # emissivity factor for a TMA 
         self.diff_limit_wavelength = 500. # in nanometers 
         diff_limit_in_arcsec = 1.22*(self.diff_limit_wavelength*0.000000001)*206264.8062/self.aperture
 
@@ -19,7 +19,7 @@ class Camera():
 
     def __init__(self): 
 
-        self.name = 'HDI' 
+        self.name = 'HRI' 
         self.pivotwave = np.array([155., 228., 360., 440., 550., 640., 790., 1260., 1600., 2220.])
         self.bandnames = ['FUV', 'NUV', 'U','B','V','R','I', 'J', 'H', 'K'] 
         self.R_effective = np.array([5., 5., 5., 5., 5., 5., 5., 5., 5., 5.])
@@ -48,62 +48,20 @@ class Spectrograph():
 
     def __init__(self): 
 
-        cwd = os.getenv('LUVOIR_SIMTOOLS_DIR')
-        cwd = './' 
-
-        self.name = 'LUMOS' 
-        print(cwd+'/data/LUMOS_vals.dat') 
-        lumos = Table.read(cwd+'/data/LUMOS_vals.dat', format='ascii') 
-        self.wave = lumos['Wave']
-        self.aeff = lumos['A_eff']
-        self.bef = lumos['Med_Res_BEF'] 
-        self.med_bef = lumos['Med_Res_BEF'] 
-        self.low_bef = lumos['Low_Res_BEF'] 
-        self.delta_lambda = self.wave / 30000. #  EXTREMELY ROUGH resel width 
-        self.lumos_table = lumos 
-        self.mode_name = 'G150M' 
-        self.R = 30000. 
+        self.name = 'LUMOS'
+        self.set_mode("G150M")
 
     def set_mode(self, mode_name): 
 
-        self.mode_names = mode_name 
-        if 'G120M' in mode_name:
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['Med_Res_BEF'] 
-            self.delta_lambda = self.wave / 30000. 
-            self.lambda_range = np.array([1000., 1425.]) 
-            self.mode_name = 'G120M' 
-            self.R = 30000. 
-          
-        if 'G150M' in mode_name: 
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['Med_Res_BEF'] 
-            self.delta_lambda = self.wave / 30000. 
-            self.lambda_range = np.array([1225., 1600.]) 
-            self.mode_name = 'G150M' 
-            self.R = 30000. 
-          
-        if 'G180M' in mode_name: 
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['Med_Res_BEF'] 
-            self.delta_lambda = self.wave / 30000. 
-            self.lambda_range = np.array([1550., 1900.]) 
-            self.mode_name = 'G180M' 
-            self.R = 30000. 
-          
-        if 'G155L' in mode_name: 
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['Low_Res_BEF'] 
-            self.delta_lambda = self.wave / 5000. 
-            self.lambda_range = np.array([1000., 2000.]) 
-            self.mode_name = 'G155L' 
-            self.R = 5000.  
+        print('Setting the spectrograph to mode: ', mode_name) 
+        cwd = os.getenv('SYOTOOLS_DATA_DIR')
+        self.mode_name = mode_name
+        with fits.open(cwd+'/LUMOS_ETC.fits', format='fits') as lumos:
+            self.wave = lumos[self.mode_name].data['Wavelength']
+            self.aeff = lumos[self.mode_name].data['A_Eff']
+            self.bef = lumos[self.mode_name].data['BEF'] 
+            self.delta_lambda = lumos[self.mode_name].data['Disp_Width']
+            self.lambda_range = np.array([np.min(self.wave),np.max(self.wave)])
+            self.lumos_table = lumos 
 
-        if 'G145LL' in mode_name: 
-            print('Setting the spectrograph to mode: ', mode_name) 
-            self.bef = self.lumos_table['LL_mode_BEF'] 
-            self.delta_lambda = self.wave / 500. 
-            self.lambda_range = np.array([900., 2000.]) 
-            self.mode_name = 'G145LL' 
-            self.R = 500. 
-
+        self.R = 30000. 

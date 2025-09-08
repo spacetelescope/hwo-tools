@@ -6,11 +6,12 @@ from bokeh.models.widgets import Slider, Select, Div
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.io import curdoc
 from bokeh.models.callbacks import CustomJS
-import pysynphot as S 
-import astropy.constants as const
+import astropy.units as u
+import synphot as syn
+import stsynphot as stsyn
 import uvi_help as h 
 
-from syotools.spectra.spec_defaults import pysyn_spectra_library
+from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.models import Telescope, Spectrograph, Source, SourceSpectrographicExposure
 
 hwo = Telescope() 
@@ -22,7 +23,6 @@ template_to_start_with = 'QSO'
 
 uvi_source = Source() 
 uvi_source.set_sed(template_to_start_with, 21., 0., 0.)
-uvi_source.sed.convert('flam')
 
 uvi_exp = SourceSpectrographicExposure() 
 uvi_exp.source = uvi_source
@@ -31,8 +31,8 @@ uvi_exp.unknown = 'snr'
 uvi.add_exposure(uvi_exp) 
 uvi_exp._update_snr() 
 
-spectrum_template = ColumnDataSource(data=dict(w=uvi_source.sed.wave, f=uvi_source.sed.flux)) 
-print(' flux = ', uvi_source.sed.flux)
+spectrum_template = ColumnDataSource(data=dict(w=uvi_source.sed.waveset.value, f=uvi_source.sed(uvi_source.sed.waveset).value)) 
+print(' flux = ', uvi_source.sed(uvi_source.sed.waveset))
 
 snr_results = ColumnDataSource(data=dict(w=uvi.wave.value, sn = uvi_exp.snr.value)) 
 
@@ -69,7 +69,6 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
     
     uvi_source = Source() 
     uvi_source.set_sed(template.value, magnitude.value, redshift.value, 0.)
-    uvi_source.sed.convert('flam')
 
     uvi_exp.exptime = [[exptime.value, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'hr'] 
     uvi_exp.source = uvi_source
@@ -78,23 +77,21 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
     uvi.add_exposure(uvi_exp) 
     uvi.mode = str.split(grating.value,' ')[0] #<-- becuase text after the space not in mode keys  
 
-    uvi_source.sed.convert('flam')
 
     if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
-       uvi_source = S.BlackBody(bb_temperature.value) 
-       uvi_source.convert('flam')
-       uvi_source = uvi_source.renorm(magnitude.value, 'abmag', S.ObsBandpass('galex,fuv')) 
+       uvi_source = syn.spectrum.SourceSpectrum(syn.blackbody.BlackBody1D, bb_temperature) 
+       uvi_source = uvi_source.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
 
     uvi_exp._update_snr() 
 
     snr_fixed = np.nan_to_num(uvi_exp.snr.value, nan=0)
 
-    spectrum_template.data = dict(w=uvi_source.sed.wave, f=uvi_source.sed.flux) 
+    spectrum_template.data = dict(w=uvi_source.sed.waveset.value, f=uvi_source.sed(uvi_source.sed.waveset).value) 
     snr_results.data = dict(w=uvi.wave.value, sn = snr_fixed) 
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
-    flux_plot.y_range.end = 1.5*np.max(uvi_source.sed.flux)
+    flux_plot.y_range.end = 1.5*np.max(uvi_source.sed(uvi_source.sed.waveset).value)
     sn_plot.y_range.start = 0 
     sn_plot.y_range.end = 1.3*np.max(snr_results.data['sn'])
 
@@ -106,7 +103,7 @@ source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
 
 # Set up widgets and their callbacks (faking the mouseup policy via "source" b/c functional callback doesn't do that. 
-template = Select(title="Template Spectrum", value="QSO", options=list(pysyn_spectra_library.keys()), width=200)
+template = Select(title="Template Spectrum", value="QSO", options=list(syn_spectra_library.keys()), width=200)
 
 redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
 redshift_callback = CustomJS(args=dict(source=source), code="""

@@ -18,9 +18,9 @@ hri_source = None
 hri_exp = None
 hri = None
 hwo = None
-source1 = None
-source2 = None
-source3 = None
+source1 = ColumnDataSource(data=dict())
+source2 = ColumnDataSource(data=dict())
+source3 = ColumnDataSource(data=dict())
 pivotwave = None
 template_to_start_with = "Flat (AB)"
 
@@ -102,7 +102,7 @@ sed_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
 
 def update_data(attrname, old, new):
-    
+
     print("You have chosen template ", template.value) 
     hwo.effective_aperture = aperture.value * u.m 
 
@@ -132,6 +132,8 @@ def update_data(attrname, old, new):
     sed_plot.y_range.end = np.min(hri_exp.source.sed.flux)-5. 
     text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(pysyn_spectra_library[template.value].band) + ' band'
     sed_plot.title.text = text
+
+    return source1, source2, source3
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))

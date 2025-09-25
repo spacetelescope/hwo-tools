@@ -9,13 +9,8 @@ from main import update_data, initialize_setup
 
 from syotools.spectra.spec_defaults import pysyn_spectra_library
 
-hri_source = None
-hri_exp = None
-hri = None
+
 hwo = None
-source1 = ColumnDataSource(data=dict())
-source2 = ColumnDataSource(data=dict())
-source3 = ColumnDataSource(data=dict())
 pivotwave = None
 template_to_start_with = "Flat (AB)"
 
@@ -107,52 +102,56 @@ exptime = item(30.0)
 template = item("Flat (AB)")
 magnitude = item(20.0)
 aperture = item(6.0)
+redshift = item(0.0)
+grating = item("G150M (R =30,000)")
 
 exptimes = np.linspace(1, 20, 20)
 templates = list(pysyn_spectra_library)
 magnitudes = np.linspace(20, 35, 1)
 apertures = np.linspace(4,10, 1)
+redshifts = np.linspace(0, 3, 20)
+gratings = ["G120M (R = 30,000)", "G150M (R = 30,000)", "G180M (R = 30,000)", "G155L (R = 5,000)", "G145LL (R = 500)"]
 
-test_setups = VaryMany(exptimes, templates, apertures, magnitudes)
+test_setups = VaryMany(exptimes, templates, apertures, magnitudes, redshifts, gratings)
 
 def do_comparisons(inputs):
     global exptime
     global template
     global magnitude
     global aperture
-
-    global source1
-    global source2
-    global source3
+    global redshift
+    global gratings
     global pivotwave
 
     exptime.value = inputs[0]
     template.value = inputs[1]
     magnitude.value = inputs[2]
     aperture.value = inputs[3]
-    source1, source2, source3 = update_data(None, None, None)
+    redshift.value = inputs[4]
+    grating.value = inputs[5]
+    snr_results, spectrum_template = update_data(None, None, None)
 
-    print(source1.data)
+    print(snr_results.data)
 
-    return source1.data["y"], source2.data["y"], source3.data["y"]
+    return snr_results.data["sn"], spectrum_template.data["f"]
 
 def create_comparisons(reset):
     test_results = []
     for setup in test_setups:
         test_results.append((setup, do_comparisons(test_setups)))
     if reset:
-        with open("test_camera.pickle", "wb") as picklefile:
+        with open("test_uvspec.pickle", "wb") as picklefile:
             pickle.dump(test_results, picklefile)
 
 '''
 LOAD IT
 '''
 try:    
-    with open("test_camera.pickle", "rb") as picklefile:
+    with open("test_uvspec.pickle", "rb") as picklefile:
         test_results = pickle.load(picklefile)
 except FileNotFoundError:
     create_comparisons(True)
-    with open("test_camera.pickle", "rb") as picklefile:
+    with open("test_uvspec.pickle", "rb") as picklefile:
         test_results = pickle.load(picklefile)
 
 @pytest.mark.parametrize("testset", test_results)
@@ -161,9 +160,9 @@ def test_camera(testset):
     inputs = testset[0]
     expected = testset[1]
     print(inputs)
-    source1, source2, source3 = do_comparisons(inputs)
+    snr_results, spectrum_template = do_comparisons(inputs)
 
-    assert check_relative_diff(expected, (source1, source2, source3))
+    assert check_relative_diff(expected, (snr_results, spectrum_template))
 
 
 if __name__ == "__main__":

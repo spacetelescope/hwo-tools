@@ -5,17 +5,13 @@ import pytest
 import numpy as np
 from bokeh.models import ColumnDataSource
 
-from main import update_data, initialize_setup
+from main import do_recalculate_snr, load_initial
+import catalog
 
 from syotools.spectra.spec_defaults import pysyn_spectra_library
 
-hri_source = None
-hri_exp = None
-hri = None
+
 hwo = None
-source1 = ColumnDataSource(data=dict())
-source2 = ColumnDataSource(data=dict())
-source3 = ColumnDataSource(data=dict())
 pivotwave = None
 template_to_start_with = "Flat (AB)"
 
@@ -97,62 +93,73 @@ def check_relative_diff(actual, expected, rel_tol=0.1):
     return all_within_tolerance
 
 
-initialize_setup()
+load_initial()
 
 class item():
     def __init__(self, value=30):
         self.value = value
 
+target_planet, target_star = catalog.load_catalog()
+
+snr = item(10)
 exptime = item(30.0)
-template = item("Flat (AB)")
-magnitude = item(20.0)
-aperture = item(6.0)
+diameter = item(7.0)
+star = item("G2V star")
+planet = item("Earth")
+delta_mag = item(15)
+distance = item(10)
 
-exptimes = np.linspace(1, 20, 20)
-templates = list(pysyn_spectra_library)
-magnitudes = np.linspace(20, 35, 1)
-apertures = np.linspace(4,10, 1)
+snrs = np.linspace(0.1, 100.0, 30)
+diameters = np.linspace(5, 15, 10)
+stars = list(target_star)
+planets = list(target_planet)
+exptimes = np.linspace(1, 1000.0, 30)
+distances = np.linspace(1.4, 100.0, 30)
+delta_mags = np.linspace(10,30,20)
 
-test_setups = VaryMany(exptimes, templates, apertures, magnitudes)
+test_setups = VaryMany(snrs, diameters, stars, planets, exptimes, distances, delta_mags)
 
 def do_comparisons(inputs):
+    global snr
     global exptime
-    global template
-    global magnitude
-    global aperture
+    global diameter
+    global star
+    global planet
+    global delta_mag
+    global distance
 
-    global source1
-    global source2
-    global source3
-    global pivotwave
+    snr = inputs[0]
+    diameter = inputs[1]
+    star = inputs[2]
+    planet = inputs[3]
+    exptime = inputs[4]
+    distance = inputs[5]
+    delta_mag = inputs[6]
+    new_values = ColumnDataSource(data={"new_snr": [snr], "new_exp": [exptime], "new_diameter": [diameter], "new_star": [star], "new_distance": [distance], 
+                  "new_planet": [planet], "delta_mag": [delta_mag], "observation": [True], "observatory": [True], "scene": [True]})
+    obsdata = do_recalculate_snr(new_values)
 
-    exptime.value = inputs[0]
-    template.value = inputs[1]
-    magnitude.value = inputs[2]
-    aperture.value = inputs[3]
-    source1, source2, source3 = update_data(None, None, None)
+    print(obsdata.data)
 
-    print(source1.data)
-
-    return source1.data["y"], source2.data["y"], source3.data["y"]
+    return obsdata.data["exptime"], obsdata.data["FpFs"], obsdata.data["snr"]
 
 def create_comparisons(reset):
     test_results = []
     for setup in test_setups:
-        test_results.append((setup, do_comparisons(test_setups)))
+        test_results.append((setup, do_comparisons(setup)))
     if reset:
-        with open("test_camera.pickle", "wb") as picklefile:
+        with open("test_coronspec.pickle", "wb") as picklefile:
             pickle.dump(test_results, picklefile)
 
 '''
 LOAD IT
 '''
 try:    
-    with open("test_camera.pickle", "rb") as picklefile:
+    with open("test_coronspec.pickle", "rb") as picklefile:
         test_results = pickle.load(picklefile)
 except FileNotFoundError:
     create_comparisons(True)
-    with open("test_camera.pickle", "rb") as picklefile:
+    with open("test_coronspec.pickle", "rb") as picklefile:
         test_results = pickle.load(picklefile)
 
 @pytest.mark.parametrize("testset", test_results)
@@ -161,9 +168,9 @@ def test_camera(testset):
     inputs = testset[0]
     expected = testset[1]
     print(inputs)
-    source1, source2, source3 = do_comparisons(inputs)
+    exptime_out, FpFs, snr_out = do_comparisons(inputs)
 
-    assert check_relative_diff(expected, (source1, source2, source3))
+    assert check_relative_diff(expected, (exptime_out, FpFs, snr_out))
 
 
 if __name__ == "__main__":

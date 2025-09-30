@@ -8,11 +8,12 @@ from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import row, column 
 from bokeh.io import curdoc
 
-from syotools.spectra.spec_defaults import pysyn_spectra_library
+from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.models import Telescope, Camera, Source, SourcePhotometricExposure
 
-import hdi_help as h
-import pysynphot as S 
+import hdi_help as h 
+import synphot as syn
+import stsynphot as stsyn
 
 hri_source = None
 hri_exp = None
@@ -91,8 +92,8 @@ snr_plot.scatter('x', 'y', source=source2, fill_color='white', line_color='orang
 snr_plot.line('x', 'y', source=source3, line_width=3, line_color='red', line_alpha=1.0)
 snr_plot.scatter('x', 'y', source=source3, fill_color='white', line_color='red', size=8) 
 
-spectrum_template = ColumnDataSource(data=dict(w=pysyn_spectra_library[template_to_start_with].wave, 
-                                               f=pysyn_spectra_library[template_to_start_with].flux)) 
+spectrum_template = ColumnDataSource(data=dict(w=syn_spectra_library[template_to_start_with].waveset.value, 
+                                               f=syn_spectra_library[template_to_start_with](syn_spectra_library[template_to_start_with].waveset).value)) 
 
 sed_plot = figure(height=400, width=700,tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
               x_range=[800, 24000], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
@@ -108,13 +109,13 @@ def update_data(attrname, old, new):
 
     hri_source.set_sed(template.value, magnitude.value, 0., 0.)
 
-    normalization_band = S.ObsBandpass(pysyn_spectra_library[template.value].band)
-    hri_source.sed.renorm(magnitude.value, 'abmag', normalization_band) 
+    normalization_band = stsyn.band(syn_spectra_library[template.value].band)
+    hri_source.sed.normalize(magnitude.value * u.ABmag, normalization_band) 
     print('Renorming to ', magnitude.value) 
-    print('SED Waveunits: ', hri_source.sed.waveunits)
-    print('SED Fluxunits: ', hri_source.sed.fluxunits)
+    print('SED Waveunits: ', hri_source.sed.waveset.unit)
+    print('SED Fluxunits: ', hri_source.sed(hri_source.sed.waveset).unit)
     
-    spectrum_template.data = {'w':hri_source.sed.wave, 'f':hri_source.sed.flux}    
+    spectrum_template.data = {'w':hri_source.sed.waveset.value, 'f':hri_source.sed(hri_source.sed.waveset).value}    
 
     hri_exp.exptime = [[exptime.value, exptime.value, exptime.value, 
                         exptime.value, exptime.value, exptime.value, 
@@ -128,9 +129,9 @@ def update_data(attrname, old, new):
     snr_plot.y_range.start = 0
     snr_plot.y_range.end = 1.3*np.max([np.max(hri_exp.snr.value),5.]) 
 
-    sed_plot.y_range.start = np.min(hri_exp.source.sed.flux)+5. 
-    sed_plot.y_range.end = np.min(hri_exp.source.sed.flux)-5. 
-    text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(pysyn_spectra_library[template.value].band) + ' band'
+    sed_plot.y_range.start = np.min(hri_source.sed(hri_source.sed.waveset).value)+5. 
+    sed_plot.y_range.end = np.min(hri_source.sed(hri_source.sed.waveset).value)-5. 
+    text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(syn_spectra_library[template.value].band) + ' band'
     sed_plot.title.text = text
 
     return source1, source2, source3
@@ -157,7 +158,7 @@ magnitude_callback = CustomJS(args=dict(source=source), code="""
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
 
-template = Select(title="Template Spectrum", value="Flat (AB)", options=list(pysyn_spectra_library.keys()), width=250) 
+template = Select(title="Template Spectrum", value="Flat (AB)", options=list(syn_spectra_library.keys()), width=250) 
 
 for w in [template]: 
     w.on_change('value', update_data)

@@ -7,7 +7,7 @@ from bokeh.models import ColumnDataSource
 
 from main import update_data, initialize_setup
 
-from syotools.spectra.spec_defaults import pysyn_spectra_library
+from syotools.spectra.spec_defaults import syn_spectra_library
 
 
 hwo = None
@@ -106,7 +106,7 @@ redshift = item(0.0)
 grating = item("G150M (R =30,000)")
 
 exptimes = np.linspace(1, 20, 20)
-templates = list(pysyn_spectra_library)
+templates = list(syn_spectra_library)
 magnitudes = np.linspace(20, 35, 1)
 apertures = np.linspace(4,10, 1)
 redshifts = np.linspace(0, 3, 20)

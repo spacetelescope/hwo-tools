@@ -14,29 +14,47 @@ import uvi_help as h
 from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.models import Telescope, Spectrograph, Source, SourceSpectrographicExposure
 
-hwo = Telescope() 
-hwo.set_from_json('EAC1')
-uvi = Spectrograph()   
-hwo.add_spectrograph(uvi)              
+hwo = None
+uvi = None
+uvi_exp = None
+snr_results = ColumnDataSource(data={})
+spectrum_template = ColumnDataSource(data={})
+instrument_info = ColumnDataSource(data={})
 
-template_to_start_with = 'QSO' 
+def initialize_setup():
+    global hwo
+    global uvi
+    global uvi_exp
+    global spectrum_template
+    global snr_results
+    global instrument_info
 
-uvi_source = Source() 
-uvi_source.set_sed(template_to_start_with, 21., 0., 0.)
+    hwo = Telescope() 
+    hwo.set_from_json('EAC1')
+    uvi = Spectrograph()   
+    hwo.add_spectrograph(uvi)              
 
-uvi_exp = SourceSpectrographicExposure() 
-uvi_exp.source = uvi_source
-uvi_exp.verbose = True 
-uvi_exp.unknown = 'snr'
-uvi.add_exposure(uvi_exp) 
-uvi_exp._update_snr() 
+    template_to_start_with = 'QSO' 
 
-spectrum_template = ColumnDataSource(data=dict(w=uvi_source.sed.waveset.value, f=uvi_source.sed(uvi_source.sed.waveset).value)) 
-print(' flux = ', uvi_source.sed(uvi_source.sed.waveset))
+    uvi_source = Source() 
+    uvi_source.set_sed(template_to_start_with, 21., 0., 0.)
+    uvi_source.sed.convert('flam')
 
-snr_results = ColumnDataSource(data=dict(w=uvi.wave.value, sn = uvi_exp.snr.value)) 
+    uvi_exp = SourceSpectrographicExposure() 
+    uvi_exp.source = uvi_source
+    uvi_exp.verbose = True 
+    uvi_exp.unknown = 'snr'
+    uvi.add_exposure(uvi_exp) 
+    uvi_exp._update_snr() 
 
-instrument_info = ColumnDataSource(data=dict(wave=uvi.wave.value, bef=uvi.bef.value))
+    spectrum_template = ColumnDataSource(data=dict(w=uvi_source.sed.waveset.value, f=uvi_source.sed(uvi_source.sed.waveset).value)) 
+    print(' flux = ', uvi_source.sed(uvi_source.sed.waveset))
+
+    snr_results = ColumnDataSource(data=dict(w=uvi.wave.value, sn = uvi_exp.snr.value)) 
+
+    instrument_info = ColumnDataSource(data=dict(wave=uvi.wave.value, bef=uvi.bef.value))
+
+initialize_setup()
 
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
@@ -96,7 +114,9 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
     sn_plot.y_range.end = 1.3*np.max(snr_results.data['sn'])
 
     print() 
-    print() 
+    print()
+    print(uvi)
+    return snr_results, spectrum_template
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))

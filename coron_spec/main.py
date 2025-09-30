@@ -447,6 +447,8 @@ def do_recalculate_snr(newvalues):
 
     snr_compute.label = "Compute"
 
+    return obsdata
+
 
 def recalculate_snr(newvalues):
     """

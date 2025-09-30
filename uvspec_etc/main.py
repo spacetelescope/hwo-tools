@@ -38,7 +38,6 @@ def initialize_setup():
 
     uvi_source = Source() 
     uvi_source.set_sed(template_to_start_with, 21., 0., 0.)
-    uvi_source.sed.convert('flam')
 
     uvi_exp = SourceSpectrographicExposure() 
     uvi_exp.source = uvi_source
@@ -97,8 +96,11 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
 
 
     if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
-       uvi_source = syn.spectrum.SourceSpectrum(syn.blackbody.BlackBody1D, bb_temperature) 
-       uvi_source = uvi_source.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
+       wave = np.linspace(100,30000,300) << u.Angstrom
+       bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, bb_temperature.value)
+       bb.z = redshift.value
+       bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
+       uvi_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
 
     uvi_exp._update_snr() 
 

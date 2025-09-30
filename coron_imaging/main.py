@@ -21,8 +21,7 @@ from syotools.models import Telescope, Coronagraph
 
 import Telescope as T 
 import cor_help as h 
-#import get_cor_seds 
-import pysynphot as S 
+#import get_cor_seds
 
 cac, tel = Coronagraph(), Telescope() 
 tel.set_from_json('EAC1')

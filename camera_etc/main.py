@@ -11,32 +11,57 @@ from bokeh.io import curdoc
 from syotools.spectra.spec_defaults import pysyn_spectra_library
 from syotools.models import Telescope, Camera, Source, SourcePhotometricExposure
 
-import hdi_help as h 
+import hdi_help as h
 import pysynphot as S 
 
-hwo = Telescope() 
-hwo.set_from_json('EAC1')
-hri = Camera()   
-hwo.add_camera(hri)              
+hri_source = None
+hri_exp = None
+hri = None
+hwo = None
+source1 = ColumnDataSource(data=dict())
+source2 = ColumnDataSource(data=dict())
+source3 = ColumnDataSource(data=dict())
+pivotwave = None
+template_to_start_with = "Flat (AB)"
 
-template_to_start_with = 'Flat (AB)' 
+def initialize_setup():
+    global hri_source
+    global hri_exp
+    global hri
+    global hwo
 
-hri_source = Source() 
-hri_source.set_sed(template_to_start_with, 30., 0., 0.)
+    global source1
+    global source2
+    global source3
+    global pivotwave
 
-hri_exp = SourcePhotometricExposure() 
-hri_exp.source = hri_source
-hri_exp.verbose = True 
-hri_exp.unknown = 'snr'
-hri.add_exposure(hri_exp) 
-hri_exp._update_snr() 
+    hwo = Telescope() 
+    hwo.set_from_json('EAC1')
+    hri = Camera()   
+    hwo.add_camera(hri)
 
-snr = hri_exp.snr
-pivotwave = np.array(hri.pivotwave[0]) * 10. 
+    hri_source = Source() 
+    hri_source.set_sed(template_to_start_with, 30., 0., 0.)
 
-source1 = ColumnDataSource(data=dict(x=pivotwave[2:-3], y=snr[2:-3], desc=hri.bandnames[2:-3] ))
-source2 = ColumnDataSource(data=dict(x=pivotwave[0:2], y=snr[0:2], desc=hri.bandnames[0:2]))
-source3 = ColumnDataSource(data=dict(x=pivotwave[-3:], y=snr[-3:], desc=hri.bandnames[-3:]))
+    hri_exp = SourcePhotometricExposure() 
+    hri_exp.source = hri_source
+    hri_exp.verbose = True 
+    hri_exp.unknown = 'snr'
+    hri.add_exposure(hri_exp) 
+    hri_exp._update_snr()
+
+    snr = hri_exp.snr
+    pivotwave = np.array(hri.pivotwave[0]) * 10. 
+
+    source1 = ColumnDataSource(data=dict(x=pivotwave[2:-3], y=snr[2:-3], desc=hri.bandnames[2:-3] ))
+    source2 = ColumnDataSource(data=dict(x=pivotwave[0:2], y=snr[0:2], desc=hri.bandnames[0:2]))
+    source3 = ColumnDataSource(data=dict(x=pivotwave[-3:], y=snr[-3:], desc=hri.bandnames[-3:]))
+
+initialize_setup()
+
+
+
+
 
 hover = HoverTool(point_policy="snap_to_data", 
         tooltips="""
@@ -77,7 +102,7 @@ sed_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
 
 def update_data(attrname, old, new):
-    
+
     print("You have chosen template ", template.value) 
     hwo.effective_aperture = aperture.value * u.m 
 
@@ -107,6 +132,8 @@ def update_data(attrname, old, new):
     sed_plot.y_range.end = np.min(hri_exp.source.sed.flux)-5. 
     text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(pysyn_spectra_library[template.value].band) + ' band'
     sed_plot.title.text = text
+
+    return source1, source2, source3
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))

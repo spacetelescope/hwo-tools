@@ -8,7 +8,7 @@ from bokeh.models import ColumnDataSource
 from main import do_recalculate_snr, load_initial
 import catalog
 
-from syotools.spectra.spec_defaults import pysyn_spectra_library
+from syotools.spectra.spec_defaults import syn_spectra_library
 
 
 hwo = None
@@ -139,7 +139,7 @@ def do_comparisons(inputs):
                   "new_planet": [planet], "delta_mag": [delta_mag], "observation": [True], "observatory": [True], "scene": [True]})
     obsdata = do_recalculate_snr(new_values)
 
-    print(obsdata.data)
+    print(obsdata)
 
     return obsdata.data["exptime"], obsdata.data["FpFs"], obsdata.data["snr"]
 

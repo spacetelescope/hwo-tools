@@ -255,13 +255,13 @@ def recompute_star_flux():
     #print(parameters["current_star"])
 
     # we do not move the star from 10 pc, we merely provide the magnitude (and flux) at 10 pc and pyEDITH does the rest
-    new_star = parameters["current_star"].normalize(parameters["magV"] * u.ABmag, band=bp)
+    new_star = parameters["current_star"].normalize(parameters["magV"] * u.ABmag, band=bp, force="taper")
     flux = new_star(parameters["wavelength"]<< u.micron)
     #magnitude.value = parameters["magV"] # make sure it matches what was used
 
     parameters["Fstar_10pc"] = syn.units.convert_flux(parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
     # get the flux at 10 pc in the V band
-    parameters["FstarV_10pc"] = syn.units.convert_flux(parameters["wavelength"], syn.Observation(new_star, bp).effstim(), u.photon / (u.s * u.cm**2 * u.nm)).value
+    parameters["FstarV_10pc"] = syn.units.convert_flux(parameters["wavelength"], syn.Observation(new_star, bp, force="taper").effstim(), u.photon / (u.s * u.cm**2 * u.nm)).value
 
     recompute_planet_flux() # trigger a recomputation of the planetary flux
 
@@ -362,9 +362,6 @@ def do_recalculate_exptime(newvalues):
     else:
         warning.text = "<p></p>"
     obs, noise = pE.utils.synthesize_observation(newsnr.value * np.ones_like(observation.wavelength.value),
-                                             observation.exptime,
-                                             observation.wavelength,
-                                             observation,
                                              scene, 
                                              random_seed=None, # seed defaults to None
                                              set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
@@ -419,7 +416,7 @@ def do_recalculate_snr(newvalues):
         snr_compute.label = "Compute"
         obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
-        return
+        return obsdata
     #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
     #print("Exptime", observation.exptime)
     if any(np.isinf(observation.exptime)):
@@ -427,9 +424,6 @@ def do_recalculate_snr(newvalues):
     else:
         warning.text = "<p></p>"
     obs, noise = pE.utils.synthesize_observation(observation.fullsnr,
-                                             newexp.value * np.ones_like(observation.wavelength.value),
-                                             observation.wavelength,
-                                             observation,
                                              scene, 
                                              random_seed=None, # seed defaults to None
                                              set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN

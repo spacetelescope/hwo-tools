@@ -2,6 +2,7 @@ import base64
 import datetime
 import asdf
 import yaml
+import os
 import numpy as np, astropy.units as u 
 
 from bokeh.plotting import figure
@@ -172,12 +173,13 @@ warning = Div(text='<p></p>')
 def process_spectrum(attr, old, new):
     global template
     global syn_spectra_library
-    spectrumhex = new
+    spectrumhex = upload.value
     if len(spectrumhex) < 13981013: #10 MiB in base64 5. Set a file size limit
         spectrumdata = base64.b64decode(spectrumhex, validate=True)
         keyword = spectrumdata[0:6].decode()
-        # if len(input_filename) > 44:
-        #     input_filename = upload.filename[0:44]
+        input_filename = new
+        if len(input_filename) > 44:
+            input_filename = new[0:44]
         
         filetype = "unknown"
         if keyword == "SIMPLE": # 2. Validate the file type, don't trust Content-Type header
@@ -196,17 +198,18 @@ def process_spectrum(attr, old, new):
         try:
             spectrum = load_synfits({"file": [f"../uploaded/{filename}"], "descs": "uploaded"})
 
-            syn_spectra_library["Upload"] = spectrum
-            if "Upload" not in template.options:
-                template.options.append("Upload")
-            template.value = "Upload"
+            syn_spectra_library[input_filename] = spectrum
+            if input_filename not in template.options:
+                template.options.append(input_filename)
+            template.value = input_filename
+            os.remove(f"../uploaded/{filename}") # don't clutter the upload directory
             update_data("","","")
         except Exception as exc:
             warning.text = str(exc)
     else:
         warning.text = "File too large"
 
-upload.on_change("value", process_spectrum)
+upload.on_change("filename", process_spectrum)
 
 
 for w in [template]: 

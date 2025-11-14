@@ -17,6 +17,7 @@ from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
 from syotools.models import Telescope, Camera, Source, SourcePhotometricExposure
 
+import app_hooks as ah
 import hdi_help as h 
 import synphot as syn
 import stsynphot as stsyn
@@ -110,12 +111,18 @@ sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_templat
 
 def update_data(attrname, old, new):
 
-    print("You have chosen template ", template.value) 
+    # one item in the list will be "uploaded spectrum" which will point to the other non-permanent list
+    if template.value == "Uploaded":
+        spectrum = upload_template.value
+    else:
+        spectrum = template.value
+    print("You have chosen template ", spectrum)
+
     hwo.effective_aperture = aperture.value * u.m 
 
-    hri_source.set_sed(template.value, magnitude.value, 0., 0.)
+    hri_source.set_sed(spectrum, magnitude.value, 0., 0.)
 
-    normalization_band = stsyn.band(syn_spectra_library[template.value].band)
+    normalization_band = stsyn.band(syn_spectra_library[spectrum].band)
     hri_source.sed.normalize(magnitude.value * u.ABmag, normalization_band) 
     print('Renorming to ', magnitude.value) 
     print('SED Waveunits: ', hri_source.sed.waveset.unit)
@@ -137,7 +144,7 @@ def update_data(attrname, old, new):
 
     sed_plot.y_range.start = np.min(hri_source.sed(hri_source.sed.waveset).value)+5. 
     sed_plot.y_range.end = np.min(hri_source.sed(hri_source.sed.waveset).value)-5. 
-    text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(syn_spectra_library[template.value].band) + ' band'
+    text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(syn_spectra_library[spectrum].band) + ' band'
     sed_plot.title.text = text
     warning.text = ""
 
@@ -167,12 +174,13 @@ magnitude.js_on_change("value_throttled", magnitude_callback)
 
 template = Select(title="Template Spectrum", value="Flat (AB)", options=list(syn_spectra_library.keys()), width=250) 
 
+upload_template = Select(title="Uploaded Spectrum", value="", options=list(ah.uploaded_spectra_library.keys()), width=250) 
+
 upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt, FITS, or ASDF format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
 warning = Div(text='<p></p>')
 
 def process_spectrum(attr, old, new):
-    global template
-    global syn_spectra_library
+    global upload_template
     spectrumhex = upload.value
     if len(spectrumhex) < 13981013: #10 MiB in base64 5. Set a file size limit
         spectrumdata = base64.b64decode(spectrumhex, validate=True)
@@ -198,10 +206,12 @@ def process_spectrum(attr, old, new):
         try:
             spectrum = load_synfits({"file": [f"../uploaded/{filename}"], "descs": "uploaded"})
 
-            syn_spectra_library[input_filename] = spectrum
-            if input_filename not in template.options:
-                template.options.append(input_filename)
-            template.value = input_filename
+            ah.uploaded_spectra_library[input_filename] = spectrum
+            if input_filename not in upload_template.options:
+                upload_template.options.append(input_filename)
+                if "Uploaded" not in template.options:
+                    template.options.append("Uploaded")
+            upload_template.value = input_filename
             os.remove(f"../uploaded/{filename}") # don't clutter the upload directory
             update_data("","","")
         except Exception as exc:
@@ -212,10 +222,10 @@ def process_spectrum(attr, old, new):
 upload.on_change("filename", process_spectrum)
 
 
-for w in [template]: 
+for w in [template]:
     w.on_change('value', update_data)
 
-controls = column(children=[aperture, exptime, magnitude, template, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
+controls = column(children=[aperture, exptime, magnitude, template, upload_template, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
 controls_tab = TabPanel(child=controls, title='Controls')
 info_tab = TabPanel(child=Div(text = h.help()), title='Info')
 inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 

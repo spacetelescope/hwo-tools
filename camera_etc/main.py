@@ -3,6 +3,7 @@ import datetime
 import asdf
 import yaml
 import os
+import copy
 import numpy as np, astropy.units as u 
 
 from bokeh.plotting import figure
@@ -20,6 +21,8 @@ from syotools.models import Telescope, Camera, Source, SourcePhotometricExposure
 import hdi_help as h 
 import synphot as syn
 import stsynphot as stsyn
+
+spectra_library = copy.deepcopy(syn_spectra_library)
 
 hri_source = None
 hri_exp = None
@@ -43,7 +46,7 @@ def initialize_setup():
     global pivotwave
 
     hwo = Telescope() 
-    hwo.set_from_json('EAC1')
+    hwo.set_from_yaml('EAC1')
     hri = Camera()   
     hwo.add_camera(hri)
 
@@ -98,8 +101,8 @@ snr_plot.scatter('x', 'y', source=source2, fill_color='white', line_color='orang
 snr_plot.line('x', 'y', source=source3, line_width=3, line_color='red', line_alpha=1.0)
 snr_plot.scatter('x', 'y', source=source3, fill_color='white', line_color='red', size=8) 
 
-spectrum_template = ColumnDataSource(data=dict(w=syn_spectra_library[template_to_start_with].waveset.value, 
-                                               f=syn_spectra_library[template_to_start_with](syn_spectra_library[template_to_start_with].waveset).value)) 
+spectrum_template = ColumnDataSource(data=dict(w=spectra_library[template_to_start_with].waveset.value, 
+                                               f=spectra_library[template_to_start_with](spectra_library[template_to_start_with].waveset).value)) 
 
 sed_plot = figure(height=400, width=700,tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
               x_range=[800, 24000], y_range=[35, 21], border_fill_color='black', toolbar_location='right')
@@ -113,9 +116,9 @@ def update_data(attrname, old, new):
     print("You have chosen template ", template.value) 
     hwo.effective_aperture = aperture.value * u.m 
 
-    hri_source.set_sed(template.value, magnitude.value, 0., 0.)
+    hri_source.set_sed(template.value, magnitude.value, 0., 0., library=spectra_library)
 
-    normalization_band = stsyn.band(syn_spectra_library[template.value].band)
+    normalization_band = stsyn.band(spectra_library[template.value].band)
     hri_source.sed.normalize(magnitude.value * u.ABmag, normalization_band) 
     print('Renorming to ', magnitude.value) 
     print('SED Waveunits: ', hri_source.sed.waveset.unit)
@@ -137,7 +140,7 @@ def update_data(attrname, old, new):
 
     sed_plot.y_range.start = np.min(hri_source.sed(hri_source.sed.waveset).value)+5. 
     sed_plot.y_range.end = np.min(hri_source.sed(hri_source.sed.waveset).value)-5. 
-    text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(syn_spectra_library[template.value].band) + ' band'
+    text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(spectra_library[template.value].band) + ' band'
     sed_plot.title.text = text
     warning.text = ""
 
@@ -165,14 +168,14 @@ magnitude_callback = CustomJS(args=dict(source=source), code="""
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
 
-template = Select(title="Template Spectrum", value="Flat (AB)", options=list(syn_spectra_library.keys()), width=250) 
+template = Select(title="Template Spectrum", value="Flat (AB)", options=list(spectra_library.keys()), width=250) 
 
 upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt, FITS, or ASDF format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
 warning = Div(text='<p></p>')
 
 def process_spectrum(attr, old, new):
     global template
-    global syn_spectra_library
+    global spectra_library
     spectrumhex = upload.value
     if len(spectrumhex) < 13981013: #10 MiB in base64 5. Set a file size limit
         spectrumdata = base64.b64decode(spectrumhex, validate=True)
@@ -198,7 +201,7 @@ def process_spectrum(attr, old, new):
         try:
             spectrum = load_synfits({"file": [f"../uploaded/{filename}"], "descs": "uploaded"})
 
-            syn_spectra_library[input_filename] = spectrum
+            spectra_library[input_filename] = spectrum
             if input_filename not in template.options:
                 template.options.append(input_filename)
             template.value = input_filename

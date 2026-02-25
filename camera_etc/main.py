@@ -46,8 +46,9 @@ def initialize_setup():
     global pivotwave
 
     hwo = Telescope() 
-    hwo.set_from_yaml('EAC1')
-    hri = Camera()   
+    hwo.set_from_sei('EAC1')
+    hri = Camera()
+    hri.set_from_sei("HRI")
     hwo.add_camera(hri)
 
     hri_source = Source() 
@@ -58,7 +59,7 @@ def initialize_setup():
     hri_exp.verbose = True 
     hri_exp.unknown = 'snr'
     hri.add_exposure(hri_exp) 
-    hri_exp._update_snr()
+    hri_exp._update_snr(hri_source)
 
     snr = hri_exp.snr
     pivotwave = np.array(hri.pivotwave[0]) * 10. 
@@ -129,7 +130,7 @@ def update_data(attrname, old, new):
     hri_exp.exptime = [[exptime.value, exptime.value, exptime.value, 
                         exptime.value, exptime.value, exptime.value, 
                         exptime.value, exptime.value, exptime.value, exptime.value], 'hr']
-    hri_exp._update_snr() 
+    hri_exp._update_snr(hri_source) 
 
     source1.data = dict(x=pivotwave[2:-3], y=hri_exp.snr[2:-3], desc=hri.bandnames[2:-3]) 
     source2.data = dict(x=pivotwave[0:2], y=hri_exp.snr[0:2], desc=hri.bandnames[0:2]) 

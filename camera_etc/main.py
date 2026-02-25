@@ -18,6 +18,7 @@ from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
 from syotools.models import Telescope, Camera, Source, SourcePhotometricExposure
 
+import app_hooks as ah
 import hdi_help as h 
 import synphot as syn
 import stsynphot as stsyn
@@ -114,7 +115,8 @@ sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_templat
 
 def update_data(attrname, old, new):
 
-    print("You have chosen template ", template.value) 
+    print("You have chosen template ", template.value)
+
     hwo.effective_aperture = aperture.value * u.m 
 
     hri_source.set_sed(template.value, magnitude.value, 0., 0., library=spectra_library)
@@ -216,7 +218,7 @@ def process_spectrum(attr, old, new):
 upload.on_change("filename", process_spectrum)
 
 
-for w in [template]: 
+for w in [template]:
     w.on_change('value', update_data)
 
 controls = column(children=[aperture, exptime, magnitude, template, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 

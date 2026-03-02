@@ -353,7 +353,7 @@ def do_recalculate_exptime(newvalues):
     observatory, scene, observation = update_calculation(newvalues)
 
     try:
-        pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
+        pE.calculate_exposure_time_or_snr(observation, scene, observatory)
     except UnboundLocalError:
         warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
         exptime_compute.label = "Compute"

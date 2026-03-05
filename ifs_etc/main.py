@@ -65,10 +65,10 @@ def update_data(attrname, old, new): # use this one for updating synphot templat
     ifs_exp.sources = []
     max_val = 0
     for idx, panel in enumerate(sources):
-        template = panel["template"]
-        redshift = panel["redshift"]
-        magnitude = panel["magnitude"]
-        bb_temperature = panel["bb_temperature"]
+        template = panel.template
+        redshift = panel.redshift
+        magnitude = panel.magnitude
+        bb_temperature = panel.bb_temperature
         print() 
         print() 
         print("You have chosen template ", template.value) 
@@ -78,7 +78,7 @@ def update_data(attrname, old, new): # use this one for updating synphot templat
         hwo.effective_aperture = aperture.value  
         
         ifs_source = Source() 
-        ifs_source.set_sed(template.value, magnitude.value, redshift.value, 0.)
+        ifs_source.set_sed(template.value, magnitude.value, redshift.value, 0., library=spectra_library)
 
         max_val = np.max([np.max(ifs_source.sed(ifs_source.sed.waveset).value),max_val])
 
@@ -87,7 +87,7 @@ def update_data(attrname, old, new): # use this one for updating synphot templat
             bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, bb_temperature.value)
             bb.z = redshift.value
             bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
-            ifs_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
+            ifs_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave << u.Angstrom, lookup_table=bb(wave))
 
         spectrum_template[idx].data = dict(w=ifs_source.sed.waveset.value, f=ifs_source.sed(ifs_source.sed.waveset).value)
         print(len(spectrum_template))
@@ -119,42 +119,37 @@ def update_data(attrname, old, new): # use this one for updating synphot templat
     print(ifs)
     return snr_results, spectrum_template
 
+class source_widget():
 
+    def __init__(self):
+        self.template = Select(title="Template Spectrum", value="QSO", options=list(spectra_library.keys()), width=200)
+        self.template.on_change("value", update_data)
 
-def create_source_widget():
-    global spectra_library
+        self.redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
+        self.redshift_callback = CustomJS(args=dict(source=self.redshift), code="""
+                source.data = { value: [cb_obj.value] }
+            """)
+        self.redshift.js_on_change("value_throttled", self.redshift_callback)
 
-    source_widget = {}
-    # Set up widgets and their callbacks (faking the mouseup policy via "source" b/c functional callback doesn't do that. 
-    source_widget["template"] = Select(title="Template Spectrum", value="QSO", options=list(spectra_library.keys()), width=200)
-    source_widget["template"].on_change("value", update_data)
+        self.magnitude = Slider(title="AB Magnitude", value=21., start=15., end=30.0, step=0.1, width=200)
+        self.magnitude_callback = CustomJS(args=dict(source=self.magnitude), code="""
+                source.data = { value: [cb_obj.value] }
+            """)
+        self.magnitude.js_on_change("value_throttled", self.magnitude_callback)
 
-    source_widget["redshift"] = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
-    redshift_callback = CustomJS(args=dict(source=source_widget["redshift"]), code="""
-        source.data = { value: [cb_obj.value] }
-        """)
-    source_widget["redshift"].js_on_change("value_throttled", redshift_callback) 
+        self.bb_temperature = Slider(title="Blackbody Temperature [K]", value=10000., start=3000., end=200000.0, step=1000., width=200)
+        self.temperature_callback = CustomJS(args=dict(source=self.bb_temperature), code="""
+                source.data = { value: [cb_obj.value] }
+            """)
+        self.bb_temperature.on_change("value", update_data)
 
-    source_widget["magnitude"] = Slider(title="AB Magnitude", value=21., start=15., end=30.0, step=0.1, width=200)
-    magnitude_callback = CustomJS(args=dict(source=source_widget["magnitude"]), code="""
-        source.data = { value: [cb_obj.value] }
-        """)
-    source_widget["magnitude"].js_on_change("value_throttled", magnitude_callback) 
+        self.upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt, FITS, or ASDF format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+        self.upload.on_change("filename", self.process_spectrum)
+        self.warning = Div(text='<p></p>')
 
-    source_widget["bb_temperature"] = Slider(title="Blackbody Temperature [K]", value=20000., start=8000., end=200000.0, step=1000., width=200)
-    temperature_callback = CustomJS(args=dict(source=source_widget["bb_temperature"]), code="""
-        source.data = { value: [cb_obj.value] }
-        """)
-    source_widget["bb_temperature"].js_on_change("value_throttled", temperature_callback)
-
-
-    source_widget["upload"] = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt, FITS, or ASDF format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
-    source_widget["warning"] = Div(text='<p></p>')
-
-    def process_spectrum(attr, old, new):
+    def process_spectrum(self, attr, old, new):
         global sources
-        global spectra_library
-        spectrumhex = source_widget["upload"].value
+        spectrumhex = self.upload.value
         if len(spectrumhex) < 13981013: #10 MiB in base64 5. Set a file size limit
             spectrumdata = base64.b64decode(spectrumhex, validate=True)
             keyword = spectrumdata[0:6].decode()
@@ -181,33 +176,29 @@ def create_source_widget():
                 spectrum = load_synfits({"file": [f"../uploaded/{filename}"], "descs": "uploaded"})
 
                 spectra_library[input_filename] = spectrum
-                for source in sources:
-                    if input_filename not in source_widget["template"].options:
-                        source["template"].options.append(input_filename)
-                source_widget["template"].value = input_filename
+                for source in sources: # add to all the sources' lists
+                    if input_filename not in self.template.options:
+                        source.template.options.append(input_filename)
+                self.template.value = input_filename
                 os.remove(f"../uploaded/{filename}") # don't clutter the upload directory
-                update_data("","","")
+                update_data(None, None, None)
             #except Exception as exc:
-                print(exc)
-                source_widget["warning"].text = str(exc)
+                #print(exc)
+                #self.warning.text = str(exc)
         else:
-            source_widget["warning"].text = "File too large"
-
-
-    source_widget["upload"].on_change("filename", process_spectrum)
-
-    return source_widget
-
+            self.warning.text = "File too large"
 
 def add_source_callback(event):
     global source_num
     global sources
     global flux_plot
     # create the new widget
-    source_widget = create_source_widget()
-    sources.append(source_widget)
+    new_source_widget = source_widget()
+    sources.append(new_source_widget)
     source_num += 1
-    new_source = column(children=[source_widget["template"], source_widget["redshift"], source_widget["magnitude"], source_widget["bb_temperature"], source_widget["upload"], source_widget["warning"]], sizing_mode='fixed', max_width=300, width=250, height=300)
+    new_source = column(children=[new_source_widget.template, new_source_widget.redshift, new_source_widget.magnitude, 
+                                  new_source_widget.bb_temperature, new_source_widget.upload, new_source_widget.warning], 
+                                  sizing_mode='fixed', max_width=300, width=250, height=300)
     print("Column Source", new_source)
     source_panel = TabPanel(child=new_source, title=f"Src {source_num}")
 

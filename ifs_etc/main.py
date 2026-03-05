@@ -152,7 +152,7 @@ def create_source_widget():
     source_widget["warning"] = Div(text='<p></p>')
 
     def process_spectrum(attr, old, new):
-        global template
+        global sources
         global spectra_library
         spectrumhex = source_widget["upload"].value
         if len(spectrumhex) < 13981013: #10 MiB in base64 5. Set a file size limit
@@ -176,16 +176,19 @@ def create_source_widget():
             with open(f"../uploaded/{filename}", "wb") as outfile:
                 outfile.write(spectrumdata)
 
-            try:
+            if True:
+            #try:
                 spectrum = load_synfits({"file": [f"../uploaded/{filename}"], "descs": "uploaded"})
 
                 spectra_library[input_filename] = spectrum
-                if input_filename not in source_widget["template"].options:
-                    source_widget["template"].options.append(input_filename)
+                for source in sources:
+                    if input_filename not in source_widget["template"].options:
+                        source["template"].options.append(input_filename)
                 source_widget["template"].value = input_filename
                 os.remove(f"../uploaded/{filename}") # don't clutter the upload directory
                 update_data("","","")
-            except Exception as exc:
+            #except Exception as exc:
+                print(exc)
                 source_widget["warning"].text = str(exc)
         else:
             source_widget["warning"].text = "File too large"

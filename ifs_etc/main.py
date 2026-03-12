@@ -143,7 +143,7 @@ class source_widget():
             """)
         self.bb_temperature.on_change("value", update_data)
 
-        self.upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt, FITS, or ASDF format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+        self.upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
         self.upload.on_change("filename", self.process_spectrum)
         self.warning = Div(text='<p></p>')
 

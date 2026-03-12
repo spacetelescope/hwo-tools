@@ -170,7 +170,7 @@ exptime_callback = CustomJS(args=dict(source=source), code="""
 """)
 exptime.js_on_change("value_throttled", exptime_callback) 
 
-upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt, FITS, or ASDF format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
 warning = Div(text='<p></p>')
 
 def process_spectrum(attr, old, new):

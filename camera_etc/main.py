@@ -173,7 +173,7 @@ magnitude.js_on_change("value_throttled", magnitude_callback)
 
 template = Select(title="Template Spectrum", value="Flat (AB)", options=list(spectra_library.keys()), width=250) 
 
-upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+upload = FileInput(accept=[".txt", ".csv", ".ascii", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
 warning = Div(text='<p></p>')
 
 def process_spectrum(attr, old, new):
@@ -193,7 +193,7 @@ def process_spectrum(attr, old, new):
         elif keyword[0:5] == "#ASDF":
             filetype = "asdf"
         elif keyword[0:5] == "%YAML":
-            yaml.loads
+            filetype = "yaml"
         else:
             filetype = "txt"
 

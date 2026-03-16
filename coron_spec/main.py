@@ -259,6 +259,8 @@ def recompute_star_flux():
     #print(bp)
     #print(parameters["current_star"])
 
+    stellar_magnitude.value = parameters["magV"]
+    stellar_diameter.value = parameters["stellar_radius"]
     # we do not move the star from 10 pc, we merely provide the magnitude (and flux) at 10 pc and pyEDITH does the rest
     new_star = parameters["current_star"].normalize(parameters["magV"] * u.ABmag, band=bp, force="taper")
     flux = new_star(parameters["wavelength"]<< u.micron)
@@ -286,41 +288,46 @@ def update_calculation(newvalues):
         print("Changed star")
         load_star(newvalues.data["new_star"][0])
         del newvalues.data["new_star"] # consume the new value
-    if "new_magnitude" in newvalues.data:
+    if "new_stellar_magnitude" in newvalues.data:
         print("Changed stellar magnitude")
-        parameters["magV"] = newvalues.data["new_magnitude"][0]
+        parameters["magV"] = newvalues.data["new_stellar_magnitude"][0]
         recompute_star_flux()
-        del newvalues.data["new_magnitude"] # consume the new value
+        del newvalues.data["new_stellar_magnitude"] # consume the new value
+    if "new_stellar_diameter" in newvalues.data:
+        print("Changed stellar diameter")
+        parameters["stellar_radius"] = newvalues.data["new_stellar_diameter"][0]
+        recompute_star_flux()
+        del newvalues.data["new_stellar_diameter"] # consume the new value
     if "new_planet" in newvalues.data:
         print("Changed planet")
         load_planet(newvalues.data["new_planet"][0])
-        del newvalues.data["new_planet"]
+        del newvalues.data["new_planet"] # consume the new value
     if "new_semimajor" in newvalues.data:
         print("Changed Semimajor Axis")
         parameters["semimajor_axis"] = newvalues.data["new_semimajor"][0]
         recompute_planet_flux()
-        del newvalues.data["new_semimajor"]
+        del newvalues.data["new_semimajor"] # consume the new value
     if "new_distance" in newvalues.data:
         print("Changed System distance")
         parameters["distance"] = newvalues.data["new_distance"][0]
         recompute_planet_flux()
-        del newvalues.data["new_distance"]
+        del newvalues.data["new_distance"] # consume the new value
     if "new_snr" in newvalues.data:
         print("Changed SNR")
         parameters["snr"] = newvalues.data["new_snr"][0] * np.ones_like(parameters["wavelength"])
-        del newvalues.data["new_snr"]
+        del newvalues.data["new_snr"] # consume the new value
     if "new_exp" in newvalues.data:
         print("Changed Exposure Time")
         parameters["exptime"] = (newvalues.data["new_exp"][0] * np.ones_like(parameters["wavelength"]) << u.hr).to_value(u.s)
-        del newvalues.data["new_exp"]
+        del newvalues.data["new_exp"] # consume the new value
     if "new_eac" in newvalues.data:
         parameters["observatory_preset"] = newvalues.data["new_eac"][0]
         print("Changed EAC")
-        del newvalues.data["new_eac"]
-    if "new_diameter" in newvalues.data:
-        print("Changed Diameter")
-        parameters["diameter"] = newvalues.data["new_diameter"][0]
-        del newvalues.data["new_diameter"]
+        del newvalues.data["new_eac"] # consume the new value
+    if "new_telescope_diameter" in newvalues.data:
+        print("Changed Telescope Diameter")
+        parameters["diameter"] = newvalues.data["new_telescope_diameter"][0]
+        del newvalues.data["new_diameter"] # consume the new value
     else:
         parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
 
@@ -469,12 +476,15 @@ def recalculate_snr(newvalues):
 
 snr_compute.on_click(partial(recalculate_snr, inputs))
 
-intro = Div(text=f'<p>This Habworlds Coronagraphic ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), version {pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
+intro = Div(text=f'<p>This Habworlds Coronagraphic ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), v{pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
 
 info_panel = Div(sizing_mode="inherit", text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO)." +
                 "<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators." +
                 '<p><p align="justify">Uploaded spectra can be in either fixed width two-column ASCII (wave flux) or FITS format, where the spectrum is in the second HDU (HDU1, BINTABLE) with column 1 = "WAVELENGTH" and column 2 = "FLUX". Wavelength is assumed to be in Angstroms, Flux in FLAM (erg s−1 cm−2˚𝐴−1)</p>'
 )
+hrpanel1 = Div(text="<p>------------------- star ---------------------</p>")
+hrpanel2 = Div(text="<p>------------------ planet --------------------</p>")
+hrpanel3 = Div(text="<p>----------------------------------------------</p>")
 observation_tab = TabPanel(child=exp_plot, title='Observation') # , width=400)
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
@@ -513,7 +523,21 @@ def star_callback(attr, old, new):
     inputs.data.update({"new_star": [new], "scene": [True]})
 star.on_change("value", star_callback)
 
-upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Stellar Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".ascii", ".asdf"], title="Upload a Stellar Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+
+stellar_magnitude = Slider(title="V Magnitude of Star", value=12., start=-6, end=20, step=0.1, direction="rtl", sizing_mode="stretch_width") 
+def stellarmag_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_stellar_magnitude": [new], "scene": [True]})
+stellar_magnitude.on_change("value", stellarmag_callback)
+
+stellar_diameter = Slider(title="Diameter of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width") 
+def stellar_diameter_callback(attr, old, new):
+    global inputs
+    print(attr, old, new)
+    inputs.data.update({"new_stellar_diameter": [new], "scene": [True]})
+stellar_diameter.on_change("value", stellar_diameter_callback)
 
 def process_spectrum(attr, old, new):
     global template
@@ -532,7 +556,7 @@ def process_spectrum(attr, old, new):
         elif keyword[0:5] == "#ASDF":
             filetype = "asdf"
         elif keyword[0:5] == "%YAML":
-            yaml.loads
+            filetype = "yaml"
         else:
             filetype = "txt"
 
@@ -540,7 +564,7 @@ def process_spectrum(attr, old, new):
         with open(f"../uploaded/{filename}", "wb") as outfile:
             outfile.write(spectrumdata)
         #try:
-            newstar = catalog.load_spec(f"../uploaded/{filename}", input_filename, filetype, magV=12, stellar_radius=1, planetary_radius=None, semimajor_axis=None, stargalaxy=True)
+            newstar = catalog.load_spec(f"../uploaded/{filename}", input_filename, filetype, magV=8, stellar_radius=1, planetary_radius=None, semimajor_axis=None, stargalaxy=True)
             if input_filename not in star.options:
                 star.options.append(input_filename)
                 target_star[input_filename] = newstar
@@ -595,16 +619,17 @@ info_panel = TabPanel(child=info_panel, title='Info') #, width=800)
 load_initial()
 
 controls = column(children=[], sizing_mode='fixed', width=320, height=480) 
+starparam = row(children=[stellar_magnitude, stellar_diameter], width_policy = "fit")
 
 exp_snr_toggle = RadioGroup(labels=["Solve For Exposure Time", "Solve For SNR"], active=0)
 def exp_snr_callback(active, old, new):
     if (new == 0):
         print(controls.children)
-        controls.children = [intro, newdiameter, exp_snr_toggle, newsnr, star, distance, planet, semimajor, exptime_compute, upload, warning]
+        controls.children = [intro, newdiameter, exp_snr_toggle, newsnr, hrpanel1, star, starparam, distance, hrpanel2, planet, semimajor, hrpanel3, exptime_compute, upload, warning]
         outputs.tabs = [spec_panel, exp_panel, info_panel]
     elif new == 1:
         print(controls.children)
-        controls.children = [intro, newdiameter, exp_snr_toggle, newexp, star, distance, planet, semimajor, snr_compute, upload, warning]
+        controls.children = [intro, newdiameter, exp_snr_toggle, newexp, hrpanel1, star, starparam, stellar_diameter, distance, hrpanel2, planet, semimajor, hrpanel3, snr_compute, upload, warning]
         outputs.tabs = [spec_panel, snr_panel, info_panel]                   
     #controls.change.emit()
     #outputs.change.emit()
@@ -612,7 +637,7 @@ def exp_snr_callback(active, old, new):
 exp_snr_toggle.on_change("active", exp_snr_callback)
 
 # this is the initial for-exptime selection
-controls.children=[intro, newdiameter, exp_snr_toggle, newsnr, star, distance, planet, semimajor, exptime_compute, upload, warning]
+controls.children=[intro, newdiameter, exp_snr_toggle, newsnr, hrpanel1, star, starparam, distance, hrpanel2, planet, semimajor, hrpanel3, exptime_compute, upload, warning]
 
 outputs = Tabs(tabs=[spec_panel, exp_panel, info_panel], sizing_mode="inherit")
 plots = column(children=[outputs], sizing_mode='fixed', width=640, height=480)

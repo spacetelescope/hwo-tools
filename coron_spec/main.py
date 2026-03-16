@@ -1,13 +1,19 @@
 import os
 from functools import partial
 
+import base64
+import datetime
+import asdf
+import yaml
+import copy
+
 import numpy as np
 import scipy as sc
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models import ColumnDataSource, Paragraph, Range1d, RadioGroup, RadioButtonGroup, SetValue
 from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import Slider, Div, Select, Button
+from bokeh.models.widgets import Slider, Div, Select, Button, FileInput
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import row, column, layout
 from bokeh.io import curdoc, output_file
@@ -18,7 +24,6 @@ import synphot as syn
 import stsynphot as stsyn
 
 import pyEDITH as pE
-import pickle
 import eacy
 from synphot import SourceSpectrum, SpectralElement, Observation
 from synphot.models import BlackBodyNorm1D, Empirical1D
@@ -348,7 +353,7 @@ def do_recalculate_exptime(newvalues):
     observatory, scene, observation = update_calculation(newvalues)
 
     try:
-        pE.calculate_exposure_time_or_snr(observation, scene, observatory, verbose=True)
+        pE.calculate_exposure_time_or_snr(observation, scene, observatory)
     except UnboundLocalError:
         warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
         exptime_compute.label = "Compute"
@@ -464,9 +469,12 @@ def recalculate_snr(newvalues):
 
 snr_compute.on_click(partial(recalculate_snr, inputs))
 
-intro = Div(text='<p>This Habworlds Coronagraphic ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark).</p><p>Selecting a planet will reset the default separation.</p>')
+intro = Div(text=f'<p>This Habworlds Coronagraphic ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), version {pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
 
-info_panel = Div(sizing_mode="inherit", text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO).<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators.")
+info_panel = Div(sizing_mode="inherit", text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO)." +
+                "<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators." +
+                '<p><p align="justify">Uploaded spectra can be in either fixed width two-column ASCII (wave flux) or FITS format, where the spectrum is in the second HDU (HDU1, BINTABLE) with column 1 = "WAVELENGTH" and column 2 = "FLUX". Wavelength is assumed to be in Angstroms, Flux in FLAM (erg s−1 cm−2˚𝐴−1)</p>'
+)
 observation_tab = TabPanel(child=exp_plot, title='Observation') # , width=400)
 
 eac_buttons = RadioButtonGroup(labels=EACS, active=0)
@@ -504,6 +512,48 @@ def star_callback(attr, old, new):
     print(attr, old, new)
     inputs.data.update({"new_star": [new], "scene": [True]})
 star.on_change("value", star_callback)
+
+upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+
+def process_spectrum(attr, old, new):
+    global template
+    global spectra_library
+    spectrumhex = upload.value
+    if len(spectrumhex) < 13981013: #10 MiB in base64 5. Set a file size limit
+        spectrumdata = base64.b64decode(spectrumhex, validate=True)
+        keyword = spectrumdata[0:6].decode()
+        input_filename = new
+        if len(input_filename) > 44:
+            input_filename = new[0:44]
+        
+        filetype = "unknown"
+        if keyword == "SIMPLE": # 2. Validate the file type, don't trust Content-Type header
+            filetype = "fits"
+        elif keyword[0:5] == "#ASDF":
+            filetype = "asdf"
+        elif keyword[0:5] == "%YAML":
+            yaml.loads
+        else:
+            filetype = "txt"
+
+        filename = f"file_{datetime.datetime.now().isoformat()}.{filetype}" # 3. Change the filename to something generated by the application. 6. store files... outside of the webroot 
+        with open(f"../uploaded/{filename}", "wb") as outfile:
+            outfile.write(spectrumdata)
+        #try:
+            newstar = catalog.load_spec(f"../uploaded/{filename}", input_filename, filetype, magV=12, stellar_radius=1, planetary_radius=None, semimajor_axis=None, stargalaxy=True)
+            if input_filename not in star.options:
+                star.options.append(input_filename)
+                target_star[input_filename] = newstar
+            star.value = input_filename
+            os.remove(f"../uploaded/{filename}") # don't clutter the upload directory
+            star_callback([],[],input_filename)
+        #except Exception as exc:
+            #warning.text = str(exc)
+    else:
+        warning.text = "File too large"
+
+upload.on_change("filename", process_spectrum)
+
 
 # magnitude  = Slider(title="Stellar Magnitude (Johnson V)", value=4.5, start=0.0, end=20.0, step=0.1) 
 # def magnitude_callback(attr, old, new):
@@ -550,11 +600,11 @@ exp_snr_toggle = RadioGroup(labels=["Solve For Exposure Time", "Solve For SNR"],
 def exp_snr_callback(active, old, new):
     if (new == 0):
         print(controls.children)
-        controls.children = [intro, newdiameter, exp_snr_toggle, newsnr, star, distance, planet, semimajor, exptime_compute, warning]
+        controls.children = [intro, newdiameter, exp_snr_toggle, newsnr, star, distance, planet, semimajor, exptime_compute, upload, warning]
         outputs.tabs = [spec_panel, exp_panel, info_panel]
     elif new == 1:
         print(controls.children)
-        controls.children = [intro, newdiameter, exp_snr_toggle, newexp, star, distance, planet, semimajor, snr_compute, warning]
+        controls.children = [intro, newdiameter, exp_snr_toggle, newexp, star, distance, planet, semimajor, snr_compute, upload, warning]
         outputs.tabs = [spec_panel, snr_panel, info_panel]                   
     #controls.change.emit()
     #outputs.change.emit()
@@ -562,7 +612,7 @@ def exp_snr_callback(active, old, new):
 exp_snr_toggle.on_change("active", exp_snr_callback)
 
 # this is the initial for-exptime selection
-controls.children=[intro, newdiameter, exp_snr_toggle, newsnr, star, distance, planet, semimajor, exptime_compute, warning]
+controls.children=[intro, newdiameter, exp_snr_toggle, newsnr, star, distance, planet, semimajor, exptime_compute, upload, warning]
 
 outputs = Tabs(tabs=[spec_panel, exp_panel, info_panel], sizing_mode="inherit")
 plots = column(children=[outputs], sizing_mode='fixed', width=640, height=480)

@@ -3,6 +3,7 @@ import numpy as np
 import synphot as syn
 from astropy import units as u
 from synphot.models import Empirical1D, ConstFlux1D
+import asdf
 
 relpath=f"{'/'.join(__file__.split('/')[:-1])}/planets"
 relpath2=f"{'/'.join(__file__.split('/')[:-1])}/star_galaxy"
@@ -77,6 +78,37 @@ def load_csv(filename, label, planetary_radius=None, semimajor_axis=None, skipro
 
     planet["spectrum"] = spec
     planet["Label"] = label
+    if stargalaxy: # store the luminosity
+        planet["magV"] = magV
+        planet["stellar_radius"] = stellar_radius
+    else:
+        planet["planetary_radius"] = planetary_radius
+        planet["semimajor_axis"] = semimajor_axis
+
+    return planet
+
+def data_finder(dictionary, keywords):
+    for keyword in keywords:
+        if keyword in dictionary:
+            return dictionary[keyword]
+    return None
+
+def load_spec(filename, label, filetype, magV=12, stellar_radius=1, planetary_radius=None, semimajor_axis=None, stargalaxy=True):
+    planet = {}
+    if filetype in ("fits", "csv"):
+        spec = syn.spectrum.SourceSpectrum.from_file(filename)
+    elif filetype == "asdf":
+        with open(filename) as infile:
+            specdata = asdf.load(infile)
+        wavedata = data_finder(specdata, ("wavelength", "WAVELENGTH", "wave", "WAVE"))
+        fluxdata = data_finder(specdata, ("flux", "FLUX", "spec", "SPEC", "EFF"))
+        if stargalaxy:
+            spec = syn.spectrum.SourceSpectrum(Empirical1D, points=wavedata<<u.angstrom, lookup_table=fluxdata<<syn.units.PHOTLAM)
+        else:
+            spec = syn.spectrum.SpectralElement(Empirical1D, points=wavedata<<u.angstrom, lookup_table=fluxdata<<u.dimensionless_unscaled)
+
+    planet["Label"] = label
+    planet["spectrum"] = spec
     if stargalaxy: # store the luminosity
         planet["magV"] = magV
         planet["stellar_radius"] = stellar_radius

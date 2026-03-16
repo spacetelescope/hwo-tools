@@ -18,6 +18,7 @@ from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
 from syotools.models import Telescope, Camera, Source, SourcePhotometricExposure
 
+import app_hooks as ah
 import hdi_help as h 
 import synphot as syn
 import stsynphot as stsyn
@@ -46,8 +47,9 @@ def initialize_setup():
     global pivotwave
 
     hwo = Telescope() 
-    hwo.set_from_yaml('EAC1')
-    hri = Camera()   
+    hwo.set_from_sei('EAC1')
+    hri = Camera()
+    hri.set_from_sei("HRI")
     hwo.add_camera(hri)
 
     hri_source = Source() 
@@ -58,7 +60,7 @@ def initialize_setup():
     hri_exp.verbose = True 
     hri_exp.unknown = 'snr'
     hri.add_exposure(hri_exp) 
-    hri_exp._update_snr()
+    hri_exp._update_snr(hri_source)
 
     snr = hri_exp.snr
     pivotwave = np.array(hri.pivotwave[0]) * 10. 
@@ -113,7 +115,8 @@ sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_templat
 
 def update_data(attrname, old, new):
 
-    print("You have chosen template ", template.value) 
+    print("You have chosen template ", template.value)
+
     hwo.effective_aperture = aperture.value * u.m 
 
     hri_source.set_sed(template.value, magnitude.value, 0., 0., library=spectra_library)
@@ -129,7 +132,7 @@ def update_data(attrname, old, new):
     hri_exp.exptime = [[exptime.value, exptime.value, exptime.value, 
                         exptime.value, exptime.value, exptime.value, 
                         exptime.value, exptime.value, exptime.value, exptime.value], 'hr']
-    hri_exp._update_snr() 
+    hri_exp._update_snr(hri_source) 
 
     source1.data = dict(x=pivotwave[2:-3], y=hri_exp.snr[2:-3], desc=hri.bandnames[2:-3]) 
     source2.data = dict(x=pivotwave[0:2], y=hri_exp.snr[0:2], desc=hri.bandnames[0:2]) 
@@ -170,7 +173,7 @@ magnitude.js_on_change("value_throttled", magnitude_callback)
 
 template = Select(title="Template Spectrum", value="Flat (AB)", options=list(spectra_library.keys()), width=250) 
 
-upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt, FITS, or ASDF format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
 warning = Div(text='<p></p>')
 
 def process_spectrum(attr, old, new):
@@ -215,7 +218,7 @@ def process_spectrum(attr, old, new):
 upload.on_change("filename", process_spectrum)
 
 
-for w in [template]: 
+for w in [template]:
     w.on_change('value', update_data)
 
 controls = column(children=[aperture, exptime, magnitude, template, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 

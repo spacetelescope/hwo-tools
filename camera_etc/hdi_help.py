@@ -1,8 +1,10 @@
+import syotools
+
 def help(): 
-   return """
+   return f"""
       <div class="container"> 
         <div class="col-lg-6">
-         <p align="justify">This is the basic ETC for photometry in multiband images. 
+         <p align="justify">This is the basic ETC for photometry in multiband images, powered by SYOTools v{syotools.__version__}.
             Choose your telescope aperture, exposure time, and magnitude normalization. 
             The normalization is done in the V band (550 nm). 
         <p> 

@@ -513,7 +513,7 @@ def star_callback(attr, old, new):
     inputs.data.update({"new_star": [new], "scene": [True]})
 star.on_change("value", star_callback)
 
-upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Stellar Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
 
 def process_spectrum(attr, old, new):
     global template

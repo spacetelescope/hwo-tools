@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import synphot as syn
+import stsynphot as stsyn
 from astropy import units as u
 from synphot.models import Empirical1D, ConstFlux1D
 import asdf
@@ -93,9 +94,9 @@ def data_finder(dictionary, keywords):
             return dictionary[keyword]
     return None
 
-def load_spec(filename, label, filetype, magV=12, stellar_radius=1, planetary_radius=None, semimajor_axis=None, stargalaxy=True):
+def load_spec(filename, label, filetype, magV=8, stellar_radius=1, planetary_radius=None, semimajor_axis=None, stargalaxy=True):
     planet = {}
-    if filetype in ("fits", "csv"):
+    if filetype in ("fits", "txt"):
         spec = syn.spectrum.SourceSpectrum.from_file(filename)
     elif filetype == "asdf":
         with open(filename) as infile:
@@ -106,6 +107,9 @@ def load_spec(filename, label, filetype, magV=12, stellar_radius=1, planetary_ra
             spec = syn.spectrum.SourceSpectrum(Empirical1D, points=wavedata<<u.angstrom, lookup_table=fluxdata<<syn.units.PHOTLAM)
         else:
             spec = syn.spectrum.SpectralElement(Empirical1D, points=wavedata<<u.angstrom, lookup_table=fluxdata<<u.dimensionless_unscaled)
+
+
+    spec.normalize(magV, stsyn.band("johnson,v"), force="taper")
 
     planet["Label"] = label
     planet["spectrum"] = spec

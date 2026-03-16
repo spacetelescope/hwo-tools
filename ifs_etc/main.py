@@ -143,7 +143,7 @@ class source_widget():
             """)
         self.bb_temperature.on_change("value", update_data)
 
-        self.upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
+        self.upload = FileInput(accept=[".txt", ".csv", ".ascii", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
         self.upload.on_change("filename", self.process_spectrum)
         self.warning = Div(text='<p></p>')
 
@@ -163,7 +163,7 @@ class source_widget():
             elif keyword[0:5] == "#ASDF":
                 filetype = "asdf"
             elif keyword[0:5] == "%YAML":
-                yaml.loads
+                filetype = "yaml"
             else:
                 filetype = "txt"
 

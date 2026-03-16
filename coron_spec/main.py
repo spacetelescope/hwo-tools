@@ -629,7 +629,7 @@ def exp_snr_callback(active, old, new):
         outputs.tabs = [spec_panel, exp_panel, info_panel]
     elif new == 1:
         print(controls.children)
-        controls.children = [intro, newdiameter, exp_snr_toggle, newexp, hrpanel1, star, starparam, stellar_diameter, distance, hrpanel2, planet, semimajor, hrpanel3, snr_compute, upload, warning]
+        controls.children = [intro, newdiameter, exp_snr_toggle, newexp, hrpanel1, star, starparam, distance, hrpanel2, planet, semimajor, hrpanel3, snr_compute, upload, warning]
         outputs.tabs = [spec_panel, snr_panel, info_panel]                   
     #controls.change.emit()
     #outputs.change.emit()

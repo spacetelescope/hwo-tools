@@ -1,72 +1,158 @@
 paths:
   output: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/output
-  input: $HWOTOOLS_DIR/exosims_wrapper/
+  input: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/
   temporary: ./temp
 
-# Basic EXOSIMS Parameters
+################################
+# Basic EXOSIMS Parameter File #
+################################
+
+# Each section will be broken up into 3 sections: Foreground, Background, and Unused (where applicable).
+# Foreground parameters are those we want easily accessible and modifiable by the user.
+# Background parameters are those that are necessary for the simulation to run, but are not likely to be changed by the user.
+# Unused parameters are those that are not currently being used in the EXOSIMS run, but exist in the documentation.
+# If further questions arise, please refer to the EXOSIMS documentation: https://exosims.readthedocs.io/en/latest/
+
 initial_exosims:
-    ppFact: 0.29
-    minComp: 0
-    filterBinaries: false
-    keepStarCatalog: true
-    pupilDiam: 7.87
-    obscurFac: 0.1211489507256436
-    shapeFac: 0.7853981633974483
-    modules:
-      BackgroundSources: ' '
-      Completeness: ' '
-      Observatory: ' '
-      OpticalSystem: Nemati
-      PlanetPhysicalModel: ' '
-      PlanetPopulation: ' '
-      PostProcessing: ' '
-      SimulatedUniverse: ' '
-      StarCatalog: HWOMissionStars
-      SurveyEnsemble: ' '
-      SurveySimulation: ' '
-      TargetList: ' '
-      TimeKeeping: ' '
-      ZodiacalLight: ' '
+
+### Define Observing Mode ####
+    #See OpticalSystem Module for more details on observingModes, scienceInstruments, and starlightSuppressionSystems: (https://exosims.readthedocs.io/en/latest/opticalsystem.html#opticalsystem)
+  # Foreground:
+    ppFact: 0.29 # [0,1], post-processing contrast factor. Represents much you can reduce the residual speckle noise by post-processing.
+    #ppFact = 0.1 -> "we can reduce the residual speckle noise by one order of magnitude via post-processing"
+    #Post-processing contrast factor, between 0 and 1: either a scalar for constant gain, or a two-column array for separation-dependent gain, where the first column contains the angular separation in units of arcsec. May be data or FITS filename. Default value is 1.
+    pupilDiam: 7.87 # Entrance pupil diameter in meters
+    ppFact: 0.29 # [0,1], post-processing contrast factor. Represents much you can reduce the residual speckle noise by post-processing.
+    #ppFact = 0.1 -> "we can reduce the residual speckle noise by one order of magnitude via post-processing"
+    #Post-processing contrast factor, between 0 and 1: either a scalar for constant gain, or a two-column array for separation-dependent gain, where the first column contains the angular separation in units of arcsec. May be data or FITS filename. Default value is 1.
+    pupilDiam: 7.87 # Entrance pupil diameter in meters
     observingModes:
-    - SNR: 7.0
-      detectionMode: true
-      instName: "CONF_NF_Imager"
-      systName: "coronagraph"
-      timeMultiplier: 1.1
+    - SNR: 7.0 #Signal-to-noise ratio requirement for all observations
+      timeMultiplier: 1.1 #integration time multiplier applied for this mode. Ex: if this mode requires 2 full rolls per observation, set to 2. 
+
+  # Background:
+      detectionMode: true #An observing mode is the combination of a science instrument with a starlight suppression system along with rules for determining integration times.
+          #One observing mode in the optical system must be tagged as the default detection mode, this is done by setting the detectionMode attribute to true. If no observing mode is tagged as the detection mode, the first observing mode is set as the detection mode.
+      instName: "CONF_NF_Imager" #Must match with the name of a defined Science Instrument
+      systName: "coronagraph" #Must match with the name of a defined Starlight Suppression System.
+    minComp: 0 #Minimum completeness for inclusion in target list, defaults to 0.1
+    # Completeness defined as "the probability of a planet falling outside a telescope's centreal obscuration, thus becoming potentially observable."
+    # "Single-visit completeness is determined by the assumption that an exoplanet is observable if its angular separation from its star is greater than the observatory’s inner working angle (IWA) and less than the observatory’s outer working angle (OWA) while also being illuminated such that the difference in brightness between the star and planet (∆mag) is below a limiting value (∆mag0)."
+    obscurFac: 0.1211489507256436 #Obscuration factor due to secondary mirror and spiders. Defaults to 0.1
+    shapeFac: 0.7853981633974483 #Shape factor of the unobscured pupil area, so that shapeFac * pupilDiam**2 * (1-obscurFac) = pupilArea 
+    filterBinaries: false #bool, Remove all binary stars or stars with known close companions from target list
+    keepStarCatalog: true #bool, Keep star catalog object as attribute after TargetList is built
+  # Unused: None
+
+#### Define science instrument parameters ####
     scienceInstruments:
+  # Foreground:
     - name: CONF_NF_Imager
-      QE: 0.675
-      PCeff: 1.0
-      Rs: 5
-      optics: 0.532
-      sread: 0
-      idark: 3.0e-5
-      texp: 8.180824
-      pixelNumber: 1024
-      pixelSize: 1.3e-05
-      FoV: 3.5
-      pixelScale: 6.55e-3
-      CIC: 1.3e-3
-      radDos: 0
-      ENF: 1.0
+      ##FoV: 3.5 #Angular half-field of view (FOV radius), units of arcsec
+      #output error from main.py: UserWarning: Input FoV (3.5 arcsec) is larger than FoV computed from pixelScale (3.35 arcsec) for instrument CONF_NF_Imager. This feels like a mistkae.
+      FoV: 3.35
+      Rs: 5 # Spectral resolving power lam/dlam
+      optics: 0.532 #attenuation due to optics specific to science instrument
+      sread: 0 #detector effective read nose per frame per pixel
+      idark: 3.0e-5 #detector dark-current per pixel in units of 1/time
+      texp: 8.180824 #Expsosure time per frame in units of sec
+  # Background:
+      pixelSize: 1.3e-05 #pixel pitch in units of meters
+      PCeff: 1.0 #Photon counting efficiency
+      pixelNumber: 1024 #Number of pixels per detector line/column
+      QE: 0.675 #Quantum Efficiency, ratio of the # of charge carriers collected at the readout terminal to the # of photons hitting detector surface
+      pixelScale: 6.55e-3 #instantaneous filed of view of each detector pixel, units of arcsec
+      CIC: 1.3e-3 #clock-induced-charge per frame per pixel
+      radDos: 0 #radiation dosage
+      # output error from main.py: UserWarning: "Unknown key(s): radDos for science instrument CONF_NF_Imager"
+      ENF: 1.0 #Excess noise factor, specific to EM-CCDs
+  # Unused: None
+
+#### Define starlight suppression system parameters ####
+  # Foreground:
     starlightSuppressionSystems:
     - name: coronagraph
-      lam: 1000.0
-      BW: 0.2
-      ohTime: 0.0
-      occulter: false
-      core_area: 2.26
-      IWA: 0.1767766952966369
-      OWA: 45.078057300642406
-      input_angle_units: LAMBDA/D
+      lam: 1000.0 #central wavelength in units of nm
+      BW: 0.2 #bandwidth fraction, such that lam * BW = deltaLam
+      ohTime: 0.0 #overhead time for all integrations in units of days
+      occulter: false #does the system have an occulter?
+      core_area: 2.26 #area of photometric aperture, in units of input_angle_units, used to compute core_thruput and core_mean_intensity
+      IWA: 0.1767766952966369 #inner wroking angle, units of arcsec
+      OWA: 45.078057300642406 #outer working angle, units of arcsec
+      input_angle_units: LAMBDA/D #angle unit to assume for all starlight suppression system inputs that are angles
+
+  # Background:
+      #from EXOSIMS readthedocs: When using input files for occ_trans, core_thruput, core_contrast, core_mean_intensity, or core_area, the file may be a FITS file or a CSV file. For occ_trans, core_thruput, core_contrast, and core_area, FITS files must contain two rows (or columns) where the first represents angular separation and the second represents the parameter value. The FITS header should specify the angular separation unit in keyword UNITS which should either be unitless or LAMBDA/D for 
+      #units or contain a string that is parsable as an astropy length unit (https://docs.astropy.org/en/stable/units/format.html). If the keyword does not exist, units of input_angle_units will be assumed. For CSV files, the angular separation must be in a column with header csv_angsep_colname and the parameter value must be in a column with a header that is exactly the same as the keyword name (i.e., occ_trans, etc.). There is not a required order for the columns in a CSV file, and other columns may also be present in the same file. For CSV files, the angular separation unit is set by key input_angle_units.
       occ_trans: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/occ_trans.fits
+      #Intensity transmission of extended background sources such as zodiacal light, parametrized by wavelength and angular separation. This includes the pupil mask, occulter, Lyot stop and polarizer. Input values may be scalars or full paths to files containing input data to an interpolant. The top-level default defaults to 0.2      
+      #this input fits file has columns of: angular separation and occulter transmission
       core_thruput: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/core_thruput.fits
+      #System throughput in a given photometric aperture of the planet PSF core, parametrized by wavelength and angular separation
+      #this input fits file has columns of: angular separation and core throughput
       core_mean_intensity: $HWOTOOLS_DIR/coron_imaging/exosims_wrapper/core_mean_intensity.fits
+      #Mean starlight residual normalized intensity per pixel of the simulated PSF
+      #Totcal core intensity computed as core_mean_intensity * number of intensity map pixels in the photometric aperture (determined from core_platescale and core_area). 
+      #If not specified, then the total core intensity is computed as core_contrast * core_thruput
+      ################################################################################
+      #Note: We need to define core_platescale if we want to use core_mean_intensity.#
+      ################################################################################
+      # for now, I'm going to assume core_platescale = pixelscale ... why would this NOT be the case?
+      core_platescale: 6.55e-3
 
-# iter_values: [1.0e-10, 5.0e-5]
-iter_values: [0.1, 1.0]
+  # Unused:
+    # deltaLam: Quantity, Bandwidth in units of nm.
+    # contrast_floor: float, an absolute limit on achievable core_contrast
+    # core_platescale_units: str, unit angle to assume for core_platescale, defaults to LAMBDA/D
+    # core_platescale: float, pixel scale (angular extent of each pixel) for the coronagraph PSF and intensity maps
+        # This must be set if using core_mean_intensity and setting a scalar input or using a CSV file. If reading from a FITS file, the value can be encoded in the header
+    # csv_angsep_colname: str, Column name to use for the angular separation column for CSV data for all files
+    # core_area: callable, Area of the photometric aperture used to compute core_thruput and core_mean_itensity, parametrized by wavelength and angular separation
+    # core_contrast: callable, System contrast = mean_intensity / PSF_peak, parametrized by wavelength and angular separation. Input values may be scalars or full paths to files containing input data to an interpolant. Default values are only populated in cases where core_mean_intensity is None
 
-working_angles:  # In units of EEID (which is target dependent).
+
+
+#### call modules ####
+  # This whole section should be classified as Background
+    modules:
+    # Modules left blank (input as ' ') default to EXOSIMS protoypes and must be included in this yaml file for EXOSIMS to run. 
+      BackgroundSources: ' ' # implemenations: GalaxiesFaintStars
+        # calculates the total number background sources in number per square arcminute, including galaxies and faint stars.
+      Completeness: ' ' # implemenations: BrownCompleteness, GarrettCompleteness, IntegrationTimeAdjustedCompleteness, SubtypeCompleteness
+        # computes photometric and obscuration completeness of target stars. BrownCompleteness computes via Monte Carlo Methods, GarrettCompleteness computes semi-analytically
+      Observatory: ' ' #i mplemenations: ObservatoryL2Halo, SotoStarshade, SotoStarshade_ContThrust, SotoStarshade_SKi, SotoStarshade_parallel, WFIRSTObservatoryL2
+        # provides information about the spacecraft hosting the science instruments and methods for orbital propagation of these spacecraft and for fuel consumption calculations.
+      OpticalSystem: Nemati # implemenations: KasdinBraems (Kasdin & Braems 2006), Nemati (Nemati 2014), Nemati_2019 
+        # Defines an optical system defined by effective collecting area, science objects, starlight suppression systems, and observing modes.
+      PlanetPhysicalModel: ' ' # implemenations: Forecaster (Planet M-R relation model based on FORECASTER software), ForecasterMod (modification of FORECASTER best-fit model, as described in Savransky et al. 2019), FortneyMarleyCahoyMix1 (Planet density models based on Fortney & Marley, albedo models based on Cahoy.  Intended for use with the Kepler-like planet population modules.)
+        # provides methods for calculating planet properties as functions of planet parameters.
+      PlanetPopulation: ' ' # many implemenations, see https://github.com/dsavransky/EXOSIMS/tree/master/EXOSIMS/PlanetPopulation
+        # encodes the distributions defining a planet population, and provide methods for sampling from these distributions
+      PostProcessing: ' ' # implemenations: PostProcessing2, calculates false alarm probability & missed detection (false negatives)
+        # encode any processing to be carried out on observational data. This includes post-processing of image data to extract planet signals, as well as higher-level processing such as orbit fitting.
+      SimulatedUniverse: ' ' # implemenations: DulzPlavchanUniverse, DulzPlavchanUniverseEarthsOnly, KeplerLikeUniverse, KnownRVPlanetsUniverse, SAG13Universe, SolarSystemUniverse
+        # generates synthetic universes of real stars and simulated planets and provide methods for tracking the parameter values of these planetary systems in time.
+      StarCatalog: HWOMissionStars # implemenations: EXOCAT1, FakeCatalog ( , _UniformAngles, _UniformSpacing_wInput), GaiaCat1, HIPfromSimbad, HPIC, HWOMissionStars, SIMBAD300Catalog, SIMBADCatalog
+        # see https://exosims.readthedocs.io/en/latest/starcatalog.html for star catalog requirements
+      SurveyEnsemble: ' ' # implemenations: IPClusterEnsemble
+        # facilitates the generation of ensembles of mission simulations, executes simulations in series
+      SurveySimulation: ' ' # various survey scheduler implemenations, see https://github.com/dsavransky/EXOSIMS/tree/master/EXOSIMS/SurveySimulation
+        # provides methods for the planning and execution of simulated surveys.
+      TargetList: ' ' # implemenations: EclipticTargetList, GaiaCatTargetList, KnownRVPlanetsTargetList, and more
+        # takes catalog data from a StarCatalog object and, using additional information and methods from Completeness, OpticalSystem, and ZodiacalLight objects, generates an input target list for a survey simulation
+      TimeKeeping: ' ' #no other implemenations
+        # keeps track of mission time and provide methods for determining when observations are allowed to be scheduled based on mission rules.
+      ZodiacalLight: ' ' # implemenations: Mennesson, Stark
+        # encodes models of solar system and exosystem zodiacal light.
+  # Unused: None
+
+
+# Note: I don't actually know what this is for. Commenting it out throws no errors.
+# iter_values: [0.1, 1.0]
+
+
+#### Define Target Stars and Working Angles for initial calulations ####
+working_angles:  # In units of EEID (which is target dependent). 
   # HZ is defined as (0.95 - 1.67)*EEID
   - 0.50 
   - 0.75 
@@ -76,6 +162,9 @@ working_angles:  # In units of EEID (which is target dependent).
   - 1.75  
   - 2.0  
 
+# eeid = earth equivalent insolation distance
+# eepsr = encircled-energy planet-star flux ratio (?)
+#exo_zodi = exozodiacal light level in units of zodi
 targets:
   star1:
     HIP: 79672 

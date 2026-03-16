@@ -469,7 +469,7 @@ def recalculate_snr(newvalues):
 
 snr_compute.on_click(partial(recalculate_snr, inputs))
 
-intro = Div(text='<p>This Habworlds Coronagraphic ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark).</p><p>Selecting a planet will reset the default separation.</p>')
+intro = Div(text=f'<p>This Habworlds Coronagraphic ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), version {pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
 
 info_panel = Div(sizing_mode="inherit", text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO)." +
                 "<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators." +

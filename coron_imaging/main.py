@@ -24,7 +24,6 @@ import synphot as syn
 import stsynphot as stsyn
 
 import pyEDITH as pE
-import eacy
 from synphot import SourceSpectrum, SpectralElement, Observation
 from synphot.models import BlackBodyNorm1D, Empirical1D
 from synphot import units as synphot_u
@@ -46,6 +45,7 @@ Notes to fix:
 
 param_snr=10
 EACS = ["EAC1"]
+FILTERS = [0.365, 0.442, 0.475, 0.540, 0.647, 0.786, 0.806, 0.9, 1.02, 1.22, 1.63, 2.19]
 
 target_planet, target_star = catalog.load_catalog()
 
@@ -134,18 +134,13 @@ def load_initial():
 
     # observation parameters
     # set up wavelengths
-    parameters["wavelength"] = np.linspace(0.35, 1.71, 1000)
-    parameters["nlambd"] = len(parameters["wavelength"]) # number of wavelengths
-    parameters["snr"] = param_snr * np.ones_like(parameters["wavelength"]) # the SNR you want for each spectral bin 
+    parameters["wavelength"] = 0.5
+    parameters["snr"] = 10# the SNR you want for each spectral bin 
     parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
     #parameters["photometric_aperture_radius"] = None#0.85 # radius of the photometric aperture in units of lambda/D
     parameters["psf_trunc_ratio"] = 0.3 # truncate the off-axis PSFs at this level 
-
-    parameters["regrid_wavelength"] = True # set the flag to do this. We also need to specify a few other parameters.
-    parameters["spectral_resolution"] = np.array([70, 140, 90]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
-    parameters["channel_bounds"] = np.array([0.5, 1.0]) #np.array([]) # specify the boundaries between the channels in um
-    parameters["lam_low"] = [0.36, 0.5, 1.0]
-    parameters["lam_high"] = [0.5, 1.0, 1.7]
+    parameters["bandwidth"] = 0.2
+    parameters["regrid_wavelength"] = False # set the flag to do this. We also need to specify a few other parameters.
 
     # The Astrophysical 
     # STAR
@@ -154,7 +149,7 @@ def load_initial():
     parameters["semimajor_axis"] = 1 # planetary separation in AU
     #parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
     # Note: we can work in either mag or flux units. Let's choose to work in flux units. 
-    Fstar_obs_10pc = compute_blackbody_photon_flux(5770, parameters["wavelength"] << u.um, parameters["distance"] << u.pc)
+    #Fstar_obs_10pc = compute_blackbody_photon_flux(5770, parameters["wavelength"] << u.um, parameters["distance"] << u.pc)
 
     parameters["stellar_radius"] = 1 # physical diameter of the star in Rsun units
     parameters["magV"] = 4.5 # ABMag
@@ -162,7 +157,7 @@ def load_initial():
     reflect_planet = target_planet["Earth"]["spectrum"]
     parameters["planetary_radius"] = target_planet["Earth"]["planetary_radius"]
 
-    load_star("G2V star")
+
 
     #parameters["Fstar_10pc"] = Fstar_obs_10pc.value # Fstar modeled as a blackbody (see above)
     #parameters["FstarV_10pc"] = v_band_flux.value # V-band flux of the star; you don't have to pre-calculate this, ETC will do it for you
@@ -172,7 +167,7 @@ def load_initial():
 
     # PLANET
     # Most of these input spectra are albedo for a system. Actual conversion would require knowing the system separation and relative sizes of the star and planet. OR we make that an input parameter.
-    parameters["delta_mag"] = 15 * u.ABmag
+    parameters["delta_mag"] = 15# * u.ABmag
     # FpFs = target_planet["Earth"]["spectrum"](parameters["wavelength"] << u.um)
     # # normalize
     # contrast = 1e-8
@@ -192,9 +187,6 @@ def load_initial():
     #flux_planet = Fstar_obs_10pc * FpFs * parameters["delta_mag"]
     #parameters["F0"] = flux_planet.value
 
-    load_planet("Earth")
-    #print("Star and Planet", parameters["Fstar_10pc"], parameters["Fp/Fs"])
-
     # SCENE
     parameters["nzodis"] = 3. # number of zodis for exozodi estimate
     parameters["ra"] = 176.6292 # approximate ra of HD 102365. WARNING: do not use this number for science. 
@@ -206,9 +198,19 @@ def load_initial():
         parameters["observatory_preset"] = EACS[parameters["eacnum"]]
     else:
         parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
-    parameters["IFS_eff"]  = 1. # extra throughput of the IFS 
-    parameters["npix_multiplier"] = np.ones_like(parameters["wavelength"]) # number of detector pixels per spectral bin
+    #parameters["npix_multiplier"] = np.ones_like(parameters["wavelength"]) # number of detector pixels per spectral bin
     parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
+
+    # We need to run this, but parse_parameters also effectively strips out anything
+    # pyEDITH itself doesn't use, and we're using the same dictionary for a lot of our own
+    # parameters. 
+    parameters = pE.parse_input.parse_parameters(parameters)
+
+    # star must be loaded first, because planet flux is relative to star.
+    load_star("G2V star")
+    load_planet("Earth")
+    recompute_star_flux()
+    recompute_planet_flux()
 
     # this piece, alone, has to be created WITH some configured parameters.
     observatory_config = pE.parse_input.get_observatory_config(parameters)
@@ -220,6 +222,7 @@ def load_initial():
 def recompute_planet_flux():
     global parameters
     global reflect_planet
+    print(parameters)
     solid_angle = parameters["planetary_radius"]**2/(4 * (parameters["semimajor_axis"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
     flux_planet = parameters["FstarV_10pc"] * solid_angle * reflect_planet(parameters["wavelength"] << u.micron)
     parameters["F0"] = flux_planet.value
@@ -240,8 +243,8 @@ def load_planet(sourceID):
     parameters["semimajor_axis"] = target_planet[sourceID]["semimajor_axis"]
     semimajor.value = target_planet[sourceID]["semimajor_axis"]
 
-
-    recompute_planet_flux() # trigger a recomputation of the planetary flux
+    print("Planet", parameters)
+    
 
 def load_star(sourceID):
     global parameters
@@ -251,10 +254,9 @@ def load_star(sourceID):
     #magnitude.value = target_star[sourceID]["magV"]
     parameters["current_star"] = star
 
-    recompute_star_flux()
 
 def recompute_star_flux():
-
+    global parameters
     bp = stsyn.band("johnson,v")
     #print(bp)
     #print(parameters["current_star"])
@@ -269,8 +271,6 @@ def recompute_star_flux():
     parameters["Fstar_10pc"] = syn.units.convert_flux(parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
     # get the flux at 10 pc in the V band
     parameters["FstarV_10pc"] = syn.units.convert_flux(parameters["wavelength"], syn.Observation(new_star, bp, force="taper").effstim(), u.photon / (u.s * u.cm**2 * u.nm)).value
-
-    recompute_planet_flux() # trigger a recomputation of the planetary flux
 
     #print("Star Flux", flux)
 
@@ -287,6 +287,8 @@ def update_calculation(newvalues):
     if "new_star" in newvalues.data:
         print("Changed star")
         load_star(newvalues.data["new_star"][0])
+        recompute_star_flux()
+        recompute_planet_flux()
         del newvalues.data["new_star"] # consume the new value
     if "new_stellar_magnitude" in newvalues.data:
         print("Changed stellar magnitude")
@@ -301,6 +303,7 @@ def update_calculation(newvalues):
     if "new_planet" in newvalues.data:
         print("Changed planet")
         load_planet(newvalues.data["new_planet"][0])
+        recompute_planet_flux() # trigger a recomputation of the planetary flux
         del newvalues.data["new_planet"] # consume the new value
     if "new_semimajor" in newvalues.data:
         print("Changed Semimajor Axis")
@@ -357,35 +360,63 @@ def do_recalculate_exptime(newvalues):
     global obsdata
     global exptime_compute
 
+    wave_filters = []
+    exptime_filters = []
+    fpfs_filters = []
+    obs_filters = []
+    noise_hi = []
+    noise_lo = []
+    snr_filters = []
     observatory, scene, observation = update_calculation(newvalues)
 
-    try:
-        pE.calculate_exposure_time_or_snr(observation, scene, observatory)
-    except UnboundLocalError:
-        warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
-        exptime_compute.label = "Compute"
-        obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+    for filter in FILTERS:
+        parameters["wavelength"] = [filter]
+        observatory, scene, observation = update_calculation(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
-        return
-    #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
-    #print("Exptime", observation.exptime)
-    if any(np.isinf(observation.exptime)):
-        warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
-    else:
-        warning.text = "<p></p>"
-    obs, noise = pE.utils.synthesize_observation(newsnr.value * np.ones_like(observation.wavelength.value),
-                                             scene, 
-                                             random_seed=None, # seed defaults to None
-                                             set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
-                                             )
+        try:
+            pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="exposure_time")
+        except UnboundLocalError:
+            warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
+            exptime_compute.label = "Compute"
+            obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
-    print("Obs", obs)
-    print("Noise", noise)
+            return
+        #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
+        #print("Exptime", observation.exptime)
+        if any(np.isinf(observation.exptime)):
+            warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
+        else:
+            warning.text = "<p></p>"
+        obs, noise = pE.utils.synthesize_observation(newsnr.value * np.ones_like(observation.wavelength.value),
+                                                scene, 
+                                                random_seed=None, # seed defaults to None
+                                                set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
+                                                )
 
-    good = np.where(observation.exptime < 1e8 * u.s) # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+        print("Obs", obs)
+        print("Noise", noise)
+        wave_filters.append(observation.wavelength.to_value(u.um))
+        exptime_filters.append(observation.exptime[0].to_value(u.hr))
+        fpfs_filters.append(scene.Fp_over_Fs[0].value)
+        obs_filters.append(obs[0].value)
+        noise_hi.append(obs[0].value + noise[0].value/2.)
+        noise_lo.append(obs[0].value - noise[0].value/2.)
+        snr_filters.append(newsnr.value)
+    exptime_filters = np.asarray(exptime_filters) << u.hr
+    wave_filters = np.asarray(wave_filters) << u.um
+    fpfs_filters = np.asarray(fpfs_filters) << u.dimensionless_unscaled
+    obs_filters = np.asarray(obs_filters) << u.dimensionless_unscaled
+    noise_hi = np.asarray(noise_hi) << u.dimensionless_unscaled
+    noise_lo = np.asarray(noise_lo) << u.dimensionless_unscaled
+    snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
+    print(exptime_filters)
 
-    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr), "FpFs": scene.Fp_over_Fs[good], "obs": obs[good], "noise_hi": obs[good] + noise[good]/2., "noise_lo": obs[good] - noise[good]/2., "snr": newsnr.value * np.ones_like(observation.wavelength[good].value)}
-    #print("New Data", obsdata.data)
+    good = np.where(exptime_filters < 1e9 * u.s)[0] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+    #print(obs_filters, noise_hi)
+
+    obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
+                  "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], "snr": snr_filters[good]}
+   #print("New Data", obsdata.data)
     exp_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
     spec_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
 
@@ -419,35 +450,65 @@ def do_recalculate_snr(newvalues):
     observatory, scene, observation = update_calculation(newvalues)
 
     observation.obstime = (newexp.value * u.hr).to(u.s)
-    print((newexp.value * u.hr).to(u.s))
 
-    try:
-        pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="signal_to_noise", verbose=True)
-    except UnboundLocalError:
-        warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
-        snr_compute.label = "Compute"
-        obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+    wave_filters = []
+    exptime_filters = []
+    fpfs_filters = []
+    obs_filters = []
+    noise_hi = []
+    noise_lo = []
+    snr_filters = []
+    observatory, scene, observation = update_calculation(newvalues)
 
-        return obsdata
-    #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
-    #print("Exptime", observation.exptime)
-    if any(np.isinf(observation.exptime)):
-        warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
-    else:
-        warning.text = "<p></p>"
-    obs, noise = pE.utils.synthesize_observation(observation.fullsnr,
-                                             scene, 
-                                             random_seed=None, # seed defaults to None
-                                             set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
-                                             )
+    for filter in FILTERS:
+        parameters["wavelength"] = [filter]
+        observatory, scene, observation = update_calculation(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
-    print("Obs", obs)
-    print("Noise", noise)
+        try:
+            pE.calculate_exposure_time_or_snr(observation, scene, observatory, mode="signal_to_noise")
+        except UnboundLocalError:
+            warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
+            exptime_compute.label = "Compute"
+            obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
-    good = np.where(observation.exptime < 1e8 * u.s) # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+            return
+        #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
+        #print("Exptime", observation.exptime)
+        if any(np.isinf(observation.exptime)):
+            warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
+        else:
+            warning.text = "<p></p>"
+        obs, noise = pE.utils.synthesize_observation(observation.fullsnr,
+                                                scene, 
+                                                random_seed=None, # seed defaults to None
+                                                set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
+                                                )
 
-    obsdata.data={"wavelength": observation.wavelength, "exptime": newexp.value * np.ones_like(observation.wavelength.value), "FpFs": scene.Fp_over_Fs, "obs": obs, "noise_hi": obs + noise/2., "noise_lo": obs - noise/2., "snr": observation.fullsnr}
-    #print("New Data", obsdata.data)
+        print("Obs", obs)
+        print("Noise", noise)
+        wave_filters.append(observation.wavelength.to_value(u.um))
+        exptime_filters.append(newexp.value)
+        fpfs_filters.append(scene.Fp_over_Fs[0].value)
+        obs_filters.append(obs[0].value)
+        noise_hi.append(obs[0].value + noise[0].value/2.)
+        noise_lo.append(obs[0].value - noise[0].value/2.)
+        snr_filters.append(observation.fullsnr[0])
+    exptime_filters = np.asarray(exptime_filters) << u.hr
+    wave_filters = np.asarray(wave_filters) << u.um
+    fpfs_filters = np.asarray(fpfs_filters) << u.dimensionless_unscaled
+    obs_filters = np.asarray(obs_filters) << u.dimensionless_unscaled
+    noise_hi = np.asarray(noise_hi) << u.dimensionless_unscaled
+    noise_lo = np.asarray(noise_lo) << u.dimensionless_unscaled
+    snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
+    print(exptime_filters)
+
+    good = np.where(exptime_filters < 1e9 * u.s)[0] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+    #print(obs_filters, noise_hi)
+
+    obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
+                  "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], "snr": snr_filters[good]}
+   #print("New Data", obsdata.data)
+
     snr_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - Exptime={np.round(newexp.value, decimals=2)} hrs - {EACS[eac_buttons.active]}"
     spec_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - Exptime={np.round(newexp.value, decimals=2)} hrs - {EACS[eac_buttons.active]}"
 

@@ -384,7 +384,8 @@ def do_recalculate_exptime(newvalues):
 
     good = np.where(observation.exptime < 1e8 * u.s) # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
 
-    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr), "FpFs": scene.Fp_over_Fs[good], "obs": obs[good], "noise_hi": obs[good] + noise[good]/2., "noise_lo": obs[good] - noise[good]/2., "snr": newsnr.value * np.ones_like(observation.wavelength[good].value)}
+    obsdata.data={"wavelength": observation.wavelength[good], "exptime": observation.exptime[good].to(u.hr), "FpFs": scene.Fp_over_Fs[good], 
+                  "obs": obs[good], "noise_hi": obs[good] + noise[good]/2., "noise_lo": obs[good] - noise[good]/2., "snr": newsnr.value * np.ones_like(observation.wavelength[good].value)}
     #print("New Data", obsdata.data)
     exp_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"
     spec_plot.title.text =  f"{planet.value} - {star.value} - {np.round(distance.value, decimals=2)} pc - {np.round(semimajor.value, decimals=2)} AU - SNR={np.round(newsnr.value, decimals=2)} - {EACS[eac_buttons.active]}"

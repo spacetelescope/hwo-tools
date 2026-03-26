@@ -7,7 +7,7 @@ dependencies:
   - specutils>=2.2.0
   - numpy>=2.2
   - pandas>=2.3
-  - scipy>=1.17.4
+  - scipy>=1.17
   - setuptools>=82
   - jupyter=1.1.1
   - pip 
@@ -16,7 +16,6 @@ dependencies:
       - synphot>=1.6.0
       - stsynphot>=1.5.0
       - syotools>=1.3
-      - pyedith>=1.5
       - eacy>=1.0
       - hwo_sci_eng>=0.1.8
       - yippy==2.2.2

@@ -148,18 +148,18 @@ def create_comparisons(reset):
     for setup in test_setups:
         test_results.append((setup, do_comparisons(setup)))
     if reset:
-        with open("test_coronspec.pickle", "wb") as picklefile:
+        with open("test_coronimaging.pickle", "wb") as picklefile:
             pickle.dump(test_results, picklefile)
 
 '''
 LOAD IT
 '''
 try:    
-    with open("test_coronspec.pickle", "rb") as picklefile:
+    with open("test_coronimaging.pickle", "rb") as picklefile:
         test_results = pickle.load(picklefile)
 except FileNotFoundError:
     create_comparisons(True)
-    with open("test_coronspec.pickle", "rb") as picklefile:
+    with open("test_coronimaging.pickle", "rb") as picklefile:
         test_results = pickle.load(picklefile)
 
 @pytest.mark.parametrize("testset", test_results)

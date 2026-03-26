@@ -1,0 +1,24 @@
+Hi Giada,
+
+Yeah, I have an assortment of warm Neptunes from Renuy Hu.  He may have newer ones now, but I think these are fine for our purposes.  I’ve attached three.  I also have an assortment of warm Jupiters from Kerri Cahoy.  I’ll send a few of those in my next email.
+
+;
+; Model Neptunes from Renyu Hu.
+; Models are plane-parallel albedos, which trace Bond albedos pretty well.
+; Renyu suggests multiplying by 2/3 to convert to geometric albedos.
+;
+
+File 1:  Reflection_a2_m1.dat :  Neptune at 2 AU, [M/H] = 1 (10 times solar metallicity, I believe)
+
+In reference to these two spectra, see quoted text below …
+
+File 2:  Reflection_a1_m2.6_LM_NoCloud.dat :  Neptune at 1 AU, [M/H] = 2.6, no clouds
+File 3:  Reflection_a1_m2.6_LM.dat  :  Neptune at 1 AU, [M/H/ = 2.6, 100% clouds
+
+ 
+Here are two example spectra. The atmosphere has 50% water, and has a water cloud top at 80 Pascal. The atmosphere has a low mixing ratio of methane (1 ppm methane, denoted as “LM”). One model assumes 100% cloud coverage, and the other assumes no cloud (denoted as “NoCloud”). The average of these two will give you 50% cloud coverage.
+
+As a side note, in the figure that you sent earlier, I notice something peculiar. The albedo spectra I sent last time and this time are “plane-parallel” albedo, not geometric albedo. I think the plane-parallel albedo traces the Bond albedo quite well, and suggest multiplying them by a factor, for example 0.67, to convert to the geometric albedo. At least, Neptune at 400nm is not absorbing, and all modeled spectra and the Neptune spectrum at 400 nm should have more or less the same value.
+
+Cheers,
+Aki

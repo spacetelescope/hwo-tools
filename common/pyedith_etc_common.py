@@ -3,20 +3,14 @@ from functools import partial
 
 import base64
 import datetime
-import asdf
-import yaml
-import copy
 
 import numpy as np
-import scipy as sc
 from bokeh.plotting import figure
-from bokeh.embed import components
 from bokeh.models import ColumnDataSource, Paragraph, Range1d, RadioGroup, RadioButtonGroup, SetValue
-from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import Slider, Div, Select, Button, FileInput
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import row, column, layout
-from bokeh.io import curdoc, output_file
+from bokeh.io import curdoc
 
 import astropy.units as u
 import astropy.constants as c
@@ -24,9 +18,6 @@ import synphot as syn
 import stsynphot as stsyn
 
 import pyEDITH as pE
-from synphot import SourceSpectrum, SpectralElement, Observation
-from synphot.models import BlackBodyNorm1D, Empirical1D
-from synphot import units as synphot_u
 
 from . import catalog
 

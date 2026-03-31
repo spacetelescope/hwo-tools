@@ -100,8 +100,8 @@ class pyEDITHETC():
         self.stellar_magnitude = Slider(title="V Magnitude of Star", value=12., start=-6, end=20, step=0.1, direction="rtl", sizing_mode="stretch_width") 
         self.stellar_magnitude.on_change("value", self.stellarmag_callback)
 
-        self.stellar_diameter = Slider(title="Diameter of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width") 
-        self.stellar_diameter.on_change("value", self.stellar_diameter_callback)
+        self.stellar_radius = Slider(title="Radius of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width") 
+        self.stellar_radius.on_change("value", self.stellar_radius_callback)
 
         self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=100.0, step=0.1) 
         self.distance.on_change("value", self.distance_callback)
@@ -126,7 +126,7 @@ class pyEDITHETC():
         self.info_panel = TabPanel(child=self.info_panel, title='Info') #, width=800)
 
         self.controls = column(children=[], sizing_mode='fixed', width=320, height=480) 
-        self.starparam = row(children=[self.stellar_magnitude, self.stellar_diameter], width_policy = "fit")
+        self.starparam = row(children=[self.stellar_magnitude, self.stellar_radius], width_policy = "fit")
 
         self.exp_snr_toggle = RadioGroup(labels=["Solve For Exposure Time", "Solve For SNR"], active=0)
         def exp_snr_callback(active, old, new):
@@ -184,9 +184,9 @@ class pyEDITHETC():
         print(attr, old, new)
         self.inputs.data.update({"new_stellar_magnitude": [new], "scene": [True]})
 
-    def stellar_diameter_callback(self, attr, old, new):
+    def stellar_radius_callback(self, attr, old, new):
         print(attr, old, new)
-        self.inputs.data.update({"new_stellar_diameter": [new], "scene": [True]})
+        self.inputs.data.update({"new_stellar_radius": [new], "scene": [True]})
 
     def distance_callback(self, attr, old, new):
         print(attr, old, new)
@@ -264,7 +264,7 @@ class pyEDITHETC():
         bp = stsyn.band("johnson,v")
 
         self.stellar_magnitude.value = self.parameters["magV"]
-        self.stellar_diameter.value = self.parameters["stellar_radius"]
+        self.stellar_radius.value = self.parameters["stellar_radius"]
         # we do not move the star from 10 pc, we merely provide the magnitude (and flux) at 10 pc and pyEDITH does the rest
         new_star = self.parameters["current_star"].normalize(self.parameters["magV"] * u.ABmag, band=bp, force="taper")
         flux = new_star(self.parameters["wavelength"]<< u.micron)
@@ -292,11 +292,11 @@ class pyEDITHETC():
             self.parameters["magV"] = newvalues.data["new_stellar_magnitude"][0]
             self.recompute_star_flux()
             del newvalues.data["new_stellar_magnitude"] # consume the new value
-        if "new_stellar_diameter" in newvalues.data:
+        if "new_stellar_radius" in newvalues.data:
             print("Changed stellar diameter")
-            self.parameters["stellar_radius"] = newvalues.data["new_stellar_diameter"][0]
+            self.parameters["stellar_radius"] = newvalues.data["new_stellar_radius"][0]
             self.recompute_star_flux()
-            del newvalues.data["new_stellar_diameter"] # consume the new value
+            del newvalues.data["new_stellar_radius"] # consume the new value
         if "new_planet" in newvalues.data:
             print("Changed planet")
             self.load_planet(newvalues.data["new_planet"][0])

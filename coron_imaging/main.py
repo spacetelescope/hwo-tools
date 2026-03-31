@@ -32,15 +32,16 @@ class pyEDITHETC():
     # classmethods
     target_planet, target_star = catalog.load_catalog()
 
-    parameters = {}
-    scene = pE.AstrophysicalScene()
-    observation = pE.Observation() # define the observation object
-    observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
-    obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
-    inputs = ColumnDataSource(data=dict())
+
 
     def __init__(self):
 
+        self.parameters = {}
+        self.scene = pE.AstrophysicalScene()
+        self.observation = pE.Observation() # define the observation object
+        self.observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
+        self.obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
+        self.inputs = ColumnDataSource(data=dict())
         self.widget_setup()
         self.tab_setup()
     
@@ -173,7 +174,7 @@ class pyEDITHETC():
 
     def diameter_callback(self, attr, old, new):
         print(attr, old, new)
-        self.inputs.data.update({"new_diameter": [new], "observatory": [True]})
+        self.inputs.data.update({"new_telescope_diameter": [new], "observatory": [True]})
 
     def star_callback(self, attr, old, new):
         print(attr, old, new)
@@ -275,8 +276,7 @@ class pyEDITHETC():
 
         #print("Star Flux", flux)
 
-    # Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
-    # it is, particularly, unclear what 
+    # This update function will selectively run a new observatory, scene, or source; unfortunately we have to run a new observatory every time.
     def update_calculation(self, newvalues):
         print("------------------------------------")
         print(newvalues.data)
@@ -327,7 +327,7 @@ class pyEDITHETC():
         if "new_telescope_diameter" in newvalues.data:
             print("Changed Telescope Diameter")
             self.parameters["diameter"] = newvalues.data["new_telescope_diameter"][0]
-            del newvalues.data["new_diameter"] # consume the new value
+            del newvalues.data["new_telescope_diameter"] # consume the new value
         else:
             self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
 
@@ -654,9 +654,9 @@ class CoronImaging(pyEDITHETC):
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
                     "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], "snr": snr_filters[good]}
     #print("New Data", obsdata.data)
-
-        self.snr_plot.title.text =  f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {EACS[self.eac_buttons.active]}"
-        self.spec_plot.title.text =  f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {EACS[self.eac_buttons.active]}"
+        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
+        self.snr_plot.title.text = title_text
+        self.spec_plot.title.text = title_text
 
         self.snr_compute.label = "Compute"
 

@@ -30,14 +30,14 @@ class pyEDITHETC():
     # classmethods
     target_planet, target_star = catalog.load_catalog()
 
-    parameters = {}
-    scene = pE.AstrophysicalScene()
-    observation = pE.Observation() # define the observation object
-    observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
-    obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
-    inputs = ColumnDataSource(data=dict())
 
     def __init__(self):
+        self.parameters = {}
+        self.scene = pE.AstrophysicalScene()
+        self.observation = pE.Observation() # define the observation object
+        self.observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
+        self.obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
+        self.inputs = ColumnDataSource(data=dict())`
 
         self.widget_setup()
         self.tab_setup()
@@ -171,7 +171,7 @@ class pyEDITHETC():
 
     def diameter_callback(self, attr, old, new):
         print(attr, old, new)
-        self.inputs.data.update({"new_diameter": [new], "observatory": [True]})
+        self.inputs.data.update({"new_telescope_diameter": [new], "observatory": [True]})
 
     def star_callback(self, attr, old, new):
         print(attr, old, new)
@@ -325,7 +325,7 @@ class pyEDITHETC():
         if "new_telescope_diameter" in newvalues.data:
             print("Changed Telescope Diameter")
             self.parameters["diameter"] = newvalues.data["new_telescope_diameter"][0]
-            del newvalues.data["new_diameter"] # consume the new value
+            del newvalues.data["new_telescope_diameter"] # consume the new value
         else:
             self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
 

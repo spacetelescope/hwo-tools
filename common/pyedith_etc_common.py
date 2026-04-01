@@ -25,177 +25,9 @@ class pyEDITHETC():
     # classmethods
     target_planet, target_star = catalog.load_catalog()
 
-    parameters = {}
-    scene = pE.AstrophysicalScene()
-    observation = pE.Observation() # define the observation object
-    observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
-    obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
-    inputs = ColumnDataSource(data=dict())
-
     def __init__(self):
-
-        self.widget_setup()
-        self.tab_setup()
+        pass
     
-    def widget_setup(self):
-
-        self.exp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
-        self.exp_plot.line("wavelength", "exptime", source=self.obsdata)
-        self.exp_panel = TabPanel(child=self.exp_plot, title='Exposure Time') #, width=800)
-
-        self.snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.snr_plot.line("wavelength", "snr", source=self.obsdata)
-        self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
-
-
-        self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.spec_plot.line("wavelength", "FpFs", source=self.obsdata)
-        self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
-        self.spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
-        self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
-
-        self.exptime_compute = Button(label="Calculate", button_type="primary")
-        # Can't set up the callback here because we need to define its callback (recalculate_exptime) first.
-        self.exptime_compute.on_click(partial(self.recalculate_exptime, self.inputs))
-
-        self.snr_compute = Button(label="Calculate", button_type="primary")
-        # Can't set up the callback here because we need to define its callback (recalculate_snr) first.
-        self.snr_compute.on_click(partial(self.recalculate_snr, self.inputs))
-
-        self.warning = Div(text='<p></p>')
-
-        self.info_panel = Div(sizing_mode="inherit", text="pyEDITH is a Python-based coronagraphic exposure time calculator built for the Habitable Worlds Observatory (HWO)." +
-                    "<p>It is designed to simulate wavelength-dependent exposure times and SNR for both photometric and spectroscopic direct imaging observations. pyEDITH interfaces with engineering specifications defined by the HWO exploratory analytic cases, and allows the user to provide target system information, as well as alter observatory parameters for trade studies, to calculate synthetic HWO observations of Earth-like exoplanets. pyEDITH has heritage from the exposure time calculator built for the Altruistic Yield Optimizer (<a href='https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract'>C.C. Stark et al., 2014</a>), and has been validated against the AYO, exoSIMS, and EBS exposure time calculators." +
-                    '<p><p align="justify">Uploaded spectra can be in either fixed width two-column ASCII (wave flux) or FITS format, where the spectrum is in the second HDU (HDU1, BINTABLE) with column 1 = "WAVELENGTH" and column 2 = "FLUX". Wavelength is assumed to be in Angstroms, Flux in FLAM (erg s−1 cm−2˚𝐴−1)</p>'
-        )
-        self.hrpanel1 = Div(text="<p>------------------- star ---------------------</p>")
-        self.hrpanel2 = Div(text="<p>------------------ planet --------------------</p>")
-        self.hrpanel3 = Div(text="<p>----------------------------------------------</p>")
-
-        # currently unused, as we only have EAC1 working
-        self.eac_buttons = RadioButtonGroup(labels=self.EACS, active=0)
-        self.eac_buttons.on_change("active", self.eac_callback)
-
-        self.newsnr  = Slider(title="Target SNR", value=10., start=0.1, end=100.0, step=0.1, ) 
-        self.newsnr.on_change("value", self.snr_callback)
-
-        self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
-        self.newexp.on_change("value", self.exp_callback)
-
-        self.newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, ) 
-        self.newdiameter.on_change("value", self.diameter_callback)
-
-        self.star = Select(title="Template Star Spectrum", value="G2V star", 
-                    options=list(self.target_star.keys()), width=250) 
-        self.star.on_change("value", self.star_callback)
-
-        self.stellar_magnitude = Slider(title="V Magnitude of Star", value=12., start=-6, end=20, step=0.1, direction="rtl", sizing_mode="stretch_width") 
-        self.stellar_magnitude.on_change("value", self.stellarmag_callback)
-
-        self.stellar_diameter = Slider(title="Diameter of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width") 
-        self.stellar_diameter.on_change("value", self.stellar_diameter_callback)
-
-        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=100.0, step=0.1) 
-        self.distance.on_change("value", self.distance_callback)
-
-        self.planet = Select(title="Template Planet Spectrum", value="Earth", 
-                options=list(self.target_planet.keys()), width=250)
-        self.planet.on_change("value", self.planet_callback)
-
-        self.semimajor = Slider(title="Semimajor Axis (AU)", value=0.1, start=0.01, end=10, step=0.01, ) 
-        self.semimajor.on_change("value", self.semimajor_callback)
-
-        self.delta_mag = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
-        self.delta_mag.on_change("value", self.dmag_callback)
-
-        self.upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".ascii", ".asdf"], title="Upload a Stellar Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
-        self.upload.on_change("filename", self.process_spectrum)
-
-
-
-    def tab_setup(self):
-        self.observation_tab = TabPanel(child=self.exp_plot, title='Observation') # , width=400)
-        self.info_panel = TabPanel(child=self.info_panel, title='Info') #, width=800)
-
-        self.controls = column(children=[], sizing_mode='fixed', width=320, height=480) 
-        self.starparam = row(children=[self.stellar_magnitude, self.stellar_diameter], width_policy = "fit")
-
-        self.exp_snr_toggle = RadioGroup(labels=["Solve For Exposure Time", "Solve For SNR"], active=0)
-        def exp_snr_callback(active, old, new):
-            if (new == 0):
-                print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam, 
-                                          self.distance, self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
-                outputs.tabs = [self.spec_panel, self.exp_panel, self.info_panel]
-            elif new == 1:
-                print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.hrpanel1, self.star, self.starparam, 
-                                          self.distance, self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.snr_compute, self.upload, self.warning]
-                outputs.tabs = [self.spec_panel, self.snr_panel, self.info_panel]                   
-            #controls.change.emit()
-            #outputs.change.emit()
-
-        self.exp_snr_toggle.on_change("active", exp_snr_callback)
-
-        # this is the initial for-exptime selection
-        self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam, self.distance, 
-                                self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
-
-        outputs = Tabs(tabs=[self.spec_panel, self.exp_panel, self.info_panel], sizing_mode="inherit")
-        plots = column(children=[outputs], sizing_mode='fixed', width=640, height=480)
-        l = layout([[self.controls, plots]],sizing_mode='fixed', width=960, height=480)
-
-        curdoc().theme = 'dark_minimal'
-        curdoc().add_root(l) 
-        curdoc().add_root(self.obsdata)
-
-    def load_initial(self):
-        raise ValueError("Must be run from a customized class")
-
-    def eac_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_eac": [self.EACS[new]], "observatory": [True]})
-
-    def snr_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_snr": [new], "observation": [True]})
-     
-    def exp_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_exp": [new], "observation": [True]})
-
-    def diameter_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_diameter": [new], "observatory": [True]})
-
-    def star_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_star": [new], "scene": [True]})
-
-    def stellarmag_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_stellar_magnitude": [new], "scene": [True]})
-
-    def stellar_diameter_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_stellar_diameter": [new], "scene": [True]})
-
-    def distance_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_distance": [new], "scene": [True]})
-
-    def planet_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_planet": [new], "scene": [True]})
-
-    def semimajor_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_semimajor": [new], "scene": [True]})
-
-    def dmag_callback(self, attr, old, new):
-        print(attr, old, new)
-        self.inputs.data.update({"new_dMag": [new], "scene": [True]})
-
     def update_scene(self):
         #parameters.update(updates)
 
@@ -256,7 +88,7 @@ class pyEDITHETC():
         bp = stsyn.band("johnson,v")
 
         self.stellar_magnitude.value = self.parameters["magV"]
-        self.stellar_diameter.value = self.parameters["stellar_radius"]
+        self.stellar_radius.value = self.parameters["stellar_radius"]
         # we do not move the star from 10 pc, we merely provide the magnitude (and flux) at 10 pc and pyEDITH does the rest
         new_star = self.parameters["current_star"].normalize(self.parameters["magV"] * u.ABmag, band=bp, force="taper")
         flux = new_star(self.parameters["wavelength"]<< u.micron)
@@ -285,11 +117,11 @@ class pyEDITHETC():
             self.parameters["magV"] = newvalues.data["new_stellar_magnitude"][0]
             self.recompute_star_flux()
             del newvalues.data["new_stellar_magnitude"] # consume the new value
-        if "new_stellar_diameter" in newvalues.data:
-            print("Changed stellar diameter")
-            self.parameters["stellar_radius"] = newvalues.data["new_stellar_diameter"][0]
+        if "new_stellar_radius" in newvalues.data:
+            print("Changed stellar radius")
+            self.parameters["stellar_radius"] = newvalues.data["new_stellar_radius"][0]
             self.recompute_star_flux()
-            del newvalues.data["new_stellar_diameter"] # consume the new value
+            del newvalues.data["new_stellar_radius"] # consume the new value
         if "new_planet" in newvalues.data:
             print("Changed planet")
             self.load_planet(newvalues.data["new_planet"][0])
@@ -342,35 +174,6 @@ class pyEDITHETC():
         self.observatory.validate_configuration()
         #print(observatory.telescope.__dict__)
         #print_observatory(observatory)
-
-    def recalculate_exptime(self, newvalues):
-        """
-        The trick here is that Bokeh only synchronizes the calls at the end of a function, so
-        if I want to change the button to "Please wait..." and THEN have it calculate, I have
-        to make this call, and have this call fire off another callback with add_next_tick_callback.
-
-        Parameters
-        ----------
-        newvalues : _type_
-            _description_
-        """
-        self.exptime_compute.label = "Please Wait..."
-        curdoc().add_next_tick_callback(partial(self.do_recalculate_exptime, newvalues))
-
-    def recalculate_snr(self, newvalues):
-        """
-        The trick here is that Bokeh only synchronizes the calls at the end of a function, so
-        if I want to change the button to "Please wait..." and THEN have it calculate, I have
-        to make this call, and have this call fire off another callback with add_next_tick_callback.
-
-        Parameters
-        ----------
-        newvalues : _type_
-            _description_
-        """
-
-        self.snr_compute.label = "Please Wait..."
-        curdoc().add_next_tick_callback(partial(self.do_recalculate_snr, newvalues))
 
 
     def process_spectrum(self, attr, old, new):

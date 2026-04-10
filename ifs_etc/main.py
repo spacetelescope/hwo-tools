@@ -20,7 +20,7 @@ import ifs_help as h
 
 from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
-from syotools.models import Telescope, Spectrograph, IFS, Source, SourceIFSExposure
+from syotools.models import Telescope, IFS, Source, SourceIFSExposure
 
 spectra_library = copy.deepcopy(syn_spectra_library)
 
@@ -97,7 +97,7 @@ def update_data(attrname, old, new): # use this one for updating synphot templat
     ifs_exp.exptime = [[exptime.value, exptime.value, exptime.value, exptime.value, exptime.value, exptime.value, exptime.value, exptime.value, exptime.value, exptime.value], 'hr'] 
     ifs_exp.verbose = True 
     ifs_exp.unknown = 'snr'
-    ifs.add_exposure(ifs_exp) 
+    ifs.add_exposure(ifs_exp)
     ifs.mode = str.split(grating.value,' ')[0] #<-- because text after the space not in mode keys  
 
 
@@ -222,9 +222,9 @@ def initialize_setup():
     hwo.set_from_sei("EAC1")
     ifs = IFS()   
     ifs.set_from_sei("IFS")
-    hwo.add_spectrograph(ifs)       
+    hwo.add_ifs(ifs)       
 
-    ifs_exp = SourceIFSExposure()        
+    ifs_exp = SourceIFSExposure()
 
     add_source_callback(None)
 

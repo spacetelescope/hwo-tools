@@ -11,8 +11,9 @@ import numpy as np, astropy.units as u
 # if called without arguments, you get the defaults 
 t, c = Telescope(), Camera()
 
-#set the telescope to EAC1 
-t.set_from_json('EAC1')
+#set the telescope to EAC1 with HRI
+t.set_from_sei("EAC1")
+c.set_from_sei("HRI")
 
 source = Source() 
 source.set_sed('Flat (AB)', 30., 0.0, 0.0, 'galex,fuv')   

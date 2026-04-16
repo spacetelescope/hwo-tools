@@ -1,0 +1,111 @@
+Input Objects and Their Relevant Properties:
+1. Observation:
+observation.wavelength: max value: 1.685779e+00, min value: 3.600000e-01
+observation.SNR: max value: 3.383290e+00, min value: 4.872973e-02
+observation.td_limit: value: 1.000000e+20
+observation.CRb_multiplier: value: 2.000000e+00
+
+2. Scene:
+scene.mag: max value: -2.241343e+01, min value: -2.641029e+01
+scene.stellar_angular_diameter_arcsec: value: 4.693132e-04
+scene.F0: max value: 1.703708e-08, min value: 1.146582e-09
+scene.Fp_over_Fs: max value: 1.055311e-10, min value: 7.102161e-12
+scene.Fzodi_list: max value: 2.857982e+03, min value: 2.675861e+02
+scene.Fexozodi_list: max value: 2.182655e+04, min value: 2.073395e+03
+scene.Fbinary_list: max value: 0.000000e+00, min value: 0.000000e+00
+scene.xp: value: 4.587156e-02
+scene.yp: value: 0.000000e+00
+scene.separation: value: 4.587156e-02
+scene.dist: value: 2.180000e+01
+
+3. Observatory:
+Telescope:
+observatory.telescope.diameter: value: 1.388889e+01
+observatory.telescope.temperature: value: 2.900000e+02
+observatory.telescope.toverhead_multi: value: 1.100000e+00
+observatory.telescope.toverhead_fixed: value: 8.250000e+03
+observatory.total_throughput: max value: 4.199008e-01, min value: 8.674029e-03
+observatory.epswarmTrcold: max value: 9.522656e-01, min value: 3.597945e-01
+
+Coronagraph:
+observatory.coronagraph.bandwidth: value: 2.000000e-01
+observatory.coronagraph.Istar: max value: 2.263060e-14, min value: 7.242567e-17
+observatory.coronagraph.noisefloor: max value: 7.543532e-16, min value: 2.414189e-18
+observatory.coronagraph.npix: value: 2.560000e+02
+observatory.coronagraph.pixscale: value: 2.500000e-01
+observation.psf_trunc_ratio: value: 3.000000e-01
+observatory.coronagraph.photometric_aperture_throughput: max value: 4.769048e-01, min value: 4.800114e-04
+observatory.coronagraph.skytrans: max value: 8.910130e-01, min value: 2.331368e-02
+observatory.coronagraph.omega_lod: max value: 5.210418e+02, min value: 1.150123e+00
+observatory.coronagraph.xcenter: value: 1.280000e+02
+observatory.coronagraph.ycenter: value: 1.280000e+02
+observatory.coronagraph.nchannels: value: 2.000000e+00
+observatory.coronagraph.minimum_IWA: value: 2.000000e+00
+observatory.coronagraph.maximum_OWA: value: 1.000000e+02
+observatory.coronagraph.npsfratios: value: 1.000000e+00
+observatory.coronagraph.nrolls: value: 1.000000e+00
+
+Detector:
+observatory.detector.pixscale_mas: value: 3.712767e+00
+observatory.detector.QE*observatory.detector.dQE: max value: 7.187397e-01, min value: 6.858429e-02
+observatory.detector.npix_multiplier: max value: 1.000000e+00, min value: 1.000000e+00
+observatory.detector.DC: max value: 1.000000e-04, min value: 3.000000e-05
+observatory.detector.RN: max value: 4.000000e-01, min value: 0.000000e+00
+observatory.detector.tread: max value: 1.000000e+03, min value: 1.000000e+03
+observatory.detector.CIC: max value: 0.000000e+00, min value: 0.000000e+00
+
+Calculated Variables:
+
+1. Initial Calculations:
+Fs_over_F0: max value: 1.129668e+10, min value: 1.073119e+09
+deltalambda_nm: value: 1.873087e+01
+lod: value: 1.000000e+00
+lod_rad: value: 1.213761e-07
+lod_arcsec: value: 2.503561e-02
+area_cm2: value: 1.515043e+06
+detpixscale_lod: value: 1.482994e-01
+stellar_diam_lod: value: 1.874583e-02
+
+2. Interpolated Arrays:
+Istar_interp: max value: 2.263060e-14, min value: 7.242567e-17
+noisefloor_interp: max value: 7.543532e-16, min value: 2.414189e-18
+
+3. Coronagraph Performance Measurements:
+pixscale_rad: value: 3.034402e-08
+oneopixscale_arcsec: value: 1.597724e+02
+det_sep_pix: value: 1.150000e+01
+det_sep: value: 7.197738e-02
+det_Istar: value: 1.121281e-14
+det_skytrans: value: 4.828065e-01
+det_photometric_aperture_throughput: value: 2.805979e-01
+det_omega_lod: value: 3.383260e+00
+
+4. Detector Noise Calculations:
+det_CRp: value: 7.292446e-02
+det_CRbs: value: 4.662547e-05
+det_CRbz: value: 2.169350e-02
+det_CRbez: value: 6.171737e-02
+det_CRbbin: value: 0.000000e+00
+det_CRbth: value: 4.051108e-01
+det_CR: value: 5.614927e-01
+
+5. Planet Position and Separation:
+ix: value: 1.353290e+02
+iy: value: 1.280000e+02
+sp_lod: value: 1.832252e+00
+
+6. Count Rates and Exposure Time Calculation:
+CRp: value: 2.174507e-03
+CRnf: value: 8.614376e-06
+CRbs: value: 5.677831e-05
+CRbz: value: 1.038714e-02
+CRbez: value: 7.704019e-02
+CRbbin: value: 0.000000e+00
+t_photon_count: value: 2.162535e+02
+CRbd: value: 6.696550e-02
+CRbth: value: 8.824796e-03
+CRb: value: 5.053236e-01
+
+7. Final Result:
+observation.exptime: max value: 0.000000e+00, min value: 0.000000e+00
+observation.fullsnr: max value: inf, min value: 4.872973e-02

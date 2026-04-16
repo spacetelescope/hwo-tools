@@ -8,13 +8,35 @@ The $INSTALL_DIR is just any local directory of your choice.
 - cd $INSTALL_DIR
 - Clone the hwo-tools repo:
    git clone https://github.com/spacetelescope/hwo-tools.git
-- The Sci-Eng-Interface material is now bundled with SYOtools 
+- Clone the Sci-Eng-Interface repo:
+   cd $INSTALL_DIR
+   git clone https://github.com/HWO-GOMAP-Working-Groups/Sci-Eng-Interface.git
+   cd Sci-Eng-Interface
+   pip install .
+- Clone the pyEDITH repo:
+   cd $INSTALL_DIR
+   git clone https://github.com/eleonoraalei/pyEDITH.git
+   cd pyEDITH
+   pip install .
 - Set up the conda repo with the hwotools dependencies: \
     cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools.yml
+    or install the following (and their dependencies):
+    syotools
+    pyEDITH
+    synphot
+    stsynphot
+    pandas
+    bokeh
+    astropy
+
+- For the Coronagraphic Spectroscopy and Imaging ETCs, you will also need a YIP file for the coronagraph; put it in $INSTALL_DIR/yip
+
 - conda activate hwotools
 - add to your .bashrc / .bash_profile:
-   - export PYSYN_CDBS=/Users/tumlinson/anaconda3/envs/hwotools/lib/python3.12/site-packages/syotools/pysynphot_data
-   - export SCI_ENG_DIR=/Users/tumlinson/anaconda3/envs/hwotools/lib/python3.12/site-packages/syotools/sci_eng_interface
+   - export PYSYN_CDBS=/Users/tumlinson/anaconda3/envs/hwotools/lib/python3.12/site-packages/syotools/reference_data/pysynphot_data
+   - export SYOTOOLS_DATA_DIR=/Users/tumlinson/anaconda3/envs/hwotools/lib/python3.12/site-packages/syotools/reference_data
+   - export SCI_ENG_DIR=/Users/tumlinson/anaconda3/envs/hwotools/lib/python3.12/site-packages/hwo_sci_eng
+   - export YIP_CORO_DIR="$INSTALL_DIR/yip"
    - These exact pathnames will vary by system, please do your best.
    - Your root directory (here, Users/tumlinson/anaconda3/) may vary, and your python version may as well. 
    - in the likely event that you already have PYTHONPATH set in your .*rc file, append these:
@@ -26,7 +48,7 @@ Once you have this basic test working, you can run the flat python script
 BasicRun.py or create your own. 
 
 The camera_wrapper and uvspec_wrapper notebooks show the simplest way to call these tools, 
-using bare python wrappers around the SWOTools API. These allow you to get SNR results
+using bare python wrappers around the SYOTools API. These allow you to get SNR results
 with one import and one line of code. Use these if you need to run in 'batch mode', which the 
 online GUI tools will not do. 
 

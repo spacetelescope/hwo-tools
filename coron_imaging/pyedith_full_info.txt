@@ -1,0 +1,389 @@
+Input Objects and Their Relevant Properties:
+1. Observation:
+observation.wavelength:
+ Unit: um
+ Shape: (169,)
+ Max value: 1.6857787024067388 um at coordinates: (np.int64(168),)
+ Min value: 0.36 um at coordinates: (np.int64(0),)
+observation.SNR:
+ Unit: dimensionless
+ Shape: (1000,)
+ Max value: 3.3832895133561163 at coordinates: (np.int64(22),)
+ Min value: 0.04872973072373787 at coordinates: (np.int64(150),)
+observation.td_limit:
+ Unit: s
+ Shape: scalar
+ Value: 1.000000e+20 s
+observation.CRb_multiplier:
+ Unit: N/A
+ Shape: scalar
+ Value: 2.000000e+00
+
+2. Scene:
+scene.mag:
+ Unit: mag
+ Shape: (1000,)
+ Max value: -22.41342930987331 mag at coordinates: (np.int64(910),)
+ Min value: -26.410287910213448 mag at coordinates: (np.int64(997),)
+scene.stellar_angular_diameter_arcsec:
+ Unit: arcsec
+ Shape: scalar
+ Value: 4.693132e-04 arcsec
+scene.F0:
+ Unit: ph / (nm s cm2)
+ Shape: (169,)
+ Max value: 1.703708047127207e-08 ph / (nm s cm2) at coordinates: (np.int64(66),)
+ Min value: 1.1465824631874757e-09 ph / (nm s cm2) at coordinates: (np.int64(168),)
+scene.Fp_over_Fs:
+ Unit: dimensionless
+ Shape: (169,)
+ Max value: 1.0553108323933307e-10 at coordinates: (np.int64(66),)
+ Min value: 7.102161052031624e-12 at coordinates: (np.int64(168),)
+scene.Fzodi_list:
+ Unit: 1 / arcsec2
+ Shape: (169,)
+ Max value: 2857.9819867422675 1 / arcsec2 at coordinates: (np.int64(150),)
+ Min value: 267.58607866695706 1 / arcsec2 at coordinates: (np.int64(143),)
+scene.Fexozodi_list:
+ Unit: arcsec^-2
+ Shape: (169,)
+ Max value: 21826.54723367247 arcsec^-2 at coordinates: (np.int64(134),)
+ Min value: 2073.395103854713 arcsec^-2 at coordinates: (np.int64(143),)
+scene.Fbinary_list:
+ Unit: dimensionless
+ Shape: (169,)
+ Max value: 0.0 at coordinates: (np.int64(0),)
+ Min value: 0.0 at coordinates: (np.int64(0),)
+scene.xp:
+ Unit: arcsec
+ Shape: scalar
+ Value: 4.587156e-02 arcsec
+scene.yp:
+ Unit: arcsec
+ Shape: scalar
+ Value: 0.000000e+00 arcsec
+scene.separation:
+ Unit: arcsec
+ Shape: scalar
+ Value: 4.587156e-02 arcsec
+scene.dist:
+ Unit: pc
+ Shape: scalar
+ Value: 2.180000e+01 pc
+
+3. Observatory:
+Telescope:
+observatory.telescope.diameter:
+ Unit: m
+ Shape: scalar
+ Value: 1.388889e+01 m
+observatory.telescope.temperature:
+ Unit: K
+ Shape: scalar
+ Value: 2.900000e+02 K
+observatory.telescope.toverhead_multi:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 1.100000e+00
+observatory.telescope.toverhead_fixed:
+ Unit: s
+ Shape: scalar
+ Value: 8.250000e+03 s
+observatory.total_throughput:
+ Unit: electron / ph
+ Shape: (169,)
+ Max value: 0.41990075514595104 electron / ph at coordinates: (np.int64(167),)
+ Min value: 0.00867402918434069 electron / ph at coordinates: (np.int64(0),)
+observatory.epswarmTrcold:
+ Unit: dimensionless
+ Shape: (169,)
+ Max value: 0.9522656015394908 at coordinates: (np.int64(0),)
+ Min value: 0.35979448316604856 at coordinates: (np.int64(168),)
+
+Coronagraph:
+observatory.coronagraph.bandwidth:
+ Unit: N/A
+ Shape: scalar
+ Value: 2.000000e-01
+observatory.coronagraph.Istar:
+ Unit: dimensionless
+ Shape: (256, 256)
+ Max value: 2.2630595664498675e-14 at coordinates: (np.int64(122), np.int64(130))
+ Min value: 7.242566590526111e-17 at coordinates: (np.int64(7), np.int64(7))
+observatory.coronagraph.noisefloor:
+ Unit: dimensionless
+ Shape: (256, 256)
+ Max value: 7.543531888166224e-16 at coordinates: (np.int64(125), np.int64(122))
+ Min value: 2.4141888635087045e-18 at coordinates: (np.int64(7), np.int64(7))
+observatory.coronagraph.npix:
+ Unit: N/A
+ Shape: scalar
+ Value: 256
+observatory.coronagraph.pixscale:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 2.500000e-01 λ/D
+observation.psf_trunc_ratio:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 3.000000e-01
+observatory.coronagraph.photometric_aperture_throughput:
+ Unit: dimensionless
+ Shape: (256, 256, 1)
+ Max value: 0.4769047789019766 at coordinates: (np.int64(19), np.int64(76), np.int64(0))
+ Min value: 0.00048001135928914 at coordinates: (np.int64(127), np.int64(127), np.int64(0))
+observatory.coronagraph.skytrans:
+ Unit: dimensionless
+ Shape: (256, 256)
+ Max value: 0.8910129689517351 at coordinates: (np.int64(10), np.int64(9))
+ Min value: 0.023313680310996072 at coordinates: (np.int64(127), np.int64(128))
+observatory.coronagraph.omega_lod:
+ Unit: dimensionless
+ Shape: (256, 256, 1)
+ Max value: 521.0418167768465 at coordinates: (np.int64(127), np.int64(127), np.int64(0))
+ Min value: 1.1501231720285063 at coordinates: (np.int64(2), np.int64(107), np.int64(0))
+observatory.coronagraph.xcenter:
+ Unit: pix
+ Shape: scalar
+ Value: 1.280000e+02 pix
+observatory.coronagraph.ycenter:
+ Unit: pix
+ Shape: scalar
+ Value: 1.280000e+02 pix
+observatory.coronagraph.nchannels:
+ Unit: N/A
+ Shape: scalar
+ Value: 2
+observatory.coronagraph.minimum_IWA:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 2.000000e+00 λ/D
+observatory.coronagraph.maximum_OWA:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 1.000000e+02 λ/D
+observatory.coronagraph.npsfratios:
+ Unit: N/A
+ Shape: scalar
+ Value: 1
+observatory.coronagraph.nrolls:
+ Unit: N/A
+ Shape: scalar
+ Value: 1
+
+Detector:
+observatory.detector.pixscale_mas:
+ Unit: mas
+ Shape: scalar
+ Value: 3.712767e+00 mas
+observatory.detector.QE*observatory.detector.dQE:
+ Unit: electron / ph
+ Shape: (169,)
+ Max value: 0.7187396880851027 electron / ph at coordinates: (np.int64(36),)
+ Min value: 0.06858428593817881 electron / ph at coordinates: (np.int64(120),)
+observatory.detector.npix_multiplier:
+ Unit: dimensionless
+ Shape: (169,)
+ Max value: 1.0 at coordinates: (np.int64(0),)
+ Min value: 1.0 at coordinates: (np.int64(0),)
+observatory.detector.DC:
+ Unit: electron / (pix s)
+ Shape: (169,)
+ Max value: 0.0001 electron / (pix s) at coordinates: (np.int64(121),)
+ Min value: 3e-05 electron / (pix s) at coordinates: (np.int64(0),)
+observatory.detector.RN:
+ Unit: electron / (pix read)
+ Shape: (169,)
+ Max value: 0.4 electron / (pix read) at coordinates: (np.int64(121),)
+ Min value: 0.0 electron / (pix read) at coordinates: (np.int64(0),)
+observatory.detector.tread:
+ Unit: s / read
+ Shape: (169,)
+ Max value: 1000.0 s / read at coordinates: (np.int64(0),)
+ Min value: 1000.0 s / read at coordinates: (np.int64(0),)
+observatory.detector.CIC:
+ Unit: electron / (frame pix)
+ Shape: (169,)
+ Max value: 0.0 electron / (frame pix) at coordinates: (np.int64(0),)
+ Min value: 0.0 electron / (frame pix) at coordinates: (np.int64(0),)
+
+Calculated Variables:
+
+1. Initial Calculations:
+Fs_over_F0:
+ Unit: dimensionless
+ Shape: (169,)
+ Max value: 11296679244.760235 at coordinates: (np.int64(134),)
+ Min value: 1073118857.7444104 at coordinates: (np.int64(143),)
+deltalambda_nm:
+ Unit: nm
+ Shape: scalar
+ Value: 1.873087e+01 nm
+lod:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 1.000000e+00 λ/D
+lod_rad:
+ Unit: rad
+ Shape: scalar
+ Value: 1.213761e-07 rad
+lod_arcsec:
+ Unit: arcsec
+ Shape: scalar
+ Value: 2.503561e-02 arcsec
+area_cm2:
+ Unit: cm2
+ Shape: scalar
+ Value: 1.515043e+06 cm2
+detpixscale_lod:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 1.482994e-01 λ/D
+stellar_diam_lod:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 1.874583e-02 λ/D
+
+2. Interpolated Arrays:
+Istar_interp:
+ Unit: dimensionless
+ Shape: (256, 256)
+ Max value: 2.2630595664498675e-14 at coordinates: (np.int64(122), np.int64(130))
+ Min value: 7.242566590526111e-17 at coordinates: (np.int64(7), np.int64(7))
+noisefloor_interp:
+ Unit: dimensionless
+ Shape: (256, 256)
+ Max value: 7.543531888166224e-16 at coordinates: (np.int64(125), np.int64(122))
+ Min value: 2.4141888635087045e-18 at coordinates: (np.int64(7), np.int64(7))
+
+3. Coronagraph Performance Measurements:
+pixscale_rad:
+ Unit: rad
+ Shape: scalar
+ Value: 3.034402e-08 rad
+oneopixscale_arcsec:
+ Unit: pix / arcsec
+ Shape: scalar
+ Value: 1.597724e+02 pix / arcsec
+det_sep_pix:
+ Unit: pix
+ Shape: scalar
+ Value: 1.150000e+01 pix
+det_sep:
+ Unit: arcsec
+ Shape: scalar
+ Value: 7.197738e-02 arcsec
+det_Istar:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 1.121281e-14
+det_skytrans:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 4.828065e-01
+det_photometric_aperture_throughput:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 2.805979e-01
+det_omega_lod:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 3.383260e+00
+
+4. Detector Noise Calculations:
+det_CRp:
+ Unit: electron / s
+ Shape: scalar
+ Value: 7.292446e-02 electron / s
+det_CRbs:
+ Unit: electron / s
+ Shape: scalar
+ Value: 4.662547e-05 electron / s
+det_CRbz:
+ Unit: electron / s
+ Shape: scalar
+ Value: 2.169350e-02 electron / s
+det_CRbez:
+ Unit: electron / s
+ Shape: scalar
+ Value: 6.171737e-02 electron / s
+det_CRbbin:
+ Unit: electron / s
+ Shape: scalar
+ Value: 0.000000e+00 electron / s
+det_CRbth:
+ Unit: electron / s
+ Shape: scalar
+ Value: 4.051108e-01 electron / s
+det_CR:
+ Unit: electron / s
+ Shape: scalar
+ Value: 5.614927e-01 electron / s
+
+5. Planet Position and Separation:
+ix:
+ Unit: N/A
+ Shape: scalar
+ Value: 1.353290e+02
+iy:
+ Unit: N/A
+ Shape: scalar
+ Value: 1.280000e+02
+sp_lod:
+ Unit: dimensionless
+ Shape: scalar
+ Value: 1.832252e+00 λ/D
+
+6. Count Rates and Exposure Time Calculation:
+CRp:
+ Unit: electron / s
+ Shape: scalar
+ Value: 2.174507e-03 electron / s
+CRnf:
+ Unit: electron / s
+ Shape: scalar
+ Value: 8.614376e-06 electron / s
+CRbs:
+ Unit: electron / s
+ Shape: scalar
+ Value: 5.677831e-05 electron / s
+CRbz:
+ Unit: electron / s
+ Shape: scalar
+ Value: 1.038714e-02 electron / s
+CRbez:
+ Unit: electron / s
+ Shape: scalar
+ Value: 7.704019e-02 electron / s
+CRbbin:
+ Unit: electron / s
+ Shape: scalar
+ Value: 0.000000e+00 electron / s
+t_photon_count:
+ Unit: s / frame
+ Shape: scalar
+ Value: 2.162535e+02 s / frame
+CRbd:
+ Unit: electron / s
+ Shape: scalar
+ Value: 6.696550e-02 electron / s
+CRbth:
+ Unit: electron / s
+ Shape: scalar
+ Value: 8.824796e-03 electron / s
+CRb:
+ Unit: electron / s
+ Shape: scalar
+ Value: 5.053236e-01 electron / s
+
+7. Final Result:
+observation.exptime:
+ Unit: s
+ Shape: (169,)
+ Max value: 0.0 s at coordinates: (np.int64(0),)
+ Min value: 0.0 s at coordinates: (np.int64(0),)
+observation.fullsnr:
+ Unit: dimensionless
+ Shape: (169,)
+ Max value: inf at coordinates: (np.int64(161),)
+ Min value: 0.04872973072373787 at coordinates: (np.int64(150),)

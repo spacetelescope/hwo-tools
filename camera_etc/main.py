@@ -53,14 +53,18 @@ def update_snr(suitable_bands, exptime):
         instrument.add_exposure(hri_exp)
         hri_exp.exptime = exptime
         for band_name in bands:
-            print("BAND NAME", band_name)
-            hri_exp.calculate_snr(hri_source, band=band_name)
-            band = instrument.configuration["element"][band_name]
-            pivotwave.append(band["effective_wavelength"])
-            bandnames.append(band["name"])
-            snr.append(hri_exp.snr)
-        snrs.append(snr)
-        pivots.append(pivotwave)
+            try:
+                print("BAND NAME", band_name)
+                hri_exp.calculate_snr(hri_source, band=band_name)
+                band = instrument.configuration["element"][band_name]
+                pivotwave.append(band["effective_wavelength"].value)
+                bandnames.append(band["name"])
+                print("SNR", hri_exp.snr)
+                snr.append(hri_exp.snr[0].value)
+            except syn.exceptions.DisjointError:
+                continue
+        snrs.append(np.asarray(snr))
+        pivots.append(np.asarray(pivotwave))
         names.append(bandnames)
 
     print(len(snrs), names)
@@ -90,8 +94,7 @@ def initialize_setup():
     hri_exp.source = hri_source
     hri_exp.verbose = True 
 
-    pivots, snrs, names = update_snr(suitable_bands, 1 * u.h)
-    print(pivots)
+    snrs, pivots, names = update_snr(suitable_bands, 1 * u.h)
 
     source1 = ColumnDataSource(data=dict(x=pivots[0], y=snrs[0], desc=names[0]))
     source2 = ColumnDataSource(data=dict(x=pivots[1], y=snrs[1], desc=names[1]))
@@ -99,8 +102,6 @@ def initialize_setup():
 
 initialize_setup()
 
-
-print("Here1")
 
 
 hover = HoverTool(point_policy="snap_to_data", 
@@ -131,8 +132,6 @@ snr_plot.scatter('x', 'y', source=source2, fill_color='white', line_color='orang
 snr_plot.line('x', 'y', source=source3, line_width=3, line_color='red', line_alpha=1.0)
 snr_plot.scatter('x', 'y', source=source3, fill_color='white', line_color='red', size=8) 
 
-print("Here2")
-
 #hri_source = spectra_library[template_to_start_with]
 flux_converted = syn.units.convert_flux(hri_source.sed.waveset, hri_source.sed(hri_source.sed.waveset), FLUXUNIT)
 
@@ -146,10 +145,13 @@ sed_plot.yaxis.axis_label = 'AB Magnitude'
 sed_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
 
-print("Here3")
 
+def flatten(arr):
+    # https://realpython.com/python-flatten-list/
+    return [item for row in arr for item in row]
 
 def update_data(attrname, old, new):
+
 
     print("You have chosen template ", template.value)
 
@@ -162,14 +164,12 @@ def update_data(attrname, old, new):
     print('Renorming to ', magnitude.value) 
     print('SED Waveunits: ', hri_source.sed.waveset.unit)
     print('SED Fluxunits: ', hri_source.sed(hri_source.sed.waveset).unit)
-    
+
     flux_converted = syn.units.convert_flux(hri_source.sed.waveset, hri_source.sed(hri_source.sed.waveset), FLUXUNIT)
 
     spectrum_template.data = {'w':hri_source.sed.waveset.value, 'f':flux_converted.value}    
 
-    pivots, snrs, names = update_snr(suitable_bands, [exptime.value] * u.hr) 
-
-    print("HereUpd")
+    snrs, pivots, names = update_snr(suitable_bands, [exptime.value] * u.hr) 
 
 
     source1.data = dict(x=pivots[0], y=snrs[0], desc=names[0]) 
@@ -177,9 +177,9 @@ def update_data(attrname, old, new):
     source3.data = dict(x=pivots[2], y=snrs[2], desc=names[2])
 
     snr_plot.y_range.start = 0
-    snr_plot.y_range.end = 1.3*np.max([np.max(hri_exp.snr.value),5.]) 
+    snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs)),5.]) 
 
-    sed_plot.y_range.start = np.max(flux_converted.value)+5. 
+    sed_plot.y_range.start = np.max(flux_converted.value)+5.
     sed_plot.y_range.end = np.min(flux_converted.value)-5. 
     text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(spectra_library[template.value].band) + ' band'
     sed_plot.title.text = text
@@ -208,8 +208,6 @@ magnitude_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
-
-print("Here4")
 
 
 template = Select(title="Template Spectrum", value="Flat (AB)", options=list(spectra_library.keys()), width=250) 
@@ -262,8 +260,6 @@ upload.on_change("filename", process_spectrum)
 for w in [template]:
     w.on_change('value', update_data)
 
-print("Here5")
-
 
 controls = column(children=[aperture, exptime, magnitude, template, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
 controls_tab = TabPanel(child=controls, title='Controls')
@@ -271,11 +267,7 @@ info_tab = TabPanel(child=Div(text = h.help()), title='Info')
 inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 
 plots = Tabs(tabs=[ TabPanel(child=snr_plot, title='SNR'), TabPanel(child=sed_plot, title='SED') ]) 
 
-print("Here6")
-
 
 curdoc().add_root(row(children=[inputs, plots])) 
 curdoc().add_root(source) 
 curdoc().add_root(source1) 
-
-print("Here7")

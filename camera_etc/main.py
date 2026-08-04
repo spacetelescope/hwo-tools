@@ -33,19 +33,21 @@ hwo = None
 source1 = ColumnDataSource(data=dict())
 source2 = ColumnDataSource(data=dict())
 source3 = ColumnDataSource(data=dict())
-suitable_bands = {}
+suitable_instruments = {}
 template_to_start_with = "Flat (AB)"
 
-def update_snr(suitable_bands, exptime):
+def update_snr(suitable_instruments, exptime):
     global hri_source
     global hri_exp
     global instrument
     snrs = []
     pivots = []
     names = []
-    for instrument_name in suitable_bands:
-        bands = suitable_bands[instrument_name]
+    
+    for instrument_name in suitable_instruments:
+        bands = suitable_instruments[instrument_name]
         instrument = hwo.instruments[instrument_name]
+        bands = sorted(bands, key=lambda x: instrument.configuration["band"][x]["effective_wavelength"])
 
         snr = []
         pivotwave = []
@@ -54,23 +56,23 @@ def update_snr(suitable_bands, exptime):
         hri_exp.exptime = exptime
         for band_name in bands:
             try:
-                print("BAND NAME", band_name)
                 hri_exp.calculate_snr(hri_source, band=band_name)
-                band = instrument.configuration["element"][band_name]
+                band = instrument.configuration["band"][band_name]
                 pivotwave.append(band["effective_wavelength"].value)
                 bandnames.append(band["name"])
-                print("SNR", hri_exp.snr)
                 snr.append(hri_exp.snr[0].value)
-            except syn.exceptions.DisjointError:
+            except (syn.exceptions.DisjointError, syn.exceptions.SynphotError):
+                print("Disjoint")
                 continue
         snrs.append(np.asarray(snr))
         pivots.append(np.asarray(pivotwave))
         names.append(bandnames)
 
-    print(len(snrs), names)
-
     return snrs, pivots, names
 
+def flatten(arr):
+    # https://realpython.com/python-flatten-list/
+    return [item for row in arr for item in row]
 
 def initialize_setup():
     global hri_source
@@ -80,7 +82,7 @@ def initialize_setup():
     global source1
     global source2
     global source3
-    global suitable_bands
+    global suitable_instruments
 
 
     hwo = Telescope() 
@@ -94,7 +96,7 @@ def initialize_setup():
     hri_exp.source = hri_source
     hri_exp.verbose = True 
 
-    snrs, pivots, names = update_snr(suitable_bands, 1 * u.h)
+    snrs, pivots, names = update_snr(suitable_instruments, 1 * u.h)
 
     source1 = ColumnDataSource(data=dict(x=pivots[0], y=snrs[0], desc=names[0]))
     source2 = ColumnDataSource(data=dict(x=pivots[1], y=snrs[1], desc=names[1]))
@@ -119,7 +121,7 @@ hover = HoverTool(point_policy="snap_to_data",
     )
 
 snr_plot = figure(height=400, width=700, tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
-              x_range=[1200, 23000], y_range=[0, 10], border_fill_color='black', toolbar_location='right')
+              x_range=[1200, 23000], y_range=[0, 50], border_fill_color='black', toolbar_location='right')
 snr_plot.x_range = Range1d(1000, 23000, bounds=(1200, 23000)) 
 snr_plot.add_tools(hover)
 snr_plot.yaxis.axis_label = 'Signal to Noise Ratio'
@@ -146,16 +148,13 @@ sed_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
 
 
-def flatten(arr):
-    # https://realpython.com/python-flatten-list/
-    return [item for row in arr for item in row]
 
 def update_data(attrname, old, new):
 
 
     print("You have chosen template ", template.value)
 
-    hwo.effective_aperture = aperture.value * u.m 
+    hwo.effective_diameter = aperture.value * u.m 
 
     hri_source.set_sed(template.value, magnitude.value, 0., 0., library=spectra_library)
 
@@ -169,8 +168,9 @@ def update_data(attrname, old, new):
 
     spectrum_template.data = {'w':hri_source.sed.waveset.value, 'f':flux_converted.value}    
 
-    snrs, pivots, names = update_snr(suitable_bands, [exptime.value] * u.hr) 
+    snrs, pivots, names = update_snr(suitable_instruments, [exptime.value] * u.hr) 
 
+    print(snrs, pivots, names)
 
     source1.data = dict(x=pivots[0], y=snrs[0], desc=names[0]) 
     source2.data = dict(x=pivots[1], y=snrs[1], desc=names[1]) 
@@ -180,7 +180,8 @@ def update_data(attrname, old, new):
     snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs)),5.]) 
 
     sed_plot.y_range.start = np.max(flux_converted.value)+5.
-    sed_plot.y_range.end = np.min(flux_converted.value)-5. 
+    sed_plot.y_range.end = np.min(flux_converted.value)-5.
+
     text = 'Normalized to ' + str(magnitude.value) + ' in the ' + str(spectra_library[template.value].band) + ' band'
     sed_plot.title.text = text
     warning.text = ""

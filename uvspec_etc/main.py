@@ -37,10 +37,10 @@ def update_snr(band_name, instrument_name, exptime):
     global uvi_source
     global uvi_exp
     global instrument
-    print(band_name, instrument_name)
     instrument = hwo.instruments[instrument_name]
 
     instrument.add_exposure(uvi_exp)
+    uvi_exp.source = uvi_source
     uvi_exp.exptime = exptime
 
     uvi_exp.calculate_snr(uvi_source, band=band_name)

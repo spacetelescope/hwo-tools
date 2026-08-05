@@ -33,6 +33,7 @@ hwo = None
 source1 = ColumnDataSource(data=dict())
 source2 = ColumnDataSource(data=dict())
 source3 = ColumnDataSource(data=dict())
+source4 = ColumnDataSource(data=dict())
 suitable_instruments = {}
 template_to_start_with = "Flat (AB)"
 
@@ -53,10 +54,12 @@ def update_snr(suitable_instruments, exptime):
         pivotwave = []
         bandnames = []
         instrument.add_exposure(hri_exp)
+        hri_exp.source = hri_source
         hri_exp.exptime = exptime
         for band_name in bands:
             try:
-                hri_exp.calculate_snr(hri_source, band=band_name)
+                print("Band", band_name)
+                hri_exp.calculate_snr(band=band_name)
                 band = instrument.configuration["band"][band_name]
                 pivotwave.append(band["effective_wavelength"].value)
                 bandnames.append(band["name"])
@@ -82,6 +85,7 @@ def initialize_setup():
     global source1
     global source2
     global source3
+    global source4
     global suitable_instruments
 
 
@@ -101,6 +105,7 @@ def initialize_setup():
     source1 = ColumnDataSource(data=dict(x=pivots[0], y=snrs[0], desc=names[0]))
     source2 = ColumnDataSource(data=dict(x=pivots[1], y=snrs[1], desc=names[1]))
     source3 = ColumnDataSource(data=dict(x=pivots[2], y=snrs[2], desc=names[2]))
+    source4 = ColumnDataSource(data=dict(x=pivots[3], y=snrs[3], desc=names[3]))
 
 initialize_setup()
 
@@ -133,6 +138,8 @@ snr_plot.line('x', 'y', source=source2, line_width=3, line_color='orange', line_
 snr_plot.scatter('x', 'y', source=source2, fill_color='white', line_color='orange', size=8) 
 snr_plot.line('x', 'y', source=source3, line_width=3, line_color='red', line_alpha=1.0)
 snr_plot.scatter('x', 'y', source=source3, fill_color='white', line_color='red', size=8) 
+snr_plot.line('x', 'y', source=source4, line_width=3, line_color='green', line_alpha=1.0)
+snr_plot.scatter('x', 'y', source=source4, fill_color='white', line_color='green', size=8) 
 
 #hri_source = spectra_library[template_to_start_with]
 flux_converted = syn.units.convert_flux(hri_source.sed.waveset, hri_source.sed(hri_source.sed.waveset), FLUXUNIT)
@@ -171,10 +178,12 @@ def update_data(attrname, old, new):
     snrs, pivots, names = update_snr(suitable_instruments, [exptime.value] * u.hr) 
 
     print(snrs, pivots, names)
+    print(names[2], pivots[2])
 
     source1.data = dict(x=pivots[0], y=snrs[0], desc=names[0]) 
     source2.data = dict(x=pivots[1], y=snrs[1], desc=names[1]) 
     source3.data = dict(x=pivots[2], y=snrs[2], desc=names[2])
+    source4.data = dict(x=pivots[3], y=snrs[3], desc=names[3])
 
     snr_plot.y_range.start = 0
     snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs)),5.]) 

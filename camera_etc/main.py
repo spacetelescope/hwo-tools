@@ -52,7 +52,6 @@ def update_snr(suitable_instruments, exptime):
 
         snr = []
         pivotwave = []
-        bandnames = []
         instrument.add_exposure(hri_exp)
         hri_exp.source = hri_source
         hri_exp.exptime = exptime
@@ -62,14 +61,13 @@ def update_snr(suitable_instruments, exptime):
                 hri_exp.calculate_snr(band=band_name)
                 band = instrument.configuration["band"][band_name]
                 pivotwave.append(band["effective_wavelength"].value)
-                bandnames.append(band["name"])
                 snr.append(hri_exp.snr[0].value)
             except (syn.exceptions.DisjointError, syn.exceptions.SynphotError):
                 print("Disjoint")
                 continue
         snrs.append(np.asarray(snr))
         pivots.append(np.asarray(pivotwave))
-        names.append(bandnames)
+        names.append(bands)
 
     return snrs, pivots, names
 
@@ -126,7 +124,7 @@ hover = HoverTool(point_policy="snap_to_data",
     )
 
 snr_plot = figure(height=400, width=700, tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
-              x_range=[1200, 23000], y_range=[0, 50], border_fill_color='black', toolbar_location='right')
+              x_range=[1200, 23000], y_range=[0, 120], border_fill_color='black', toolbar_location='right')
 snr_plot.x_range = Range1d(1000, 23000, bounds=(1200, 23000)) 
 snr_plot.add_tools(hover)
 snr_plot.yaxis.axis_label = 'Signal to Noise Ratio'
@@ -177,9 +175,6 @@ def update_data(attrname, old, new):
 
     snrs, pivots, names = update_snr(suitable_instruments, [exptime.value] * u.hr) 
 
-    print(snrs, pivots, names)
-    print(names[2], pivots[2])
-
     source1.data = dict(x=pivots[0], y=snrs[0], desc=names[0]) 
     source2.data = dict(x=pivots[1], y=snrs[1], desc=names[1]) 
     source3.data = dict(x=pivots[2], y=snrs[2], desc=names[2])
@@ -201,7 +196,7 @@ def update_data(attrname, old, new):
 source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
 
-aperture = Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, tags=[4,5,6,6], width=250) 
+aperture = Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=4., end=15.0, step=0.1, tags=[4,5,6,6], width=250) 
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)

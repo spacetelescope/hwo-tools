@@ -40,11 +40,9 @@ def update_snr(band_name, instrument_name, exptime):
     instrument = hwo.instruments[instrument_name]
 
     instrument.add_exposure(uvi_exp)
-    uvi_exp.source = uvi_source
     uvi_exp.exptime = exptime
 
-    uvi_exp.calculate_snr(uvi_source, band=band_name)
-    band = instrument.configuration["band"][band_name]
+    uvi_exp.calculate_snr(band=band_name)
     
     snr = uvi_exp.snr[0].value
     wave = uvi_exp.wave
@@ -83,16 +81,17 @@ def initialize_setup():
                                                    f=syn.units.convert_flux(uvi_source.sed.waveset, uvi_source.sed(uvi_source.sed.waveset), FLUXUNIT).value)) 
     print(' flux = ', uvi_source.sed(uvi_source.sed.waveset))
 
-    snr_results = ColumnDataSource(data=dict(w=wave.value, sn = snr)) 
+    snr_results = ColumnDataSource(data=dict(w=wave.value, sn = snr))
+    background = instrument.sky(wave) + uvi_exp.thermal(wave)
 
-    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=instrument.sky(wave).value))
+    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value))
 
 initialize_setup()
 
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 2000], y_range=[0, 4e-16], toolbar_location='right') 
-flux_plot.x_range=Range1d(900,3000,bounds=(900,3000))
+              x_range=[900, 5000], y_range=[0, 4e-16], toolbar_location='right') 
+flux_plot.x_range=Range1d(900,5000,bounds=(900,5000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None)) 
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
@@ -101,8 +100,8 @@ flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 2000], y_range=[0, 40], toolbar_location='right')
-sn_plot.x_range=Range1d(900,3000,bounds=(900,3000))
+              x_range=[900, 5000], y_range=[0, 40], toolbar_location='right')
+sn_plot.x_range=Range1d(900,5000,bounds=(900,5000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
 sn_plot.line('w', 'sn', source=snr_results, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
 sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
@@ -113,6 +112,7 @@ def flatten(arr):
     return [item for row in arr for item in row]
 
 def update_data(attrname, old, new): # use this one for updating pysynphot templates 
+    global instrument_info
     
     print() 
     print() 
@@ -145,6 +145,10 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
 
     spectrum_template.data = dict(w=uvi_source.sed.waveset.value, f=flux_converted.value) 
     snr_results.data = dict(w=wave.value, sn = snr_fixed) 
+
+    background = instrument.sky(wave) + uvi_exp.thermal(wave)
+    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value))
+
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
@@ -185,7 +189,7 @@ bb_temperature.js_on_change("value_throttled", temperature_callback)
 grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
                  options=list(suitable_bands.keys()))
 
-aperture= Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, width=200)
+aperture= Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=4., end=15.0, step=0.1, width=200)
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)

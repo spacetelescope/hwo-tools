@@ -40,7 +40,7 @@ run_compute = True
 
 hwo = Telescope() 
 hwo.set_from_hwome('EAC5')
-suitable_instruments, suitable_bands = hwo.find_instrument_with("ifu")
+suitable_instruments, suitable_bands = hwo.find_instrument_with("ifs")
 
 # Set up layouts and add to document
 help_text = Div(text = h.help(), width=200) 
@@ -56,27 +56,25 @@ exptime = Slider(title="Exposure Time [hr]", value=1.0, start=0.1, end=10.0, ste
 
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 2000], y_range=[0, 4e-16], toolbar_location='right') 
-flux_plot.x_range=Range1d(900,3000,bounds=(900,3000))
+              x_range=[900, 5000], y_range=[0, 4e-16], toolbar_location='right') 
+flux_plot.x_range=Range1d(900,5000,bounds=(900,5000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None)) 
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 2000], y_range=[0, 40], toolbar_location='right')
-sn_plot.x_range=Range1d(900,3000,bounds=(900,3000))
+              x_range=[900, 5000], y_range=[0, 40], toolbar_location='right')
+sn_plot.x_range=Range1d(900,5000,bounds=(900,5000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
 
 def update_snr(band_name, instrument_name, exptime):
-    global ifs_source
     global ifs_exp
     global instrument
     instrument = hwo.instruments[instrument_name]
 
     instrument.add_exposure(ifs_exp)
     ifs_exp.exptime = exptime
-
 
     ifs_exp.calculate_snr(band=band_name)
     
@@ -89,6 +87,7 @@ def update_snr(band_name, instrument_name, exptime):
 def update_data(): # use this one for updating synphot templates 
     global sources
     global hwo
+    global instrument
     global suitable_bands
     global instrument_info
     # blank out the old list of sources
@@ -121,7 +120,6 @@ def update_data(): # use this one for updating synphot templates
             ifs_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave << u.Angstrom, lookup_table=bb(wave))
 
         flux_converted = syn.units.convert_flux(ifs_source.sed.waveset, ifs_source.sed(ifs_source.sed.waveset), FLUXUNIT)
-        print("Flux_converted", flux_converted.value)
 
         all_fluxes.extend(flux_converted.value)
 
@@ -137,9 +135,10 @@ def update_data(): # use this one for updating synphot templates
 
     snr_fixed = np.nan_to_num(snr, nan=0)
 
-    snr_results.data = dict(w=wave.value, sn = snr_fixed) 
+    snr_results.data = dict(w=wave.value, sn = snr_fixed)
 
-    instrument_info = ColumnDataSource(data=dict(w=wave.value, bef=instrument.sky(wave).value))
+    background = instrument.sky(wave) + ifs_exp.thermal(wave)
+    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value))
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 

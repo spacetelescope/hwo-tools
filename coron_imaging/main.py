@@ -37,8 +37,8 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     def __init__(self):
 
         self.parameters = {}
-        self.scene = pE.AstrophysicalScene()
         self.observation = pE.Observation() # define the observation object
+        self.scene = pE.AstrophysicalScene()
         self.observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
         self.obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
         self.inputs = ColumnDataSource(data=dict())
@@ -214,9 +214,8 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
         # SCENE
         self.parameters["nzodis"] = 3. # number of zodis for exozodi estimate
-        self.parameters["ra"] = 176.6292 # approximate ra of HD 102365. WARNING: do not use this number for science. 
-        self.parameters["dec"] = -40.5003 # approximate dec of HD 102365. WARNING: do not use this number for science. 
-
+        self.parameters["ra"] = 180.000 
+        self.parameters["dec"] = +20.000 
         # Observatory parameters
         self.parameters["observing_mode"] = "IMAGER" # ETC should use IMAGER mode
         if "eacnum" in self.parameters:
@@ -224,12 +223,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         else:
             self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
         #self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
-        self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
-
-        # We need to run this, but parse_parameters also effectively strips out anything
-        # pyEDITH itself doesn't use, and we're using the same dictionary for a lot of our own
-        # parameters. 
-        self.parameters = pE.parse_input.parse_parameters(self.parameters)
+        #self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
 
         # star must be loaded first, because planet flux is relative to star.
         self.load_star("G2V star")
@@ -240,7 +234,8 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         # this piece, alone, has to be created WITH some configured parameters.
         self.observatory_config = pE.parse_input.get_observatory_config(self.parameters)
 
-        self.observatory = pE.ObservatoryBuilder.create_observatory(self.observatory_config)
+        self.observatory = pE.Observatory()
+        self.observatory.create_observatory(self.observatory_config)
 
         self.recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
@@ -264,7 +259,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
             self.update_calculation(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
             try:
-                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="exposure_time")
+                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, ETC_validation=False, mode="exposure_time")
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
@@ -334,7 +329,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
             self.update_calculation(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
             try:
-                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
+                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, ETC_validation=False, mode="signal_to_noise")
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"

@@ -219,8 +219,8 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
         # SCENE
         self.parameters["nzodis"] = 3. # number of zodis for exozodi estimate
-        self.parameters["ra"] = 176.6292 # approximate ra of HD 102365. WARNING: do not use this number for science. 
-        self.parameters["dec"] = -40.5003 # approximate dec of HD 102365. WARNING: do not use this number for science. 
+        self.parameters["ra"] = 180.000 
+        self.parameters["dec"] = +20.000 
 
         # Observatory parameters
         self.parameters["observing_mode"] = "IFS" # ETC should use IFS mode
@@ -230,12 +230,14 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
         self.parameters["IFS_eff"]  = 1. # extra throughput of the IFS 
         self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
-        self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
+        #self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
 
         # this piece, alone, has to be created WITH some configured parameters.
         self.observatory_config = pE.parse_input.get_observatory_config(self.parameters)
 
-        self.observatory = pE.ObservatoryBuilder.create_observatory(self.observatory_config)
+        self.observatory = pE.Observatory()
+        self.observatory.create_observatory(self.observatory_config)
+
 
         self.recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
@@ -265,8 +267,6 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                                                 set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                 )
 
-        print("Obs", obs)
-        print("Noise", noise)
 
         good = np.where(self.observation.exptime < 1e8 * u.s) # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
 

@@ -164,13 +164,13 @@ class pyEDITHETC():
         if "scene" in newvalues.data and newvalues.data["scene"][0]:
             print("Rerun scene")
             self.update_scene()
-            if self.parameters["regrid_wavelength"] is True:
-                self.scene.regrid_spectra(self.parameters, self.observation)
+            if self.parameters["observing_mode"] == "IFS" and self.parameters["regrid_wavelength"] is True:
+                self.scene.regrid_spectra(self.observation)
             newvalues.data["scene"][0] = False
 
-        pE.ObservatoryBuilder.configure_observatory(
-            self.observatory, self.parameters, self.observation, self.scene
-        )
+        observatory_config = pE.parse_input.get_observatory_config(self.parameters)
+        self.observatory.create_observatory(observatory_config)
+        self.observatory.load_configuration(self.parameters, self.observation, self.scene)
         self.observatory.validate_configuration()
         #print(observatory.telescope.__dict__)
         #print_observatory(observatory)

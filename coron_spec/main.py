@@ -101,7 +101,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.stellar_radius = Slider(title="Radius of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width") 
         self.stellar_radius.on_change("value", self.stellar_radius_callback)
 
-        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=100.0, step=0.1) 
+        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=25.0, step=0.1) 
         self.distance.on_change("value", self.distance_callback)
 
         self.planet = Select(title="Template Planet Spectrum", value="Earth", 
@@ -263,7 +263,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             self.warning.text = "<p></p>"
         obs, noise = pE.utils.synthesize_observation(self.newsnr.value * np.ones_like(self.observation.wavelength.value),
                                                 self.scene, 
-                                                random_seed=None, # seed defaults to None
+                                                random_seed=2026, # seed defaults to None
                                                 set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                 )
 
@@ -302,7 +302,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             self.warning.text = "<p></p>"
         obs, noise = pE.utils.synthesize_observation(self.observation.fullsnr,
                                                 self.scene, 
-                                                random_seed=None, # seed defaults to None
+                                                random_seed=2026, # seed defaults to None
                                                 set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                 )
 

@@ -58,7 +58,7 @@ class pyEDITHETC():
         solid_angle = self.parameters["planetary_radius"]**2/(4 * (self.parameters["semimajor_axis"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
         flux_planet = self.parameters["FstarV_10pc"] * solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron)
         self.parameters["F0"] = flux_planet.value
-        self.parameters["Fp/Fs"] = (flux_planet / self.parameters["FstarV_10pc"]).value
+        self.parameters["Fp/Fs"] = (solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron)).value
         self.semimajor.value = self.parameters["semimajor_axis"] # Make sure it matches what was used
 
 

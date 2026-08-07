@@ -50,18 +50,21 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
         self.exp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
         self.exp_plot.scatter("wavelength", "exptime", source=self.obsdata)
+        self.exp_plot.segment(x0='band_lo', y0='exptime', x1='band_hi', y1='exptime', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.exp_panel = TabPanel(child=self.exp_plot, title='Exposure Time') #, width=800)
 
 
         self.snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
         self.snr_plot.scatter("wavelength", "snr", source=self.obsdata)
+        self.snr_plot.segment(x0='band_lo', y0='snr', x1='band_hi', y1='snr', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
 
 
         self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.spec_plot.line("wavelength", "FpFs", source=self.obsdata)
+        self.spec_plot.line("wavelength", "obs", source=self.obsdata)
         self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
-        self.spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot.segment(x0='band_lo', y0='obs', x1='band_hi', y1='obs', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot.segment(x0='wavelength', y0='noise_hi', x1='wavelength', y1='noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
         self.exptime_compute = Button(label="Calculate", button_type="primary")
@@ -105,7 +108,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.stellar_radius = Slider(title="Radius of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width") 
         self.stellar_radius.on_change("value", self.stellar_radius_callback)
 
-        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=100.0, step=0.1) 
+        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=25.0, step=0.1) 
         self.distance.on_change("value", self.distance_callback)
 
         self.planet = Select(title="Template Planet Spectrum", value="Earth", 
@@ -274,7 +277,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p></p>"
             obs, noise = pE.utils.synthesize_observation(self.newsnr.value * np.ones_like(self.observation.wavelength.value),
                                                     self.scene, 
-                                                    random_seed=None, # seed defaults to None
+                                                    random_seed=2026, # seed defaults to None
                                                     set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                     )
 
@@ -300,7 +303,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         #print(obs_filters, noise_hi)
 
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
-                    "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], "snr": snr_filters[good]}
+                    "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
+                    "band_lo": wave_filters[good] - self.parameters["bandwidth"]*u.micron/2, "band_hi": wave_filters[good] + self.parameters["bandwidth"]*u.micron/2, 
+                    "snr": snr_filters[good]}
     #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
         self.exp_plot.title.text =  title_text
@@ -344,7 +349,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p></p>"
             obs, noise = pE.utils.synthesize_observation(self.observation.fullsnr,
                                                     self.scene, 
-                                                    random_seed=None, # seed defaults to None
+                                                    random_seed=2026, # seed defaults to None
                                                     set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                     )
 
@@ -370,7 +375,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         #print(obs_filters, noise_hi)
 
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
-                    "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], "snr": snr_filters[good]}
+                    "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
+                    "band_lo": wave_filters[good] - self.parameters["bandwidth"]*u.micron/2, "band_hi": wave_filters[good] + self.parameters["bandwidth"]*u.micron/2, 
+                    "snr": snr_filters[good]}
     #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
         self.snr_plot.title.text = title_text

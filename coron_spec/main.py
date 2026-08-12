@@ -37,26 +37,29 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.observation = pE.Observation() # define the observation object
         self.observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
         self.obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
+        self.baddata = ColumnDataSource(data=dict(wavelength=[]))
         self.inputs = ColumnDataSource(data=dict())
 
         self.widget_setup()
         self.tab_setup()
-    
+
     def widget_setup(self):
         self.intro = Div(text=f'<p>This Habworlds Coronagraphic Spectroscopy ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), v{pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
 
         self.exp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
         self.exp_plot.line("wavelength", "exptime", source=self.obsdata)
+        self.exp_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.exp_panel = TabPanel(child=self.exp_plot, title='Exposure Time') #, width=800)
 
         self.snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
         self.snr_plot.line("wavelength", "snr", source=self.obsdata)
+        self.snr_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
 
 
         self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
         self.spec_plot.line("wavelength", "FpFs", source=self.obsdata)
-        self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+        self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover')
         self.spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
@@ -82,36 +85,36 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.eac_buttons = RadioButtonGroup(labels=self.EACS, active=0)
         self.eac_buttons.on_change("active", self.eac_callback)
 
-        self.newsnr  = Slider(title="Target SNR", value=10., start=0.1, end=100.0, step=0.1, ) 
+        self.newsnr  = Slider(title="Target SNR", value=10., start=0.1, end=100.0, step=0.1, )
         self.newsnr.on_change("value", self.snr_callback)
 
         self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
         self.newexp.on_change("value", self.exp_callback)
 
-        self.newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, ) 
+        self.newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, )
         self.newdiameter.on_change("value", self.diameter_callback)
 
-        self.star = Select(title="Template Star Spectrum", value="G2V star", 
-                    options=list(self.target_star.keys()), width=250) 
+        self.star = Select(title="Template Star Spectrum", value="G2V star",
+                    options=list(self.target_star.keys()), width=250)
         self.star.on_change("value", self.star_callback)
 
-        self.stellar_magnitude = Slider(title="V Magnitude of Star", value=12., start=-6, end=20, step=0.1, direction="rtl", sizing_mode="stretch_width") 
+        self.stellar_magnitude = Slider(title="V Magnitude of Star", value=12., start=-6, end=20, step=0.1, direction="rtl", sizing_mode="stretch_width")
         self.stellar_magnitude.on_change("value", self.stellarmag_callback)
 
-        self.stellar_radius = Slider(title="Radius of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width") 
+        self.stellar_radius = Slider(title="Radius of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width")
         self.stellar_radius.on_change("value", self.stellar_radius_callback)
 
-        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=25.0, step=0.1) 
+        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=25.0, step=0.1)
         self.distance.on_change("value", self.distance_callback)
 
-        self.planet = Select(title="Template Planet Spectrum", value="Earth", 
+        self.planet = Select(title="Template Planet Spectrum", value="Earth",
                 options=list(self.target_planet.keys()), width=250)
         self.planet.on_change("value", self.planet_callback)
 
-        self.semimajor = Slider(title="Semimajor Axis (AU)", value=0.1, start=0.01, end=10, step=0.01, ) 
-        self.semimajor.on_change("value", self.semimajor_callback)
+        self.angsep = Slider(title="Angular Separation (arcsec)", value=0.01, start=0.001, end=1, step=0.001, )
+        self.angsep.on_change("value", self.angsep_callback)
 
-        self.delta_mag = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
+        self.delta_mag = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, )
         self.delta_mag.on_change("value", self.dmag_callback)
 
         self.upload = FileInput(accept=[".txt", ".csv", ".fit", ".fits", ".ascii", ".asdf"], title="Upload a Stellar Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
@@ -123,36 +126,36 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.observation_tab = TabPanel(child=self.exp_plot, title='Observation') # , width=400)
         self.info_panel = TabPanel(child=self.info_panel, title='Info') #, width=800)
 
-        self.controls = column(children=[], sizing_mode='fixed', width=320, height=480) 
+        self.controls = column(children=[], sizing_mode='fixed', width=320, height=480)
         self.starparam = row(children=[self.stellar_magnitude, self.stellar_radius], width_policy = "fit")
 
         self.exp_snr_toggle = RadioGroup(labels=["Solve For Exposure Time", "Solve For SNR"], active=0)
         def exp_snr_callback(active, old, new):
             if (new == 0):
                 print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam, 
-                                          self.distance, self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
+                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam,
+                                          self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
                 outputs.tabs = [self.spec_panel, self.exp_panel, self.info_panel]
             elif new == 1:
                 print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.hrpanel1, self.star, self.starparam, 
-                                          self.distance, self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.snr_compute, self.upload, self.warning]
-                outputs.tabs = [self.spec_panel, self.snr_panel, self.info_panel]                   
+                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.hrpanel1, self.star, self.starparam,
+                                          self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.snr_compute, self.upload, self.warning]
+                outputs.tabs = [self.spec_panel, self.snr_panel, self.info_panel]
             #controls.change.emit()
             #outputs.change.emit()
 
         self.exp_snr_toggle.on_change("active", exp_snr_callback)
 
         # this is the initial for-exptime selection
-        self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam, self.distance, 
-                                self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
+        self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam, self.distance,
+                                self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
 
         outputs = Tabs(tabs=[self.spec_panel, self.exp_panel, self.info_panel], sizing_mode="inherit")
         plots = column(children=[outputs], sizing_mode='fixed', width=640, height=480)
         l = layout([[self.controls, plots]],sizing_mode='fixed', width=960, height=480)
 
         curdoc().theme = 'dark_minimal'
-        curdoc().add_root(l) 
+        curdoc().add_root(l)
         curdoc().add_root(self.obsdata)
 
     def load_initial(self):
@@ -164,10 +167,10 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         # set up wavelengths
         self.parameters["wavelength"] = np.linspace(0.35, 1.71, 1000)
         self.parameters["nlambd"] = len(self.parameters["wavelength"]) # number of wavelengths
-        self.parameters["snr"] = param_snr * np.ones_like(self.parameters["wavelength"]) # the SNR you want for each spectral bin 
+        self.parameters["snr"] = param_snr * np.ones_like(self.parameters["wavelength"]) # the SNR you want for each spectral bin
         self.parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
         #self.parameters["photometric_aperture_radius"] = None#0.85 # radius of the photometric aperture in units of lambda/D
-        self.parameters["psf_trunc_ratio"] = 0.3 # truncate the off-axis PSFs at this level 
+        self.parameters["psf_trunc_ratio"] = 0.3 # truncate the off-axis PSFs at this level
 
         self.parameters["regrid_wavelength"] = True # set the flag to do this. We also need to specify a few other parameters.
         self.parameters["spectral_resolution"] = np.array([70, 140, 90]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
@@ -175,11 +178,11 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.parameters["lam_low"] = [0.36, 0.5, 1.0]
         self.parameters["lam_high"] = [0.5, 1.0, 1.7]
 
-        # The Astrophysical 
+        # The Astrophysical
         # STAR
         #self.parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
         self.parameters["distance"] = 10. # distance to the system in pc
-        self.parameters["semimajor_axis"] = 1 # planetary separation in AU
+        self.parameters["separation"] = 0.1 # planetary separation in arcsec
         #self.parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
 
 
@@ -219,8 +222,8 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
         # SCENE
         self.parameters["nzodis"] = 3. # number of zodis for exozodi estimate
-        self.parameters["ra"] = 180.000 
-        self.parameters["dec"] = +20.000 
+        self.parameters["ra"] = 180.000
+        self.parameters["dec"] = +20.000
 
         # Observatory parameters
         self.parameters["observing_mode"] = "IFS" # ETC should use IFS mode
@@ -228,9 +231,13 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             self.parameters["observatory_preset"] = self.EACS[self.parameters["eacnum"]]
         else:
             self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
-        self.parameters["IFS_eff"]  = 1. # extra throughput of the IFS 
+        self.parameters["IFS_eff"]  = 1. # extra throughput of the IFS
         self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
         #self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
+
+        # Allow us to change the telescope diameter
+        self.parameters['overrides'] = ['diameter']
+
 
         # this piece, alone, has to be created WITH some configured parameters.
         self.observatory_config = pE.parse_input.get_observatory_config(self.parameters)
@@ -262,18 +269,21 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         else:
             self.warning.text = "<p></p>"
         obs, noise = pE.utils.synthesize_observation(self.newsnr.value * np.ones_like(self.observation.wavelength.value),
-                                                self.scene, 
+                                                self.scene,
                                                 random_seed=2026, # seed defaults to None
                                                 set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                 )
 
 
-        good = np.where(self.observation.exptime < 1e8 * u.s) # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
 
-        self.obsdata.data={"wavelength": self.observation.wavelength[good], "exptime": self.observation.exptime[good].to(u.hr), "FpFs": self.scene.Fp_over_Fs[good], 
+        good = [True if np.isfinite(x) and x < 1e8 * u.s else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+        bad = np.invert(good)
+
+        self.baddata.data={"wavelength": self.observation.wavelength[bad]}
+        self.obsdata.data={"wavelength": self.observation.wavelength[good], "exptime": self.observation.exptime[good].to(u.hr), "FpFs": self.scene.Fp_over_Fs[good],
                     "obs": obs[good], "noise_hi": obs[good] + noise[good]/2., "noise_lo": obs[good] - noise[good]/2., "snr": self.newsnr.value * np.ones_like(self.observation.wavelength[good].value)}
         #print("New Data", obsdata.data)
-        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
+        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
         self.exp_plot.title.text =  title_text
         self.spec_plot.title.text = title_text
 
@@ -301,7 +311,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         else:
             self.warning.text = "<p></p>"
         obs, noise = pE.utils.synthesize_observation(self.observation.fullsnr,
-                                                self.scene, 
+                                                self.scene,
                                                 random_seed=2026, # seed defaults to None
                                                 set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                 )
@@ -309,11 +319,13 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         print("Obs", obs)
         print("Noise", noise)
 
-        good = np.where(self.observation.exptime < 1e8 * u.s) # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+        good = [True if np.isfinite(x) else False for x in self.observation.fullsnr]
+        bad = np.invert(good)
 
+        self.baddata.data={"wavelength": self.observation.wavelength[bad]}
         self.obsdata.data={"wavelength": self.observation.wavelength, "exptime": self.newexp.value * np.ones_like(self.observation.wavelength.value), "FpFs": self.scene.Fp_over_Fs, "obs": obs, "noise_hi": obs + noise/2., "noise_lo": obs - noise/2., "snr": self.observation.fullsnr}
         #print("New Data", obsdata.data)
-        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
+        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
         self.snr_plot.title.text =  title_text
         self.spec_plot.title.text = title_text
 
@@ -326,7 +338,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
     def snr_callback(self, attr, old, new):
         print(attr, old, new)
         self.inputs.data.update({"new_snr": [new], "observation": [True]})
-     
+
     def exp_callback(self, attr, old, new):
         print(attr, old, new)
         self.inputs.data.update({"new_exp": [new], "observation": [True]})
@@ -355,9 +367,9 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         print(attr, old, new)
         self.inputs.data.update({"new_planet": [new], "scene": [True]})
 
-    def semimajor_callback(self, attr, old, new):
+    def angsep_callback(self, attr, old, new):
         print(attr, old, new)
-        self.inputs.data.update({"new_semimajor": [new], "scene": [True]})
+        self.inputs.data.update({"new_angsep": [new], "scene": [True]})
 
     def dmag_callback(self, attr, old, new):
         print(attr, old, new)
@@ -401,7 +413,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             input_filename = new
             if len(input_filename) > 44:
                 input_filename = new[0:44]
-            
+
             filetype = "unknown"
             if keyword == "SIMPLE": # 2. Validate the file type, don't trust Content-Type header
                 filetype = "fits"
@@ -412,7 +424,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             else:
                 filetype = "txt"
 
-            filename = f"file_{datetime.datetime.now().isoformat()}.{filetype}" # 3. Change the filename to something generated by the application. 6. store files... outside of the webroot 
+            filename = f"file_{datetime.datetime.now().isoformat()}.{filetype}" # 3. Change the filename to something generated by the application. 6. store files... outside of the webroot
             with open(f"../uploaded/{filename}", "wb") as outfile:
                 outfile.write(spectrumdata)
             #try:

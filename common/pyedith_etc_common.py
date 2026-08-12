@@ -55,23 +55,23 @@ class pyEDITHETC():
 
     def recompute_planet_flux(self):
         print(self.parameters)
-        solid_angle = self.parameters["planetary_radius"]**2/(4 * (self.parameters["semimajor_axis"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
-        flux_planet = self.parameters["FstarV_10pc"] * solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron)
+        solid_angle = self.parameters["planetary_radius"]**2/(4 * (self.parameters["separation"]*self.parameters["distance"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
+        flux_planet = self.parameters["FstarV_10pc"] * solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron) * 0.55 # Assume quadrature; 55% illuminated
         self.parameters["F0"] = flux_planet.value
         self.parameters["Fp/Fs"] = (solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron)).value
-        self.semimajor.value = self.parameters["semimajor_axis"] # Make sure it matches what was used
+        self.angsep.value = self.parameters["separation"] # Make sure it matches what was used
 
 
         print("Star:", self.parameters["FstarV_10pc"])
         print("Planet:", self.reflect_planet(self.parameters["wavelength"] << u.micron), solid_angle)
-        print(self.parameters["semimajor_axis"], self.parameters["distance"])
+        print(self.parameters["separation"], self.parameters["distance"])
 
     def load_planet(self, sourceID):
         # this is an albedo; the amount of incident flux received at that distance
         self.reflect_planet = self.target_planet[sourceID]["spectrum"]
         self.parameters["planetary_radius"] = self.target_planet[sourceID]["planetary_radius"]
-        self.parameters["semimajor_axis"] = self.target_planet[sourceID]["semimajor_axis"]
-        self.semimajor.value = self.target_planet[sourceID]["semimajor_axis"]
+        self.parameters["separation"] = self.target_planet[sourceID]["semimajor_axis"]/self.parameters["distance"]
+        self.angsep.value = self.target_planet[sourceID]["semimajor_axis"]/self.parameters["distance"]
 
         print("Planet", self.parameters)
         
@@ -127,11 +127,11 @@ class pyEDITHETC():
             self.load_planet(newvalues.data["new_planet"][0])
             self.recompute_planet_flux() # trigger a recomputation of the planetary flux
             del newvalues.data["new_planet"] # consume the new value
-        if "new_semimajor" in newvalues.data:
-            print("Changed Semimajor Axis")
-            self.parameters["semimajor_axis"] = newvalues.data["new_semimajor"][0]
+        if "new_angsep" in newvalues.data:
+            print("Changed Angular Separation")
+            self.parameters["separation"] = newvalues.data["new_angsep"][0]
             self.recompute_planet_flux()
-            del newvalues.data["new_semimajor"] # consume the new value
+            del newvalues.data["new_angsep"] # consume the new value
         if "new_distance" in newvalues.data:
             print("Changed System distance")
             self.parameters["distance"] = newvalues.data["new_distance"][0]

@@ -58,7 +58,7 @@ def update_snr(suitable_instruments, exptime):
         for band_name in bands:
             try:
                 print("Band", band_name)
-                hri_exp.calculate_snr(band=band_name)
+                hri_exp.calculate_snr(custom_band=band_name)
                 band = instrument.configuration["band"][band_name]
                 pivotwave.append(band["effective_wavelength"].value)
                 snr.append(hri_exp.snr[0].value)

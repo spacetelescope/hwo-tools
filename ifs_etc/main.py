@@ -76,7 +76,7 @@ def update_snr(band_name, instrument_name, exptime):
     instrument.add_exposure(ifs_exp)
     ifs_exp.exptime = exptime
 
-    ifs_exp.calculate_snr(band=band_name)
+    ifs_exp.calculate_snr(custom_band=band_name)
     
     snr = ifs_exp.snr[0]
     wave = ifs_exp.wave

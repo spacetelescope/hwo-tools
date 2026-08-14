@@ -42,7 +42,7 @@ def update_snr(band_name, instrument_name, exptime):
     instrument.add_exposure(uvi_exp)
     uvi_exp.exptime = exptime
 
-    uvi_exp.calculate_snr(band=band_name)
+    uvi_exp.calculate_snr(custom_band=band_name)
     
     snr = uvi_exp.snr[0].value
     wave = uvi_exp.wave

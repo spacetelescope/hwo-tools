@@ -37,10 +37,11 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     def __init__(self):
 
         self.parameters = {}
-        self.scene = pE.AstrophysicalScene()
         self.observation = pE.Observation() # define the observation object
+        self.scene = pE.AstrophysicalScene()
         self.observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
         self.obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
+        self.baddata = ColumnDataSource(data=dict(wavelength=[]))
         self.inputs = ColumnDataSource(data=dict())
         self.widget_setup()
         self.tab_setup()
@@ -50,18 +51,23 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
         self.exp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
         self.exp_plot.scatter("wavelength", "exptime", source=self.obsdata)
+        self.exp_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
+        self.exp_plot.segment(x0='band_lo', y0='exptime', x1='band_hi', y1='exptime', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.exp_panel = TabPanel(child=self.exp_plot, title='Exposure Time') #, width=800)
 
 
         self.snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
         self.snr_plot.scatter("wavelength", "snr", source=self.obsdata)
+        self.snr_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
+        self.snr_plot.segment(x0='band_lo', y0='snr', x1='band_hi', y1='snr', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
 
 
         self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.spec_plot.line("wavelength", "FpFs", source=self.obsdata)
+        self.spec_plot.line("wavelength", "obs", source=self.obsdata)
         self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
-        self.spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot.segment(x0='band_lo', y0='obs', x1='band_hi', y1='obs', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot.segment(x0='wavelength', y0='noise_hi', x1='wavelength', y1='noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
         self.exptime_compute = Button(label="Calculate", button_type="primary")
@@ -105,15 +111,15 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.stellar_radius = Slider(title="Radius of Star", value=1., start=.1, end=12., step=0.1, sizing_mode="stretch_width") 
         self.stellar_radius.on_change("value", self.stellar_radius_callback)
 
-        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=100.0, step=0.1) 
+        self.distance  = Slider(title="Distance to System (pc)", value=10, start=1.4, end=25.0, step=0.1) 
         self.distance.on_change("value", self.distance_callback)
 
         self.planet = Select(title="Template Planet Spectrum", value="Earth", 
                 options=list(self.target_planet.keys()), width=250)
         self.planet.on_change("value", self.planet_callback)
 
-        self.semimajor = Slider(title="Semimajor Axis (AU)", value=0.1, start=0.01, end=10, step=0.01, ) 
-        self.semimajor.on_change("value", self.semimajor_callback)
+        self.angsep = Slider(title="Angular Separation (arcsec)", value=0.01, start=0.001, end=1, step=0.001,) 
+        self.angsep.on_change("value", self.angsep_callback)
 
         self.delta_mag = Slider(title="delta Mag", value=15., start=10, end=30.0, step=0.1, ) 
         self.delta_mag.on_change("value", self.dmag_callback)
@@ -135,12 +141,12 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
             if (new == 0):
                 print(self.controls.children)
                 self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam, 
-                                          self.distance, self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
+                                          self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
                 outputs.tabs = [self.spec_panel, self.exp_panel, self.info_panel]
             elif new == 1:
                 print(self.controls.children)
                 self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.hrpanel1, self.star, self.starparam, 
-                                          self.distance, self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.snr_compute, self.upload, self.warning]
+                                          self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.snr_compute, self.upload, self.warning]
                 outputs.tabs = [self.spec_panel, self.snr_panel, self.info_panel]                   
             #controls.change.emit()
             #outputs.change.emit()
@@ -149,7 +155,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
         # this is the initial for-exptime selection
         self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam, self.distance, 
-                                self.hrpanel2, self.planet, self.semimajor, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
+                                self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
 
         outputs = Tabs(tabs=[self.spec_panel, self.exp_panel, self.info_panel], sizing_mode="inherit")
         plots = column(children=[outputs], sizing_mode='fixed', width=640, height=480)
@@ -177,7 +183,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         # STAR
         #parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
         self.parameters["distance"] = 10. # distance to the system in pc
-        self.parameters["semimajor_axis"] = 1 # planetary separation in AU
+        self.parameters["separation"] = 0.1 # planetary separation in arcsec
         #parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
         # Note: we can work in either mag or flux units. Let's choose to work in flux units. 
         #Fstar_obs_10pc = compute_blackbody_photon_flux(5770, parameters["wavelength"] << u.um, parameters["distance"] << u.pc)
@@ -214,9 +220,8 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
         # SCENE
         self.parameters["nzodis"] = 3. # number of zodis for exozodi estimate
-        self.parameters["ra"] = 176.6292 # approximate ra of HD 102365. WARNING: do not use this number for science. 
-        self.parameters["dec"] = -40.5003 # approximate dec of HD 102365. WARNING: do not use this number for science. 
-
+        self.parameters["ra"] = 180.000 
+        self.parameters["dec"] = +20.000 
         # Observatory parameters
         self.parameters["observing_mode"] = "IMAGER" # ETC should use IMAGER mode
         if "eacnum" in self.parameters:
@@ -224,12 +229,10 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         else:
             self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
         #self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
-        self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
+        #self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
 
-        # We need to run this, but parse_parameters also effectively strips out anything
-        # pyEDITH itself doesn't use, and we're using the same dictionary for a lot of our own
-        # parameters. 
-        self.parameters = pE.parse_input.parse_parameters(self.parameters)
+        # Allow us to change the telescope diameter
+        self.parameters['overrides'] = ['diameter']
 
         # star must be loaded first, because planet flux is relative to star.
         self.load_star("G2V star")
@@ -240,7 +243,8 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         # this piece, alone, has to be created WITH some configured parameters.
         self.observatory_config = pE.parse_input.get_observatory_config(self.parameters)
 
-        self.observatory = pE.ObservatoryBuilder.create_observatory(self.observatory_config)
+        self.observatory = pE.Observatory()
+        self.observatory.create_observatory(self.observatory_config)
 
         self.recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
@@ -257,14 +261,16 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         noise_hi = []
         noise_lo = []
         snr_filters = []
+        good = []
+        bad_wavelengths = []
         self.update_calculation(newvalues)
 
         for filter in FILTERS:
             self.parameters["wavelength"] = [filter]
-            self.update_calculation(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
+            self.update_calculation(ColumnDataSource(data={"scene": [False], "observatory": [False], "observation": [True]}))
 
             try:
-                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="exposure_time")
+                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, ETC_validation=False, mode="exposure_time")
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
@@ -273,25 +279,30 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 return
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
-            if any(np.isinf(self.observation.exptime)):
-                self.warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
-            else:
-                self.warning.text = "<p></p>"
+            #if any(np.isinf(self.observation.exptime)):
+            #    self.warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
+            #else:
+            #    self.warning.text = "<p></p>"
             obs, noise = pE.utils.synthesize_observation(self.newsnr.value * np.ones_like(self.observation.wavelength.value),
                                                     self.scene, 
-                                                    random_seed=None, # seed defaults to None
+                                                    random_seed=2026, # seed defaults to None
                                                     set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                     )
 
             print("Obs", obs)
             print("Noise", noise)
-            wave_filters.append(self.observation.wavelength.to_value(u.um))
-            exptime_filters.append(self.observation.exptime[0].to_value(u.hr))
-            fpfs_filters.append(self.scene.Fp_over_Fs[0].value)
-            obs_filters.append(obs[0].value)
-            noise_hi.append(obs[0].value + noise[0].value/2.)
-            noise_lo.append(obs[0].value - noise[0].value/2.)
-            snr_filters.append(self.newsnr.value)
+            exptime = self.observation.exptime[0] << u.h
+            if np.isfinite(exptime) and exptime < (1e8 * u.s):
+                good.append(True)
+                wave_filters.append(self.observation.wavelength.to_value(u.um))
+                exptime_filters.append(self.observation.exptime[0].to_value(u.hr))
+                fpfs_filters.append(self.scene.Fp_over_Fs[0].value)
+                obs_filters.append(obs[0].value)
+                noise_hi.append(obs[0].value + noise[0].value/2.)
+                noise_lo.append(obs[0].value - noise[0].value/2.)
+                snr_filters.append(self.newsnr.value)
+            else:
+                bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
         exptime_filters = np.asarray(exptime_filters) << u.hr
         wave_filters = np.asarray(wave_filters) << u.um
         fpfs_filters = np.asarray(fpfs_filters) << u.dimensionless_unscaled
@@ -299,15 +310,15 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         noise_hi = np.asarray(noise_hi) << u.dimensionless_unscaled
         noise_lo = np.asarray(noise_lo) << u.dimensionless_unscaled
         snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
-        print(exptime_filters)
-
-        good = np.where(exptime_filters < 1e9 * u.s)[0] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
-        #print(obs_filters, noise_hi)
+        print(bad_wavelengths, wave_filters)
 
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
-                    "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], "snr": snr_filters[good]}
+                    "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
+                    "band_lo": wave_filters[good] - self.parameters["bandwidth"]*u.micron/2, "band_hi": wave_filters[good] + self.parameters["bandwidth"]*u.micron/2, 
+                    "snr": snr_filters[good]}
+        self.baddata.data={"wavelength": bad_wavelengths}
     #print("New Data", obsdata.data)
-        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
+        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
         self.exp_plot.title.text =  title_text
         self.spec_plot.title.text = title_text
 
@@ -327,14 +338,16 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         noise_hi = []
         noise_lo = []
         snr_filters = []
+        good = []
+        bad_wavelengths = []
         self.update_calculation(newvalues)
 
         for filter in FILTERS:
             self.parameters["wavelength"] = [filter]
-            self.update_calculation(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
+            self.update_calculation(ColumnDataSource(data={"scene": [False], "observatory": [False], "observation": [True]}))
 
             try:
-                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
+                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, ETC_validation=False, mode="signal_to_noise")
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
@@ -349,19 +362,24 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p></p>"
             obs, noise = pE.utils.synthesize_observation(self.observation.fullsnr,
                                                     self.scene, 
-                                                    random_seed=None, # seed defaults to None
+                                                    random_seed=2026, # seed defaults to None
                                                     set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                     )
 
             print("Obs", obs)
             print("Noise", noise)
-            wave_filters.append(self.observation.wavelength.to_value(u.um))
-            exptime_filters.append(self.newexp.value)
-            fpfs_filters.append(self.scene.Fp_over_Fs[0].value)
-            obs_filters.append(obs[0].value)
-            noise_hi.append(obs[0].value + noise[0].value/2.)
-            noise_lo.append(obs[0].value - noise[0].value/2.)
-            snr_filters.append(self.observation.fullsnr[0])
+            snr = self.observation.fullsnr[0]
+            if np.isfinite(snr):
+                good.append(True)
+                wave_filters.append(self.observation.wavelength.to_value(u.um))
+                exptime_filters.append(self.newexp.value)
+                fpfs_filters.append(self.scene.Fp_over_Fs[0].value)
+                obs_filters.append(obs[0].value)
+                noise_hi.append(obs[0].value + noise[0].value/2.)
+                noise_lo.append(obs[0].value - noise[0].value/2.)
+                snr_filters.append(self.observation.fullsnr[0])
+            else:
+                bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
         exptime_filters = np.asarray(exptime_filters) << u.hr
         wave_filters = np.asarray(wave_filters) << u.um
         fpfs_filters = np.asarray(fpfs_filters) << u.dimensionless_unscaled
@@ -369,15 +387,15 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         noise_hi = np.asarray(noise_hi) << u.dimensionless_unscaled
         noise_lo = np.asarray(noise_lo) << u.dimensionless_unscaled
         snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
-        print(exptime_filters)
 
-        good = np.where(exptime_filters < 1e9 * u.s)[0] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
-        #print(obs_filters, noise_hi)
 
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
-                    "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], "snr": snr_filters[good]}
+                    "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
+                    "band_lo": wave_filters[good] - self.parameters["bandwidth"]*u.micron/2, "band_hi": wave_filters[good] + self.parameters["bandwidth"]*u.micron/2, 
+                    "snr": snr_filters[good]}
+        self.baddata.data={"wavelength": bad_wavelengths}
     #print("New Data", obsdata.data)
-        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.semimajor.value, decimals=2)} AU - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
+        title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
         self.snr_plot.title.text = title_text
         self.spec_plot.title.text = title_text
 
@@ -419,9 +437,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         print(attr, old, new)
         self.inputs.data.update({"new_planet": [new], "scene": [True]})
 
-    def semimajor_callback(self, attr, old, new):
+    def angsep_callback(self, attr, old, new):
         print(attr, old, new)
-        self.inputs.data.update({"new_semimajor": [new], "scene": [True]})
+        self.inputs.data.update({"new_angsep": [new], "scene": [True]})
 
     def dmag_callback(self, attr, old, new):
         print(attr, old, new)

@@ -23,8 +23,9 @@ from syotools.models import Telescope, Spectrograph, Source, SourceSpectrographi
 
 spectra_library = copy.deepcopy(syn_spectra_library)
 
+uvi_source = None
 hwo = None
-uvi = None
+instrument = None
 uvi_exp = None
 snr_results = ColumnDataSource(data={})
 spectrum_template = ColumnDataSource(data={})
@@ -32,19 +33,37 @@ instrument_info = ColumnDataSource(data={})
 
 FLUXUNIT = u.erg / u.s / u.cm**2 / u.AA
 
+def update_snr(band_name, instrument_name, exptime):
+    global uvi_source
+    global uvi_exp
+    global instrument
+    instrument = hwo.instruments[instrument_name]
+
+    instrument.add_exposure(uvi_exp)
+    uvi_exp.exptime = exptime
+
+    uvi_exp.calculate_snr(custom_band=band_name)
+    
+    snr = uvi_exp.snr[0].value
+    wave = uvi_exp.wave
+
+    return snr, wave
+
 def initialize_setup():
     global hwo
-    global uvi
+    global instrument
+    global uvi_source
     global uvi_exp
+
     global spectrum_template
     global snr_results
     global instrument_info
+    global suitable_bands
 
     hwo = Telescope() 
-    hwo.set_from_sei('EAC1')
-    uvi = Spectrograph()
-    uvi.set_from_sei("UVI")
-    hwo.add_spectrograph(uvi)              
+    hwo.set_from_hwome('EAC5')
+    suitable_instruments, suitable_bands = hwo.find_instrument_with("disperser")
+    print(suitable_bands)
 
     template_to_start_with = 'QSO' 
 
@@ -54,24 +73,25 @@ def initialize_setup():
     uvi_exp = SourceSpectrographicExposure() 
     uvi_exp.source = uvi_source
     uvi_exp.verbose = True 
-    uvi_exp.unknown = 'snr'
-    uvi.add_exposure(uvi_exp) 
-    uvi_exp._update_snr(uvi_source) 
+
+    initial_band = list(suitable_bands.keys())[-1]
+    snr, wave = update_snr(initial_band, suitable_bands[initial_band], 1 * u.hr)
 
     spectrum_template = ColumnDataSource(data=dict(w=uvi_source.sed.waveset.value, 
                                                    f=syn.units.convert_flux(uvi_source.sed.waveset, uvi_source.sed(uvi_source.sed.waveset), FLUXUNIT).value)) 
     print(' flux = ', uvi_source.sed(uvi_source.sed.waveset))
 
-    snr_results = ColumnDataSource(data=dict(w=uvi.wave.value, sn = uvi_exp.snr.value)) 
+    snr_results = ColumnDataSource(data=dict(w=wave.value, sn = snr))
+    background = instrument.sky(wave) + uvi_exp.thermal(wave)
 
-    instrument_info = ColumnDataSource(data=dict(wave=uvi.wave.value, bef=uvi.bef.value))
+    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value))
 
 initialize_setup()
 
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 2000], y_range=[0, 4e-16], toolbar_location='right') 
-flux_plot.x_range=Range1d(900,3000,bounds=(900,3000))
+              x_range=[900, 5000], y_range=[0, 4e-16], toolbar_location='right') 
+flux_plot.x_range=Range1d(900,5000,bounds=(900,5000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None)) 
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
@@ -80,14 +100,19 @@ flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 2000], y_range=[0, 40], toolbar_location='right')
-sn_plot.x_range=Range1d(900,3000,bounds=(900,3000))
+              x_range=[900, 5000], y_range=[0, 40], toolbar_location='right')
+sn_plot.x_range=Range1d(900,5000,bounds=(900,5000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
 sn_plot.line('w', 'sn', source=snr_results, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
 sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 sn_plot.yaxis.axis_label = 'S/N per resel' 
 
+def flatten(arr):
+    # https://realpython.com/python-flatten-list/
+    return [item for row in arr for item in row]
+
 def update_data(attrname, old, new): # use this one for updating pysynphot templates 
+    global instrument_info
     
     print() 
     print() 
@@ -95,17 +120,12 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
     print('Selected grating = ', grating.value) 
     print('Your telescope is set to', aperture.value) 
     print('You asked for redshift', redshift.value) 
-    hwo.effective_aperture = aperture.value     
-    
+    hwo.effective_diameter = aperture.value * u.m
+
+    uvi_exp.disable()
+
     uvi_source = Source() 
     uvi_source.set_sed(template.value, magnitude.value, redshift.value, 0., library=spectra_library)
-
-    uvi_exp.exptime = [[exptime.value, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0], 'hr'] 
-    uvi_exp.source = uvi_source
-    uvi_exp.verbose = True 
-    uvi_exp.unknown = 'snr'
-    uvi.add_exposure(uvi_exp) 
-    uvi.mode = str.split(grating.value,' ')[0] #<-- becuase text after the space not in mode keys  
 
 
     if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
@@ -115,13 +135,20 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
        bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
        uvi_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
 
-    uvi_exp._update_snr(uvi_source) 
+    uvi_exp.source = uvi_source
+    uvi_exp.verbose = True 
 
-    snr_fixed = np.nan_to_num(uvi_exp.snr.value, nan=0)
+    snr, wave = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+
+    snr_fixed = np.nan_to_num(snr, nan=0)
     flux_converted = syn.units.convert_flux(uvi_source.sed.waveset, uvi_source.sed(uvi_source.sed.waveset), FLUXUNIT)
 
     spectrum_template.data = dict(w=uvi_source.sed.waveset.value, f=flux_converted.value) 
-    snr_results.data = dict(w=uvi.wave.value, sn = snr_fixed) 
+    snr_results.data = dict(w=wave.value, sn = snr_fixed) 
+
+    background = instrument.sky(wave) + uvi_exp.thermal(wave)
+    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value))
+
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
@@ -131,7 +158,7 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
 
     print() 
     print()
-    print(uvi)
+    print(instrument)
     return snr_results, spectrum_template
 
 # fake source for managing callbacks 
@@ -159,10 +186,10 @@ temperature_callback = CustomJS(args=dict(source=source), code="""
 """)
 bb_temperature.js_on_change("value_throttled", temperature_callback) 
 
-grating = Select(title="Grating / Setting", value="G150M (R = 30,000)", width=200, \
-                 options=["G120M (R = 30,000)", "G150M (R = 30,000)", "G180M (R = 30,000)", "G155L (R = 5,000)", "G145LL (R = 500)"])
+grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
+                 options=list(suitable_bands.keys()))
 
-aperture= Slider(title="Aperture (meters)", value=6., start=4., end=10.0, step=0.1, width=200)
+aperture= Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=4., end=15.0, step=0.1, width=200)
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)

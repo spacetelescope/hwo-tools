@@ -58,7 +58,8 @@ flux_plot = figure(height=400, width=800,
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
               x_range=[900, 5000], y_range=[0, 4e-16], toolbar_location='right') 
 flux_plot.x_range=Range1d(900,5000,bounds=(900,5000))
-flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None)) 
+flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None))
+flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 
@@ -138,7 +139,7 @@ def update_data(): # use this one for updating synphot templates
     snr_results.data = dict(w=wave.value, sn = snr_fixed)
 
     background = instrument.sky(wave) + ifs_exp.thermal(wave)
-    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value))
+    instrument_info.data = dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value)
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
@@ -258,6 +259,7 @@ def add_source_callback(event):
 
     for spectrum in spectrum_template:
         flux_plot.line('w', 'f', source=spectrum, line_width=3, line_color='firebrick', line_alpha=0.7, legend_label='Source Flux')
+        flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
     source_inputs.tabs.append(source_panel)
     unlock_calcbutton(None, None, None)
 

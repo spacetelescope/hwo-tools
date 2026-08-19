@@ -100,7 +100,7 @@ flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 6000], y_range=[0, 40], toolbar_location='right')
+              x_range=[900, 6000], y_range=[0, 2], toolbar_location='right')
 sn_plot.x_range=Range1d(900,6000,bounds=(900,6000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
 sn_plot.line('w', 'sn', source=snr_results, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
@@ -250,15 +250,15 @@ upload.on_change("filename", process_spectrum)
 for w in [template, grating]:  w.on_change('value', update_data)
  
 # Set up layouts and add to document
-help_text = Div(text = h.help(), width=200) 
-source_inputs = column(children=[template, redshift, magnitude, bb_temperature, upload, warning], sizing_mode='fixed', max_width=300, width=250, height=300)
-controls_panel = TabPanel(child=source_inputs, title='Source') 
+help_text = Div(text = h.help(), width=250) 
+source_settings = column(children=[template, redshift, magnitude, bb_temperature, upload, warning], sizing_mode='fixed', max_width=250, width=250, height=300)
+controls_panel = TabPanel(child=source_settings, title='Source') 
 help_panel = TabPanel(child=help_text, title='Info') 
-source_inputs = Tabs(tabs=[ controls_panel, help_panel], width=300) 
+source_inputs = Tabs(tabs=[ controls_panel, help_panel], width=250) 
 #source_inputs = Tabs(tabs=[ controls_panel], width=300) 
 
-exposure_inputs = column(children=[grating, aperture, exptime], sizing_mode='fixed', max_width=300, width=300, height=600 )
-exposure_panel = TabPanel(child=exposure_inputs, title='Exposure')
+exposure_settings = column(children=[grating, aperture, exptime], sizing_mode='fixed', max_width=300, width=300, height=600 )
+exposure_panel = TabPanel(child=exposure_settings, title='Exposure')
 exposure_inputs = Tabs(tabs=[ exposure_panel ], width=300) 
 
 row1 = row(children=[source_inputs, flux_plot])

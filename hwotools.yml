@@ -2,21 +2,20 @@ name: hwotools
 channels:
   - conda-forge
 dependencies:
-  - bokeh=3.9.0
-  - astropy=7.2.0
-  - specutils>=2.2.0
-  - numpy>=2.2
-  - pandas>=2.3
-  - scipy>=1.17
+  - bokeh=3.10.0
+  - astropy=8.0.*
+  - specutils>=2.4
+  - numpy>=2.5
+  - pandas>=3.0
+  - scipy>=1.18
   - setuptools>=82
   - jupyter=1.1.1
   - pip 
-  - numba 
   - pip:
-      - synphot>=1.6.0
-      - stsynphot>=1.5.0
-      - syotools>=1.3
+      - synphot>=1.7.0
+      - stsynphot>=1.5.1
+      - syotools>=1.4.1
       - eacy>=1.0
-      - hwo_sci_eng>=0.1.8
-      - yippy==2.2.2
-prefix: /internal/data1/miniforge_habworlds
+      - yippy>=2.10.1
+      - pyedith>=1.7.2
+prefix: 

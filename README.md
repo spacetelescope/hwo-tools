@@ -43,7 +43,9 @@ The above commands should have pulled in all necessary dependencies except bokeh
 
 - Alternatively, set up a conda-forge installation and then run:
     cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools.yml
-- More specific environments 
+- More specific, complete environments
+   - The hwotools_linuxx86-64.yml files are for an 64-bit Intel Linux computer, and come with MKL-accelerated numpy and scipy.
+   - The hwotools_macarm.yml files are for Apple Silicon computers, and come with Apple Accelerate-accelerated numpy and scipy. 
 
 
 - conda activate hwotools

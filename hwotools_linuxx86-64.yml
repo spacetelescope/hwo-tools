@@ -77,6 +77,7 @@ dependencies:
       - h11==0.16.0
       - httpcore==1.0.9
       - httpx==0.28.1
+      - hwome-core @ git+https://github.com/HWO-Project/hwome-core@ddd2672bcbb50cc89274038042edbf5ee24ea52c
       - hwostyle==1.4.0
       - hwoutils==1.9.0
       - idna==3.19
@@ -167,6 +168,7 @@ dependencies:
       - stack-data==0.6.3
       - stsynphot==1.5.1
       - synphot==1.7.0
+      - syotools @ git+https://github.com/spacetelescope/syotools@88227507359b2b4bc8a4b683f390f7732b9d9aa6
       - terminado==0.18.1
       - tinycss2==1.5.1
       - tol-colors==2.2.0

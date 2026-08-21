@@ -14,8 +14,8 @@ dependencies:
   - pip:
       - synphot>=1.7.0
       - stsynphot>=1.5.1
-      - hwome-core @ git+https://github.com/HWO-Project/hwome-core@ddd2672bcbb50cc89274038042edbf5ee24ea52c
-      - syotools @ git+https://github.com/spacetelescope/syotools@88227507359b2b4bc8a4b683f390f7732b9d9aa6
+      - hwome-core @ git+ssh://git@github.com/HWO-Project/hwome-core@ddd2672bcbb50cc89274038042edbf5ee24ea52c
+      - syotools @ git+ssh://git@www.github.com/spacetelescope/syotools@88227507359b2b4bc8a4b683f390f7732b9d9aa6
       - eacy>=1.0
       - yippy>=2.10.1
       - pyedith>=1.7.2

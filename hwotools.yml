@@ -14,7 +14,6 @@ dependencies:
   - pip:
       - synphot>=1.7.0
       - stsynphot>=1.5.1
-      - syotools>=1.4.1
       - eacy>=1.0
       - yippy>=2.10.1
       - pyedith>=1.7.2

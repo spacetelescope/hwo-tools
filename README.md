@@ -45,8 +45,9 @@ The above commands should have pulled in all necessary dependencies except bokeh
     cd $INSTALL_DIR/hwo-tools; conda env create -f hwotools.yml
 - More specific, complete environments
    - The hwotools_linuxx86-64.yml files are for an 64-bit Intel Linux computer, and come with MKL-accelerated numpy and scipy.
-   - The hwotools_macarm.yml files are for Apple Silicon computers, and come with Apple Accelerate-accelerated numpy and scipy. 
-- **THE COMPLETE ENVIRONMENTS DO NOT CONTAIN SYOTOOLS OR HWOME-CORE BECAUSE THEY ARE NOT AVAILABLE FROM PYPI.** You will need to install those two codes from the repos as above.
+   - The hwotools_macarm.yml files are for Apple Silicon computers, and come with Apple Accelerate-accelerated numpy and scipy.
+- Then install SYOTools (will pull in hwome-core):
+   pip install git+ssh://git@www.github.com/spacetelescope/syotools
 
 
 - conda activate hwotools

@@ -26,7 +26,7 @@ Make sure that your environment variables point to the appropriate place to find
 
 ```
 export PYSYN_CDBS= "the full path to where syotools/reference_data/pysynphot_data lives in your env"
-export SYOTOOLS_DATA_DIR="full path to sotools/reference_data in your env" 
+export SYOTOOLS_DATA_DIR="full path to syotools/reference_data in your env" 
 export HWOME_DATA_PATH=$INSTALL_DIR/hwome_data
 export YIP_CORO_DIR="$INSTALL_DIR/yip"
 ```

@@ -5,30 +5,27 @@
 # ## Basic Operations of the SYOTools version of the HWO ETCs
 
 #first the necessary imports 
-from syotools.models import Camera, Telescope, Spectrograph, PhotometricExposure, SpectrographicExposure
+from syotools.models import Camera, Telescope, Spectrograph, SourcePhotometricExposure, SourceSpectrographicExposure
 from syotools.utils.jsonunit import str_jsunit
 
-# create a Telescope, Camera, and Exposure 
-# if called without arguments, you get the defaults 
-t, c, e = Telescope(), Camera(), PhotometricExposure()
+# create a Telescope and Exposure 
+# and select a Camera from the Telescope
+e, t = SourcePhotometricExposure(), Telescope()
+t.set_from_hwome('EAC5')
+c = t.instruments["HRI_S.HRI_S_UVIS_Imager"]
 
-#set the telescope to EAC1 
-t.set_from_json('EAC1')
-
-t.add_camera(c)
+# if you do no further customization to the exposure, you get the defaults
 c.add_exposure(e)
-
 
 for attr in t._tracked_attributes:
     print('{}: {}'.format(attr, str_jsunit(getattr(t,attr))))
 
+# set a camera band
+c.band = "HRI_S_UVIS.HRI_Johnson_V"
 
-for attr in c._tracked_attributes:
-    print('{}: {}'.format(attr, str_jsunit(getattr(c,attr))))
+# set what you're calculating for (this also kicks off that kind of calculation)
+e.unknown="snr"
 
-
-for attr in e._tracked_attributes:
-    print('{}: {}'.format(attr, str_jsunit(getattr(e, attr))))
-
+# print the answer
 print(e.snr)
 

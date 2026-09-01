@@ -124,7 +124,7 @@ hover = HoverTool(point_policy="snap_to_data",
     )
 
 snr_plot = figure(height=400, width=700, tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
-              x_range=[1200, 23000], y_range=[0, 7], border_fill_color='black', toolbar_location='right')
+              x_range=[1200, 23000], y_range=[0, 40], border_fill_color='black', toolbar_location='right')
 snr_plot.x_range = Range1d(1000, 23000, bounds=(1200, 23000)) 
 snr_plot.add_tools(hover)
 snr_plot.yaxis.axis_label = 'Signal to Noise Ratio'

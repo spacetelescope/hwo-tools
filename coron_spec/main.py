@@ -25,11 +25,20 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/..")
 from common import catalog, pyedith_etc_common
 
 param_snr=10
+FILTERS = { "UVIS": [
+        pE.Filter("CI_VIS_IFS_Prism",low=0.4,high=2.0, resolution=50,type='IFS'),
+        ], "Bridge": [
+        pE.Filter("CI_Bridge_IFS_Prism",low=0.4,high=2.0, resolution=35,type='IFS'),
+        ], "NIR2": [
+        pE.Filter("CI_NIR2_IFS_Prism",low=0.4,high=2.0, resolution=10,type='IFS')
+        ]
+        }
 
 class CoronSpec(pyedith_etc_common.pyEDITHETC):
     # classmethods
     target_planet, target_star = catalog.load_catalog()
     EACS = ["EAC1"]
+    filter_list = []
 
     def __init__(self):
         self.parameters = {}
@@ -91,6 +100,10 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
         self.newexp.on_change("value", self.exp_callback)
 
+        self.photbands= Select(title="Photometric Bands", value="UVIS", 
+                options=list(FILTERS.keys()), width=250)
+        self.photbands.on_change("value", self.photbands_callback)
+
         self.newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, )
         self.newdiameter.on_change("value", self.diameter_callback)
 
@@ -133,12 +146,12 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         def exp_snr_callback(active, old, new):
             if (new == 0):
                 print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam,
+                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.photbands, self.hrpanel1, self.star, self.starparam,
                                           self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
                 outputs.tabs = [self.spec_panel, self.exp_panel, self.info_panel]
             elif new == 1:
                 print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.hrpanel1, self.star, self.starparam,
+                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.photbands, self.hrpanel1, self.star, self.starparam,
                                           self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.snr_compute, self.upload, self.warning]
                 outputs.tabs = [self.spec_panel, self.snr_panel, self.info_panel]
             #controls.change.emit()
@@ -147,7 +160,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.exp_snr_toggle.on_change("active", exp_snr_callback)
 
         # this is the initial for-exptime selection
-        self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.hrpanel1, self.star, self.starparam, self.distance,
+        self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.photbands, self.hrpanel1, self.star, self.starparam, self.distance,
                                 self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
 
         outputs = Tabs(tabs=[self.spec_panel, self.exp_panel, self.info_panel], sizing_mode="inherit")
@@ -165,7 +178,8 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
         # observation parameters
         # set up wavelengths
-        self.parameters["wavelength"] = np.linspace(0.35, 1.71, 1000)
+        self.parameters["wavelength"] = np.linspace(0.2, 2.0, 1000)
+        self.parameters["filter_list"] = FILTERS["UVIS"]
         self.parameters["nlambd"] = len(self.parameters["wavelength"]) # number of wavelengths
         self.parameters["snr"] = param_snr * np.ones_like(self.parameters["wavelength"]) # the SNR you want for each spectral bin
         self.parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
@@ -173,10 +187,10 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.parameters["psf_trunc_ratio"] = 0.3 # truncate the off-axis PSFs at this level
 
         self.parameters["regrid_wavelength"] = True # set the flag to do this. We also need to specify a few other parameters.
-        self.parameters["spectral_resolution"] = np.array([70, 140, 90]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
-        self.parameters["channel_bounds"] = np.array([0.5, 1.0]) #np.array([]) # specify the boundaries between the channels in um
-        self.parameters["lam_low"] = [0.36, 0.5, 1.0]
-        self.parameters["lam_high"] = [0.5, 1.0, 1.7]
+        #self.parameters["spectral_resolution"] = np.array([70, 140, 90]) #np.array([140])  # we're going to define three spectral channels. These are the spectral resolutions for each channel. i.e. all spectral bins in a given channel will have a fixed resolution.
+        #self.parameters["channel_bounds"] = np.array([0.5, 1.0]) #np.array([]) # specify the boundaries between the channels in um
+        #self.parameters["lam_low"] = [0.36, 0.5, 1.0]
+        #self.parameters["lam_high"] = [0.5, 1.0, 1.7]
 
         # The Astrophysical
         # STAR
@@ -232,12 +246,12 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         else:
             self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
         self.parameters["IFS_eff"]  = 1. # extra throughput of the IFS
-        self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
+        #self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
         #self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
 
         # Allow us to change the telescope diameter
         self.parameters['overrides'] = ['diameter']
-
+        self.filter_list= pE.parse_input.parse_filters(self.parameters)
 
         # this piece, alone, has to be created WITH some configured parameters.
         self.observatory_config = pE.parse_input.get_observatory_config(self.parameters)
@@ -252,32 +266,39 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         global obsdata
         global exptime_compute
 
-        self.update_calculation(newvalues)
 
-        try:
-            pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory)
-        except UnboundLocalError:
-            self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
-            self.exptime_compute.label = "Compute"
-            self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+        for filt in self.filter_list:
+            newvalues.data["observation"] = [True]
+            newvalues.data["filt"] = [filt]
 
-            return
-        #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
-        #print("Exptime", observation.exptime)
-        if any(np.isinf(self.observation.exptime)):
-            self.warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
-        else:
-            self.warning.text = "<p></p>"
-        obs, noise = pE.utils.synthesize_observation(self.newsnr.value * np.ones_like(self.observation.wavelength.value),
-                                                self.scene,
-                                                random_seed=2026, # seed defaults to None
-                                                set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
-                                                )
+            self.update_calculation(newvalues)
+
+            try:
+                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory)
+            except UnboundLocalError:
+                self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+
+                return
+            #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
+            #print("Exptime", observation.exptime)
+            if any(np.isinf(self.observation.exptime)):
+                self.warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
+            else:
+                self.warning.text = "<p></p>"
+            obs, noise = pE.utils.synthesize_observation(self.newsnr.value * np.ones_like(self.observation.wavelength.value),
+                                                    self.scene,
+                                                    random_seed=2026, # seed defaults to None
+                                                    set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
+                                                    )
 
 
 
-        good = [True if np.isfinite(x) and x < 1e8 * u.s else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
-        bad = np.invert(good)
+            print(len(obs))
+
+            good = [True if np.isfinite(x) and x < 1e8 * u.s else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+            bad = np.invert(good)
 
         self.baddata.data={"wavelength": self.observation.wavelength[bad]}
         self.obsdata.data={"wavelength": self.observation.wavelength[good], "exptime": self.observation.exptime[good].to(u.hr), "FpFs": self.scene.Fp_over_Fs[good],
@@ -291,36 +312,41 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
 
     def do_recalculate_snr(self, newvalues):
-        self.update_calculation(newvalues)
 
-        self.observation.obstime = (self.newexp.value * u.hr).to(u.s)
-        print((self.newexp.value * u.hr).to(u.s))
+        for filt in self.filter_list:
+            newvalues.data["observation"] = [True]
+            newvalues.data["filt"] = [filt]
 
-        try:
-            pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
-        except UnboundLocalError:
-            self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
-            self.snr_compute.label = "Compute"
-            self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            self.update_calculation(newvalues)
 
-            return
-        #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
-        #print("Exptime", observation.exptime)
-        if any(np.isinf(self.observation.exptime)):
-            self.warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
-        else:
-            self.warning.text = "<p></p>"
-        obs, noise = pE.utils.synthesize_observation(self.observation.fullsnr,
-                                                self.scene,
-                                                random_seed=2026, # seed defaults to None
-                                                set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
-                                                )
+            self.observation.obstime = (self.newexp.value * u.hr).to(u.s)
+            #print((self.newexp.value * u.hr).to(u.s))
 
-        print("Obs", obs)
-        print("Noise", noise)
+            try:
+                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
+            except UnboundLocalError:
+                self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
+                self.snr_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
-        good = [True if np.isfinite(x) else False for x in self.observation.fullsnr]
-        bad = np.invert(good)
+                return
+            #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
+            #print("Exptime", observation.exptime)
+            if any(np.isinf(self.observation.exptime)):
+                self.warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
+            else:
+                self.warning.text = "<p></p>"
+            obs, noise = pE.utils.synthesize_observation(self.observation.fullsnr,
+                                                    self.scene,
+                                                    random_seed=2026, # seed defaults to None
+                                                    set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
+                                                    )
+
+            print("Obs", obs)
+            print("Noise", noise)
+
+            good = [True if np.isfinite(x) else False for x in self.observation.fullsnr]
+            bad = np.invert(good)
 
         self.baddata.data={"wavelength": self.observation.wavelength[bad]}
         self.obsdata.data={"wavelength": self.observation.wavelength, "exptime": self.newexp.value * np.ones_like(self.observation.wavelength.value), "FpFs": self.scene.Fp_over_Fs, "obs": obs, "noise_hi": obs + noise/2., "noise_lo": obs - noise/2., "snr": self.observation.fullsnr}
@@ -334,6 +360,10 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
     def eac_callback(self, attr, old, new):
         print(attr, old, new)
         self.inputs.data.update({"new_eac": [self.EACS[new]], "observatory": [True]})
+
+    def photbands_callback(self, attr, old, new):
+        self.parameters["filter_list"] = FILTERS[new]
+        self.filter_list = pE.parse_input.parse_filters(self.parameters)
 
     def snr_callback(self, attr, old, new):
         print(attr, old, new)

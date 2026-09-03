@@ -48,7 +48,7 @@ def update_snr(suitable_instruments, exptime):
     for instrument_name in suitable_instruments:
         bands = suitable_instruments[instrument_name]
         instrument = hwo.instruments[instrument_name]
-        bands = sorted(bands, key=lambda x: instrument.configuration["band"][x]["effective_wavelength"])
+        bands = sorted(bands, key=lambda x: instrument.configuration["bands"][x]["effective_wavelength"])
 
         snr = []
         pivotwave = []
@@ -59,7 +59,7 @@ def update_snr(suitable_instruments, exptime):
             try:
                 print("Band", band_name)
                 hri_exp.calculate_snr(custom_band=band_name)
-                band = instrument.configuration["band"][band_name]
+                band = instrument.configuration["bands"][band_name]
                 pivotwave.append(band["effective_wavelength"].value)
                 snr.append(hri_exp.snr[0].value)
             except (syn.exceptions.DisjointError, syn.exceptions.SynphotError):

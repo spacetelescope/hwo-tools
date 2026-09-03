@@ -24,6 +24,8 @@ pip install git_ssh://git@github.com:spacetelescope/syotools.git
 ```
 Make sure that your environment variables point to the appropriate place to find:
 
+NOTE: If you already have $PYSYN_CDBS set in your environment, you *do NOT need* to set the environment
+variable to the subset that comes with SYOTools - a full checkout will work just as well.
 ```
 export PYSYN_CDBS= "the full path to where syotools/reference_data/pysynphot_data lives in your env"
 export SYOTOOLS_DATA_DIR="full path to syotools/reference_data in your env" 

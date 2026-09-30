@@ -94,7 +94,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     # classmethods
     target_planet, target_star = catalog.load_catalog()
 
-    EACS = ["EAC1"]
+    EACS = ["EAC5"]
     filter_list = []
 
     def __init__(self):
@@ -490,6 +490,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     def photbands_callback(self, attr, old, new):
         self.parameters["filter_list"] = FILTERS[new]
         self.filter_list = pE.parse_input.parse_filters(self.parameters)
+        self.inputs.data.update({"new_filt": [FILTERS[new]], "scene": [True]})
 
     def snr_callback(self, attr, old, new):
         print(attr, old, new)

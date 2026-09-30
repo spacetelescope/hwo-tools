@@ -103,7 +103,7 @@ def initialize_setup():
     source1 = ColumnDataSource(data=dict(x=pivots[0], y=snrs[0], desc=names[0]))
     source2 = ColumnDataSource(data=dict(x=pivots[1], y=snrs[1], desc=names[1]))
     source3 = ColumnDataSource(data=dict(x=pivots[2], y=snrs[2], desc=names[2]))
-    #source4 = ColumnDataSource(data=dict(x=pivots[3], y=snrs[3], desc=names[3]))
+    source4 = ColumnDataSource(data=dict(x=pivots[3], y=snrs[3], desc=names[3]))
 
 initialize_setup()
 
@@ -178,10 +178,13 @@ def update_data(attrname, old, new):
     source1.data = dict(x=pivots[0], y=snrs[0], desc=names[0]) 
     source2.data = dict(x=pivots[1], y=snrs[1], desc=names[1]) 
     source3.data = dict(x=pivots[2], y=snrs[2], desc=names[2])
-    #source4.data = dict(x=pivots[3], y=snrs[3], desc=names[3])
+    source4.data = dict(x=pivots[3], y=snrs[3], desc=names[3])
 
     snr_plot.y_range.start = 0
-    snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs)),5.]) 
+    try:
+        snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs)),5.]) 
+    except ValueError:
+        pass
 
     sed_plot.y_range.start = np.max(flux_converted.value)+5.
     sed_plot.y_range.end = np.min(flux_converted.value)-5.

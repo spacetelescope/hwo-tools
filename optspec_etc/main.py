@@ -62,8 +62,7 @@ def initialize_setup():
 
     hwo = Telescope() 
     hwo.set_from_hwome('EAC5')
-    suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="MOS", kind="disperser")
-    print(suitable_bands)
+    suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="HRI", kind="disperser")
 
     template_to_start_with = 'QSO' 
 
@@ -90,8 +89,8 @@ initialize_setup()
 
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 6000], y_range=[0, 4e-16], toolbar_location='right') 
-flux_plot.x_range=Range1d(900,6000,bounds=(900,6000))
+              x_range=[2000, 20000], y_range=[0, 4e-16], toolbar_location='right') 
+flux_plot.x_range=Range1d(2000,20000,bounds=(2000,20000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None)) 
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
@@ -100,8 +99,8 @@ flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 6000], y_range=[0, 2], toolbar_location='right')
-sn_plot.x_range=Range1d(900,6000,bounds=(900,6000))
+              x_range=[2000, 20000], y_range=[0, 2], toolbar_location='right')
+sn_plot.x_range=Range1d(2000,20000,bounds=(2000,20000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
 sn_plot.line('w', 'sn', source=snr_results, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
 sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 

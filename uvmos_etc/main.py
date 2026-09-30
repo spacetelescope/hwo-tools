@@ -40,7 +40,7 @@ run_compute = True
 
 hwo = Telescope() 
 hwo.set_from_hwome('EAC5')
-suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="ifs")
+suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="uv_mos")
 
 # Set up layouts and add to document
 help_text = Div(text = h.help(), width=200) 

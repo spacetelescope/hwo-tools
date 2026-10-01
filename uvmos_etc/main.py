@@ -17,11 +17,11 @@ from bokeh.models.callbacks import CustomJS
 import astropy.units as u
 import synphot as syn
 import stsynphot as stsyn
-import ifs_help as h 
+import mos_help as h 
 
 from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
-from syotools.models import Telescope, IFS, Source, SourceIFSExposure
+from syotools.models import Telescope, MOS, Source, SourceMOSExposure
 
 spectra_library = copy.deepcopy(syn_spectra_library)
 
@@ -29,7 +29,7 @@ FLUXUNIT = u.erg / u.s / u.cm**2 / u.AA
 
 hwo = None
 instrument = None
-ifs_exp = None
+mos_exp = None
 snr_results = ColumnDataSource(data={})
 spectrum_template = []
 instrument_info = ColumnDataSource(data={})
@@ -40,24 +40,25 @@ run_compute = True
 
 hwo = Telescope() 
 hwo.set_from_hwome('EAC5')
-suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="uv_mos")
+suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="uv_mos", kind="disperser")
 
 # Set up layouts and add to document
 help_text = Div(text = h.help(), width=200) 
 help_panel = TabPanel(child=help_text, title='Info') 
 source_inputs = Tabs(tabs=[ help_panel], width=300)
 
+warning_box = Div(text='<p></p>')
 grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
                  options=list(suitable_bands.keys()))
 
-aperture= Slider(title="Aperture (meters)", value=10., start=4., end=15.0, step=0.1, width=200)
+aperture= Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=4., end=15.0, step=0.1, width=200)
 
 exptime = Slider(title="Exposure Time [hr]", value=1.0, start=0.1, end=10.0, step=0.1, width=200)
 
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 4000], y_range=[0, 4e-16], toolbar_location='right') 
-flux_plot.x_range=Range1d(900,4000,bounds=(900,4000))
+              x_range=[900, 10000], y_range=[0, 4e-16], toolbar_location='right') 
+flux_plot.x_range=Range1d(900, 10000,bounds=(900, 10000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None))
 flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
@@ -65,24 +66,27 @@ flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 4000], y_range=[0, 40], toolbar_location='right')
-sn_plot.x_range=Range1d(900,4000,bounds=(900,4000))
+              x_range=[900, 10000], y_range=[0, 40], toolbar_location='right')
+sn_plot.x_range=Range1d(900,10000,bounds=(900,10000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
 
 def update_snr(band_name, instrument_name, exptime):
-    global ifs_exp
+    global mos_exp
     global instrument
     instrument = hwo.instruments[instrument_name]
 
-    instrument.add_exposure(ifs_exp)
-    ifs_exp.exptime = exptime
-
-    ifs_exp.calculate_snr(custom_band=band_name)
-    
-    snr = ifs_exp.snr[0].value
-    wave = ifs_exp.wave[0]
-
-    return snr, wave
+    instrument.add_exposure(mos_exp)
+    mos_exp.exptime = exptime
+    warnings = ""
+    try:
+        mos_exp.calculate_snr(custom_band=band_name)
+        snr = mos_exp.snr[0].value
+        wave = mos_exp.wave[0].value
+    except syn.exceptions.SynphotError as exp:
+        warnings = f"<p style='color:Tomato;'>{exp}</p>"
+        wave = np.zeros(3)
+        snr = np.zeros_like(wave)
+    return snr, wave, warnings
 
 
 def update_data(): # use this one for updating synphot templates 
@@ -92,7 +96,7 @@ def update_data(): # use this one for updating synphot templates
     global suitable_bands
     global instrument_info
     # blank out the old list of sources
-    ifs_exp.sources = []
+    mos_exp.sources = []
     all_fluxes = []
     max_val = np.asarray([0.0])
     for idx, panel in enumerate(sources):
@@ -108,38 +112,39 @@ def update_data(): # use this one for updating synphot templates
         print('You asked for redshift', redshift.value) 
         hwo.effective_diameter = aperture.value
 
-        ifs_exp.disable()
+        mos_exp.disable()
         
-        ifs_source = Source() 
-        ifs_source.set_sed(template.value, magnitude.value, redshift.value, 0., library=spectra_library)
+        mos_source = Source() 
+        mos_source.set_sed(template.value, magnitude.value, redshift.value, 0., library=spectra_library)
 
         if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
             wave = np.linspace(100,30000,300) << u.Angstrom
             bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, bb_temperature.value)
             bb.z = redshift.value
             bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
-            ifs_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave << u.Angstrom, lookup_table=bb(wave))
+            mos_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave << u.Angstrom, lookup_table=bb(wave))
 
-        flux_converted = syn.units.convert_flux(ifs_source.sed.waveset, ifs_source.sed(ifs_source.sed.waveset), FLUXUNIT)
+        flux_converted = syn.units.convert_flux(mos_source.sed.waveset, mos_source.sed(mos_source.sed.waveset), FLUXUNIT)
 
         all_fluxes.extend(flux_converted.value)
 
-        spectrum_template[idx].data = dict(w=ifs_source.sed.waveset.value, f=flux_converted.value)
+        spectrum_template[idx].data = dict(w=mos_source.sed.waveset.value, f=flux_converted.value)
 
-        ifs_exp.add_source(ifs_source)
+        mos_exp.add_source(mos_source)
 
     max_val = np.ma.max(all_fluxes)
 
-    ifs_exp.verbose = True 
+    mos_exp.verbose = True 
 
-    snr, wave = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    snr, wave, warnings = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    warning_box.text=warnings
 
     snr_fixed = np.nan_to_num(snr, nan=0)
 
-    snr_results.data = dict(w=wave.value, sn = snr_fixed)
+    snr_results.data = dict(w=wave, sn = snr_fixed)
 
-    background = instrument.sky(wave) + ifs_exp.thermal(wave)
-    instrument_info.data = dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value)
+    background = instrument.sky(wave * u.AA) + mos_exp.thermal(wave * u.AA)
+    instrument_info.data = dict(wave=wave, bef=syn.units.convert_flux(wave * u.AA, background, FLUXUNIT).value)
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
@@ -266,12 +271,12 @@ def add_source_callback(event):
 def initialize_setup():
     global hwo
     global instrument
-    global ifs_exp
+    global mos_exp
     global spectrum_template
     global snr_results
     global instrument_info
 
-    ifs_exp = SourceIFSExposure()
+    mos_exp = SourceMOSExposure()
 
     add_source_callback(None)
 
@@ -317,4 +322,4 @@ exposure_inputs = Tabs(tabs=[ exposure_panel ], width=300)
 row1 = row(children=[source_inputs, flux_plot])
 row2 = row(children=[exposure_inputs, sn_plot])
 
-curdoc().add_root(column(children=[row1, add_source, snr_compute, row2]))
+curdoc().add_root(column(children=[row1, add_source, snr_compute, warning_box, row2]))

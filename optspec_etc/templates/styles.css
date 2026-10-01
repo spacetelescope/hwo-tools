@@ -13,7 +13,7 @@ body {
   /* background-color: #1D1B4D;*/ 
   color: #FFF;
   background-color: #000000; 
-  background-image: url(../images/HWO_HRI_Spectrograph.png);
+  background-image: url(/templates/HWO_HRI_Spectrograph.png);
   background-position: top;
   background-size: 1000px;
   background-repeat: no-repeat;

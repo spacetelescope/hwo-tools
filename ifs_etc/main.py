@@ -47,6 +47,7 @@ help_text = Div(text = h.help(), width=200)
 help_panel = TabPanel(child=help_text, title='Info') 
 source_inputs = Tabs(tabs=[ help_panel], width=300)
 
+warning_box = Div(text='<p></p>')
 grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
                  options=list(suitable_bands.keys()))
 
@@ -56,8 +57,8 @@ exptime = Slider(title="Exposure Time [hr]", value=1.0, start=0.1, end=10.0, ste
 
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 4000], y_range=[0, 4e-16], toolbar_location='right') 
-flux_plot.x_range=Range1d(900,4000,bounds=(900,4000))
+              x_range=[900, 5000], y_range=[0, 4e-16], toolbar_location='right') 
+flux_plot.x_range=Range1d(900,5000,bounds=(900,5000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None))
 flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
@@ -65,8 +66,8 @@ flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 4000], y_range=[0, 40], toolbar_location='right')
-sn_plot.x_range=Range1d(900,4000,bounds=(900,4000))
+              x_range=[900, 5000], y_range=[0, 40], toolbar_location='right')
+sn_plot.x_range=Range1d(900,5000,bounds=(900,5000))
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
 
 def update_snr(band_name, instrument_name, exptime):
@@ -76,13 +77,16 @@ def update_snr(band_name, instrument_name, exptime):
 
     instrument.add_exposure(ifs_exp)
     ifs_exp.exptime = exptime
-
-    ifs_exp.calculate_snr(custom_band=band_name)
-    
-    snr = ifs_exp.snr[0].value
-    wave = ifs_exp.wave[0]
-
-    return snr, wave
+    warnings = ""
+    try:
+        ifs_exp.calculate_snr(custom_band=band_name)
+        snr = ifs_exp.snr[0].value
+        wave = ifs_exp.wave[0].value
+    except syn.exceptions.SynphotError as exp:
+        warnings = f"<span color='red'> {exp} </span>"
+        wave = np.zeros(3)
+        snr = np.zeros_like(wave)
+    return snr, wave, warnings
 
 
 def update_data(): # use this one for updating synphot templates 
@@ -132,14 +136,15 @@ def update_data(): # use this one for updating synphot templates
 
     ifs_exp.verbose = True 
 
-    snr, wave = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    snr, wave, warnings = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    warning_box.text=warnings
 
     snr_fixed = np.nan_to_num(snr, nan=0)
 
-    snr_results.data = dict(w=wave.value, sn = snr_fixed)
+    snr_results.data = dict(w=wave, sn = snr_fixed)
 
-    background = instrument.sky(wave) + ifs_exp.thermal(wave)
-    instrument_info.data = dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value)
+    background = instrument.sky(wave * u.AA) + ifs_exp.thermal(wave * u.AA)
+    instrument_info.data = dict(wave=wave, bef=syn.units.convert_flux(wave * u.AA, background, FLUXUNIT).value)
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
@@ -317,4 +322,4 @@ exposure_inputs = Tabs(tabs=[ exposure_panel ], width=300)
 row1 = row(children=[source_inputs, flux_plot])
 row2 = row(children=[exposure_inputs, sn_plot])
 
-curdoc().add_root(column(children=[row1, add_source, snr_compute, row2]))
+curdoc().add_root(column(children=[row1, add_source, snr_compute, warning_box, row2]))

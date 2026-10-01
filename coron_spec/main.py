@@ -91,7 +91,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.hrpanel2 = Div(text="<p>------------------ planet --------------------</p>")
         self.hrpanel3 = Div(text="<p>----------------------------------------------</p>")
 
-        # currently unused, as we only have EAC1 working
+        # currently unused, as we only have EAC1 and EAC5 working
         self.eac_buttons = RadioButtonGroup(labels=self.EACS, active=0)
         self.eac_buttons.on_change("active", self.eac_callback)
 
@@ -245,7 +245,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         if "eacnum" in self.parameters:
             self.parameters["observatory_preset"] = self.EACS[self.parameters["eacnum"]]
         else:
-            self.parameters["observatory_preset"] = "EAC5" # tells ETC to use EAC1 yaml files throughputs
+            self.parameters["observatory_preset"] = "EAC5" # tells ETC to use EAC5 yaml files throughputs
         self.parameters["IFS_eff"]  = 1. # extra throughput of the IFS
         #self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
         #self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this

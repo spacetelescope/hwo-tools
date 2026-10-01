@@ -37,6 +37,8 @@ source4 = ColumnDataSource(data=dict())
 suitable_instruments = {}
 template_to_start_with = "Flat (AB)"
 
+warning = Div(text='<p></p>')
+
 def update_snr(suitable_instruments, exptime):
     global hri_source
     global hri_exp
@@ -55,21 +57,24 @@ def update_snr(suitable_instruments, exptime):
         instrument.add_exposure(hri_exp)
         hri_exp.source = hri_source
         hri_exp.exptime = exptime
+        warnings = ""
         for band_name in bands:
+            band = instrument.configuration["bands"][band_name]
             try:
                 print("Band", band_name)
                 hri_exp.calculate_snr(custom_band=band_name)
-                band = instrument.configuration["bands"][band_name]
                 pivotwave.append(band["effective_wavelength"].value)
                 snr.append(hri_exp.snr[0].value)
-            except (syn.exceptions.DisjointError, syn.exceptions.SynphotError):
-                print("Disjoint")
-                continue
+            except (syn.exceptions.DisjointError, syn.exceptions.SynphotError) as exp:
+                warnings = f"<p style='color:Tomato;'>{exp}</p>"
+                pivotwave.append(band["effective_wavelength"].value)
+                snr.append(0)
+
         snrs.append(np.asarray(snr))
         pivots.append(np.asarray(pivotwave))
         names.append(bands)
 
-    return snrs, pivots, names
+    return snrs, pivots, names, warnings
 
 def flatten(arr):
     # https://realpython.com/python-flatten-list/
@@ -98,7 +103,8 @@ def initialize_setup():
     hri_exp.source = hri_source
     hri_exp.verbose = True 
 
-    snrs, pivots, names = update_snr(suitable_instruments, 1 * u.h)
+    snrs, pivots, names, warnings = update_snr(suitable_instruments, 1 * u.h)
+    warning.text=warnings
 
     source1 = ColumnDataSource(data=dict(x=pivots[0], y=snrs[0], desc=names[0]))
     source2 = ColumnDataSource(data=dict(x=pivots[1], y=snrs[1], desc=names[1]))
@@ -173,7 +179,8 @@ def update_data(attrname, old, new):
 
     spectrum_template.data = {'w':hri_source.sed.waveset.value, 'f':flux_converted.value}    
 
-    snrs, pivots, names = update_snr(suitable_instruments, [exptime.value] * u.hr) 
+    snrs, pivots, names, warnings = update_snr(suitable_instruments, [exptime.value] * u.hr) 
+    warning.text=warnings
 
     source1.data = dict(x=pivots[0], y=snrs[0], desc=names[0]) 
     source2.data = dict(x=pivots[1], y=snrs[1], desc=names[1]) 
@@ -221,7 +228,6 @@ magnitude.js_on_change("value_throttled", magnitude_callback)
 template = Select(title="Template Spectrum", value="Flat (AB)", options=list(spectra_library.keys()), width=250) 
 
 upload = FileInput(accept=[".txt", ".csv", ".ascii", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
-warning = Div(text='<p></p>')
 
 def process_spectrum(attr, old, new):
     global template

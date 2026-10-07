@@ -27,9 +27,9 @@ from common import catalog, pyedith_etc_common
 param_snr=10
 FILTERS = {"UVIS 0": [
             # EAC5 CI_VIS_DI
-            pE.Filter("CI_0A413.2", center=0.4132, bandwidth=0.0169, type="IMAGER"),
-            pE.Filter("CI_0B430.1", center=0.4301, bandwidth=0.0176, type="IMAGER"),
-            pE.Filter("CI_0C447.7", center=0.4477, bandwidth=0.0183, type="IMAGER"),
+            #pE.Filter("CI_0A413.2", center=0.4132, bandwidth=0.0169, type="IMAGER"),
+            #pE.Filter("CI_0B430.1", center=0.4301, bandwidth=0.0176, type="IMAGER"),
+            #pE.Filter("CI_0C447.7", center=0.4477, bandwidth=0.0183, type="IMAGER"),
             pE.Filter("CI_0D466",   center=0.4660, bandwidth=0.0191, type="IMAGER"),
             pE.Filter("CI_0E485.1", center=0.4851, bandwidth=0.0199, type="IMAGER"),
             pE.Filter("CI_0F450",   center=0.4500, bandwidth=0.0900, type="IMAGER"),

@@ -32,7 +32,7 @@ FILTERS = {"UVIS 0": [
             #pE.Filter("CI_0C447.7", center=0.4477, bandwidth=0.0183, type="IMAGER"),
             pE.Filter("CI_0D466",   center=0.4660, bandwidth=0.0191, type="IMAGER"),
             pE.Filter("CI_0E485.1", center=0.4851, bandwidth=0.0199, type="IMAGER"),
-            pE.Filter("CI_0F450",   center=0.4500, bandwidth=0.0900, type="IMAGER"),
+            #pE.Filter("CI_0F450",   center=0.4500, bandwidth=0.0900, type="IMAGER"),
             ],
             "UVIS 1": [
             pE.Filter("CI_1A505",   center=0.5050, bandwidth=0.0207, type="IMAGER"),
@@ -161,7 +161,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
         self.newexp.on_change("value", self.exp_callback)
 
-        self.photbands= Select(title="Photometric Bands", value="UVIS 0", 
+        self.photbands= Select(title="Photometric Bands", value="UVIS 1", 
                 options=list(FILTERS.keys()), width=250)
         self.photbands.on_change("value", self.photbands_callback)
 

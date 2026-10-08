@@ -17,10 +17,10 @@ what is on the main branch:
 The following directions assume that you have ssh keys setup with GitHub.
 ```
 cd $INSTALL_DIR
-git clone git+ssh://git@github.com:spacetelescope/hwo-tools.git
-conda create --file hwotools.yml
+git clone git@github.com:spacetelescope/hwo-tools.git
+conda env create -file hwotools.yml
 conda activate hwotools
-pip install git_ssh://git@github.com:spacetelescope/syotools.git
+pip install git+ssh://git@github.com/spacetelescope/syotools.git
 ```
 Make sure that your environment variables point to the appropriate place to find:
 
@@ -44,19 +44,19 @@ For Imaging and Spectroscopy (camera_etc, uvspec_etc, ifs_etc):
 - Clone the hwome-core repo:  **(This repo is NOT currently public)**
 ```
    cd $INSTALL_DIR
-   git clone https://github.com/HWO-Project/hwome-core.git
+   git clone git@github.com:HWO-Project/hwome-core.git
    cd hwome-core
    pip install .
 ```
 - Clone hwome_data repo: **(This repo is NOT currently public)**
 ```   cd $INSTALL_DIR
-   git clone https://github.com/HWO-Project/hwome_data.git
+   git clone git@github.com:HWO-Project/hwome_data.git
    set environment variable: export HWOME_DATA_PATH=$INSTALL_DIR/hwome_data
 ```
 - Clone the SYOTools repo:
 ```
    cd $INSTALL_DIR
-   git clone https://github.com/spacetelescope/syotools.git
+   git clone git@github.com:spacetelescope/syotools.git
    cd syotools
    pip install .
 ```
@@ -65,7 +65,7 @@ And for Coronagraphy (coron_imaging, coron_spec):
 - Clone the EACy repo:
 ```
    cd $INSTALL_DIR
-   git clone https://github.com/curriem/eacy.git
+   git clone git@github.com:curriem/eacy.git
    cd eacy
    pip install .
 ```
@@ -75,7 +75,7 @@ And for Coronagraphy (coron_imaging, coron_spec):
 - Clone the pyEDITH repo:
 ```
    cd $INSTALL_DIR
-   git clone https://github.com/HabitableWorldsObservatory/pyEDITH.git
+   git clone git@github.com:HabitableWorldsObservatory/pyEDITH.git
    cd pyEDITH
    pip install .
 ```
@@ -90,7 +90,7 @@ More specific, complete environments for conda-forge users.
 
 Install SYOTools (will pull in hwome-core):
 ```
-pip install git+ssh://git@www.github.com/spacetelescope/syotools```
+pip install git+ssh://git@github.com/spacetelescope/syotools.git```
 conda activate hwotools
 ```
 Add to your .bashrc / .bash_profile:

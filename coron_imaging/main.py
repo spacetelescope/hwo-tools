@@ -27,12 +27,12 @@ from common import catalog, pyedith_etc_common
 param_snr=10
 FILTERS = {"UVIS 0": [
             # EAC5 CI_VIS_DI
-            pE.Filter("CI_0A413.2", center=0.4132, bandwidth=0.0169, type="IMAGER"),
-            pE.Filter("CI_0B430.1", center=0.4301, bandwidth=0.0176, type="IMAGER"),
-            pE.Filter("CI_0C447.7", center=0.4477, bandwidth=0.0183, type="IMAGER"),
+            #pE.Filter("CI_0A413.2", center=0.4132, bandwidth=0.0169, type="IMAGER"),
+            #pE.Filter("CI_0B430.1", center=0.4301, bandwidth=0.0176, type="IMAGER"),
+            #pE.Filter("CI_0C447.7", center=0.4477, bandwidth=0.0183, type="IMAGER"),
             pE.Filter("CI_0D466",   center=0.4660, bandwidth=0.0191, type="IMAGER"),
             pE.Filter("CI_0E485.1", center=0.4851, bandwidth=0.0199, type="IMAGER"),
-            pE.Filter("CI_0F450",   center=0.4500, bandwidth=0.0900, type="IMAGER"),
+            #pE.Filter("CI_0F450",   center=0.4500, bandwidth=0.0900, type="IMAGER"),
             ],
             "UVIS 1": [
             pE.Filter("CI_1A505",   center=0.5050, bandwidth=0.0207, type="IMAGER"),
@@ -94,7 +94,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     # classmethods
     target_planet, target_star = catalog.load_catalog()
 
-    EACS = ["EAC1"]
+    EACS = ["EAC5"]
     filter_list = []
 
     def __init__(self):
@@ -161,11 +161,11 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
         self.newexp.on_change("value", self.exp_callback)
 
-        self.photbands= Select(title="Photometric Bands", value="UVIS 0", 
+        self.photbands= Select(title="Photometric Bands", value="UVIS 1", 
                 options=list(FILTERS.keys()), width=250)
         self.photbands.on_change("value", self.photbands_callback)
 
-        self.newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, ) 
+        self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=5, end=15, step=0.1, ) 
         self.newdiameter.on_change("value", self.diameter_callback)
 
         self.star = Select(title="Template Star Spectrum", value="G2V star", 
@@ -490,6 +490,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     def photbands_callback(self, attr, old, new):
         self.parameters["filter_list"] = FILTERS[new]
         self.filter_list = pE.parse_input.parse_filters(self.parameters)
+        self.inputs.data.update({"new_filt": [FILTERS[new]], "scene": [True]})
 
     def snr_callback(self, attr, old, new):
         print(attr, old, new)

@@ -24,20 +24,21 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/..")
 
 from common import catalog, pyedith_etc_common
 
+MODE = "IFS"
+
+configuration = pE.Observatory._load_eac_configuration("EAC5")
+print("Initial_Configuration", configuration[MODE].keys())
+FILTERS = {}
+for band in configuration[MODE].keys():
+    wave_range = configuration[MODE][band]["wavelength_range"]
+    FILTERS[band] = pE.Filter(band, low=wave_range[0], high=wave_range[1], resolution=50, type=MODE)
+
 param_snr=10
-FILTERS = { "UVIS": [
-        pE.Filter("CI_VIS_IFS_Prism",low=0.4,high=2.0, resolution=50,type='IFS'),
-        ], "Bridge": [
-        pE.Filter("CI_Bridge_IFS_Prism",low=0.4,high=2.0, resolution=35,type='IFS'),
-        ], "NIR2": [
-        pE.Filter("CI_NIR2_IFS_Prism",low=0.4,high=2.0, resolution=10,type='IFS')
-        ]
-        }
 
 class CoronSpec(pyedith_etc_common.pyEDITHETC):
     # classmethods
     target_planet, target_star = catalog.load_catalog()
-    EACS = ["EAC1"]
+    EACS = ["EAC5"]
     filter_list = []
 
     def __init__(self):
@@ -90,7 +91,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.hrpanel2 = Div(text="<p>------------------ planet --------------------</p>")
         self.hrpanel3 = Div(text="<p>----------------------------------------------</p>")
 
-        # currently unused, as we only have EAC1 working
+        # currently unused, as we only have EAC1 and EAC5 working
         self.eac_buttons = RadioButtonGroup(labels=self.EACS, active=0)
         self.eac_buttons.on_change("active", self.eac_callback)
 
@@ -100,11 +101,11 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
         self.newexp.on_change("value", self.exp_callback)
 
-        self.photbands= Select(title="Photometric Bands", value="UVIS", 
+        self.photbands= Select(title="Spectroscopic Bands", value="CI_VIS_IFS", 
                 options=list(FILTERS.keys()), width=250)
         self.photbands.on_change("value", self.photbands_callback)
 
-        self.newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, )
+        self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=5, end=15, step=0.1, )
         self.newdiameter.on_change("value", self.diameter_callback)
 
         self.star = Select(title="Template Star Spectrum", value="G2V star",
@@ -179,7 +180,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         # observation parameters
         # set up wavelengths
         self.parameters["wavelength"] = np.linspace(0.2, 2.0, 1000)
-        self.parameters["filter_list"] = FILTERS["UVIS"]
+        self.parameters["filter_list"] = FILTERS["CI_VIS_IFS"]
         self.parameters["nlambd"] = len(self.parameters["wavelength"]) # number of wavelengths
         self.parameters["snr"] = param_snr * np.ones_like(self.parameters["wavelength"]) # the SNR you want for each spectral bin
         self.parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
@@ -240,11 +241,11 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.parameters["dec"] = +20.000
 
         # Observatory parameters
-        self.parameters["observing_mode"] = "IFS" # ETC should use IFS mode
+        self.parameters["observing_mode"] = MODE # ETC should use IFS mode
         if "eacnum" in self.parameters:
             self.parameters["observatory_preset"] = self.EACS[self.parameters["eacnum"]]
         else:
-            self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
+            self.parameters["observatory_preset"] = "EAC5" # tells ETC to use EAC5 yaml files throughputs
         self.parameters["IFS_eff"]  = 1. # extra throughput of the IFS
         #self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
         #self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
@@ -364,7 +365,8 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
     def photbands_callback(self, attr, old, new):
         self.parameters["filter_list"] = FILTERS[new]
         self.filter_list = pE.parse_input.parse_filters(self.parameters)
-
+        self.inputs.data.update({"new_filt": [FILTERS[new]], "scene": [True]})
+    
     def snr_callback(self, attr, old, new):
         print(attr, old, new)
         self.inputs.data.update({"new_snr": [new], "observation": [True]})

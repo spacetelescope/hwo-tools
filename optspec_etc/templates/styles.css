@@ -9,9 +9,11 @@ html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockq
 }
 
 body {
+  /*background-color: #000; */ 
+  /* background-color: #1D1B4D;*/ 
   color: #FFF;
   background-color: #000000; 
-  background-image: url(../images/Coron_Spec.png);
+  background-image: url(/templates/HWO_HRI_Spectrograph.png);
   background-position: top;
   background-size: 1000px;
   background-repeat: no-repeat;

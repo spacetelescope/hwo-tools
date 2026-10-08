@@ -16,44 +16,49 @@ import astropy.units as u
 import synphot as syn
 import stsynphot as stsyn
 
-import uvi_help as h 
+import hri_help as h 
 from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
 from syotools.models import Telescope, Spectrograph, Source, SourceSpectrographicExposure
 
 spectra_library = copy.deepcopy(syn_spectra_library)
 
-uvi_source = None
+hri_source = None
 hwo = None
 instrument = None
-uvi_exp = None
+hri_exp = None
 snr_results = ColumnDataSource(data={})
 spectrum_template = ColumnDataSource(data={})
 instrument_info = ColumnDataSource(data={})
 
 FLUXUNIT = u.erg / u.s / u.cm**2 / u.AA
 
+warning = Div(text='<p></p>')
+
 def update_snr(band_name, instrument_name, exptime):
-    global uvi_source
-    global uvi_exp
+    global hri_source
+    global hri_exp
     global instrument
     instrument = hwo.instruments[instrument_name]
 
-    instrument.add_exposure(uvi_exp)
-    uvi_exp.exptime = exptime
-
-    uvi_exp.calculate_snr(custom_band=band_name)
-    
-    snr = uvi_exp.snr[0].value
-    wave = uvi_exp.wave
-
-    return snr, wave
+    instrument.add_exposure(hri_exp)
+    hri_exp.exptime = exptime
+    warnings = ""
+    try:
+        hri_exp.calculate_snr(custom_band=band_name)
+        snr = hri_exp.snr[0].value
+        wave = hri_exp.wave[0].value
+    except syn.exceptions.SynphotError as exp:
+        warnings = f"<p style='color:Tomato;'>{exp}</p>"
+        wave = np.zeros(3)
+        snr = np.zeros_like(wave)
+    return snr, wave, warnings
 
 def initialize_setup():
     global hwo
     global instrument
-    global uvi_source
-    global uvi_exp
+    global hri_source
+    global hri_exp
 
     global spectrum_template
     global snr_results
@@ -62,36 +67,36 @@ def initialize_setup():
 
     hwo = Telescope() 
     hwo.set_from_hwome('EAC5')
-    suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="MOS", kind="disperser")
-    print(suitable_bands)
+    suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="HRI", kind="disperser")
 
     template_to_start_with = 'QSO' 
 
-    uvi_source = Source() 
-    uvi_source.set_sed(template_to_start_with, 21., 0., 0.)
+    hri_source = Source() 
+    hri_source.set_sed(template_to_start_with, 21., 0., 0.)
 
-    uvi_exp = SourceSpectrographicExposure() 
-    uvi_exp.source = uvi_source
-    uvi_exp.verbose = True 
+    hri_exp = SourceSpectrographicExposure() 
+    hri_exp.source = hri_source
+    hri_exp.verbose = True 
 
     initial_band = list(suitable_bands.keys())[-1]
-    snr, wave = update_snr(initial_band, suitable_bands[initial_band], 1 * u.hr)
+    snr, wave, warnings = update_snr(initial_band, suitable_bands[initial_band], 1 * u.hr)
+    warning.text=warnings
 
-    spectrum_template = ColumnDataSource(data=dict(w=uvi_source.sed.waveset.value, 
-                                                   f=syn.units.convert_flux(uvi_source.sed.waveset, uvi_source.sed(uvi_source.sed.waveset), FLUXUNIT).value)) 
-    print(' flux = ', uvi_source.sed(uvi_source.sed.waveset))
+    spectrum_template = ColumnDataSource(data=dict(w=hri_source.sed.waveset.value, 
+                                                   f=syn.units.convert_flux(hri_source.sed.waveset, hri_source.sed(hri_source.sed.waveset), FLUXUNIT).value)) 
+    print(' flux = ', hri_source.sed(hri_source.sed.waveset))
 
-    snr_results = ColumnDataSource(data=dict(w=wave[0].value, sn = snr))
-    background = uvi_exp.sky(wave[0]) + uvi_exp.thermal(wave[0])
+    snr_results = ColumnDataSource(data=dict(w=wave, sn = snr))
+    background = hri_exp.sky(wave * u.AA) + hri_exp.thermal(wave * u.AA)
 
-    instrument_info = ColumnDataSource(data=dict(wave=wave[0], bef=syn.units.convert_flux(wave[0], background, FLUXUNIT).value))
+    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value))
 
 initialize_setup()
 
 flux_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 6000], y_range=[0, 4e-16], toolbar_location='right') 
-flux_plot.x_range=Range1d(900,6000,bounds=(900,6000))
+              x_range=[1000, 25000], y_range=[0, 4e-16], toolbar_location='right') 
+flux_plot.x_range=Range1d(1000,25000,bounds=(1000,25000))
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None)) 
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
@@ -100,9 +105,9 @@ flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 6000], y_range=[0, 2], toolbar_location='right')
-sn_plot.x_range=Range1d(900,6000,bounds=(900,6000))
-sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
+              x_range=[1000, 25000], y_range=[0, 2], toolbar_location='right')
+sn_plot.x_range=Range1d(1000,25000,bounds=(1000,25000))
+sn_plot.y_range=Range1d(0,250,bounds=(0,None)) 
 sn_plot.line('w', 'sn', source=snr_results, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
 sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 sn_plot.yaxis.axis_label = 'S/N per resel' 
@@ -122,10 +127,10 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
     print('You asked for redshift', redshift.value) 
     hwo.effective_diameter = aperture.value * u.m
 
-    uvi_exp.disable()
+    hri_exp.disable()
 
-    uvi_source = Source() 
-    uvi_source.set_sed(template.value, magnitude.value, redshift.value, 0., library=spectra_library)
+    hri_source = Source() 
+    hri_source.set_sed(template.value, magnitude.value, redshift.value, 0., library=spectra_library)
 
 
     if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
@@ -133,21 +138,22 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
        bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, bb_temperature.value)
        bb.z = redshift.value
        bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
-       uvi_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
+       hri_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
 
-    uvi_exp.source = uvi_source
-    uvi_exp.verbose = True 
+    hri_exp.source = hri_source
+    hri_exp.verbose = True 
 
-    snr, wave = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    snr, wave, warnings = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    warning.text=warnings
 
     snr_fixed = np.nan_to_num(snr, nan=0)
-    flux_converted = syn.units.convert_flux(uvi_source.sed.waveset, uvi_source.sed(uvi_source.sed.waveset), FLUXUNIT)
+    flux_converted = syn.units.convert_flux(hri_source.sed.waveset, hri_source.sed(hri_source.sed.waveset), FLUXUNIT)
 
-    spectrum_template.data = dict(w=uvi_source.sed.waveset.value, f=flux_converted.value) 
-    snr_results.data = dict(w=wave[0].value, sn = snr_fixed) 
+    spectrum_template.data = dict(w=hri_source.sed.waveset.value, f=flux_converted.value) 
+    snr_results.data = dict(w=wave, sn = snr_fixed) 
 
-    background = uvi_exp.sky(wave[0]) + uvi_exp.thermal(wave[0])
-    instrument_info = ColumnDataSource(data=dict(wave=wave[0], bef=syn.units.convert_flux(wave[0], background, FLUXUNIT).value))
+    background = hri_exp.sky(wave * u.AA) + hri_exp.thermal(wave * u.AA)
+    instrument_info = ColumnDataSource(data=dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value))
 
 
     # set the axes to autoscale appropriately 
@@ -202,7 +208,7 @@ exptime_callback = CustomJS(args=dict(source=source), code="""
 exptime.js_on_change("value_throttled", exptime_callback) 
 
 upload = FileInput(accept=[".txt", ".csv", ".ascii", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
-warning = Div(text='<p></p>')
+
 
 def process_spectrum(attr, old, new):
     global template

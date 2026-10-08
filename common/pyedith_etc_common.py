@@ -32,8 +32,24 @@ class pyEDITHETC():
         #parameters.update(updates)
 
         self.scene.load_configuration(self.parameters)
+        print("Post-load Parameters length")
+        print("scene.F0", len(self.scene.F0))
+        print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
+        print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
         self.scene.calculate_zodi_exozodi(self.parameters)
+        print("Post-load Parameters length")
+        print("scene.F0", len(self.scene.F0))
+        print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
+        print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
         self.scene.validate_configuration()
+        print("Post-load Parameters length")
+        print("scene.F0", len(self.scene.F0))
+        print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
+        print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
+        #print("area_cm2", area_cm2)
+        #print("det_photometric_aperture_throuphput_arr", len(det_photometric_aperture_throughput_arr))
+        #print("observatory.total_throughput", len(self.observatory.total_throughput))
+        #print("deltalambda_nm", len(deltalambda_nm))
 
     def update_observation(self,filt):
 
@@ -159,7 +175,7 @@ class pyEDITHETC():
             self.parameters["diameter"] = newvalues.data["new_telescope_diameter"][0]
             del newvalues.data["new_telescope_diameter"] # consume the new value
         else:
-            self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
+            self.parameters["observatory_preset"] = "EAC5" # tells ETC to use EAC5 yaml files throughputs
 
         if "observation" in newvalues.data and newvalues.data["observation"][0]:
             print("Rerun observation...")
@@ -171,6 +187,11 @@ class pyEDITHETC():
             self.update_scene()
             if self.parameters["observing_mode"] == "IFS" and self.parameters["regrid_wavelength"] is True:
                 self.scene.regrid_spectra(self.observation)
+                print("Post-regrid Parameters length")
+                print("scene.F0", len(self.scene.F0))
+                print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
+                print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
+
             newvalues.data["scene"][0] = False
 
         observatory_config = pE.parse_input.get_observatory_config(self.parameters)

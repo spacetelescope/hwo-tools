@@ -135,7 +135,7 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
 
     if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
        wave = np.linspace(100,30000,300) << u.Angstrom
-       bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, bb_temperature.value)
+       bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, temperature=bb_temperature.value)
        bb.z = redshift.value
        bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
        hri_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))

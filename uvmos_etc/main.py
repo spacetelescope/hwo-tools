@@ -40,7 +40,7 @@ run_compute = True
 
 hwo = Telescope() 
 hwo.set_from_hwome('EAC5')
-suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="uv_mos", kind="disperser")
+suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="uv_mos", category="mos")
 
 # Set up layouts and add to document
 help_text = Div(text = h.help(), width=200) 
@@ -119,7 +119,7 @@ def update_data(): # use this one for updating synphot templates
 
         if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
             wave = np.linspace(100,30000,300) << u.Angstrom
-            bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, bb_temperature.value)
+            bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, temperature=bb_temperature.value)
             bb.z = redshift.value
             bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
             mos_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave << u.Angstrom, lookup_table=bb(wave))

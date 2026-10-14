@@ -18,7 +18,7 @@ The following directions assume that you have ssh keys setup with GitHub.
 ```
 cd $INSTALL_DIR
 git clone git@github.com:spacetelescope/hwo-tools.git
-conda env create -file hwotools.yml
+conda env create --file hwotools.yml
 conda activate hwotools
 pip install git+ssh://git@github.com/spacetelescope/syotools.git
 ```

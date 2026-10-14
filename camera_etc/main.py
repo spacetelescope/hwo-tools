@@ -23,6 +23,11 @@ import synphot as syn
 import stsynphot as stsyn
 
 spectra_library = copy.deepcopy(syn_spectra_library)
+# remove the existing blackbody entries
+spectra_library = {x: spectra_library[x] for x in spectra_library if "Blackbody" not in x}
+# add new ones
+spectra_library["Blackbody (set temperature below)"] = spectra_library["Flat (AB)"]
+spectra_library["Phoenix Model (set temp, metallicity, and log(g) below)"] = spectra_library["Flat (AB)"]
 
 FLUXUNIT = u.ABmag
 
@@ -169,6 +174,31 @@ def update_data(attrname, old, new):
 
     hri_source.set_sed(template.value, magnitude.value, 0., 0., library=spectra_library)
 
+    if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
+       wave = np.linspace(100,30000,300) << u.Angstrom
+       bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, temperature=bb_temperature.value)
+       bb.z = redshift.value
+       bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
+       hri_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
+    if ('Phoenix' in template.value):
+        wave = np.linspace(100,30000,300) << u.Angstrom
+        temp = bb_temperature.value
+        metal = phoenix_metal.value
+        logg = phoenix_logg.value
+        try:
+            phoenix = stsyn.grid_to_spec('phoenix', temp, metal, logg)
+        except (stsyn.exceptions.ParameterOutOfBounds, ValueError) as err:
+            spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+            source1.data = dict(w=pivots[0], sn = np.zeros_like(pivots[0].value), desc=names[0]) 
+            source2.data = dict(w=pivots[1], sn = np.zeros_like(pivots[1].value), desc=names[1]) 
+            source3.data = dict(w=pivots[2], sn = np.zeros_like(pivots[2].value), desc=names[2]) 
+            source4.data = dict(w=pivots[3], sn = np.zeros_like(pivots[3].value), desc=names[3]) 
+            warnings.text = str(err)
+            return source1, source2, source3, source4
+        phoenix.z = redshift.value
+        phoenix = phoenix.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv'))
+        hri_source.sed = phoenix
+
     normalization_band = stsyn.band(spectra_library[template.value].band)
     hri_source.sed.normalize(magnitude.value * u.ABmag, normalization_band) 
     print('Renorming to ', magnitude.value) 
@@ -200,7 +230,7 @@ def update_data(attrname, old, new):
     sed_plot.title.text = text
     warning.text = ""
 
-    return source1, source2, source3
+    return source1, source2, source3, source4
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))
@@ -218,11 +248,36 @@ exptime_callback = CustomJS(args=dict(source=source), code="""
 """)
 exptime.js_on_change("value_throttled", exptime_callback) 
 
+redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
+redshift_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+redshift.js_on_change("value_throttled", redshift_callback) 
+
 magnitude = Slider(title="Magnitude (AB)", value=30.0, start=20.0, end=35., step=0.1, width=250) 
 magnitude_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
+
+bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=1000., width=200)
+temperature_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+bb_temperature.js_on_change("value_throttled", temperature_callback) 
+
+phoenix_metal = Slider(title="Metallicity (solar)", value=0., start=-4., end=0.5, step=0.1, sizing_mode="stretch_width")
+metallicity_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+phoenix_metal.js_on_change("value_throttled", metallicity_callback) 
+
+phoenix_logg = Slider(title="Log(g) (solar)", value=4., start=0., end=5.5, step=0.1, sizing_mode="stretch_width")
+logg_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+phoenix_logg.js_on_change("value_throttled", logg_callback) 
+
 
 
 template = Select(title="Template Spectrum", value="Flat (AB)", options=list(spectra_library.keys()), width=250) 
@@ -274,8 +329,8 @@ upload.on_change("filename", process_spectrum)
 for w in [template]:
     w.on_change('value', update_data)
 
-
-controls = column(children=[aperture, exptime, magnitude, template, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
+starparam = row(children=[phoenix_metal, phoenix_logg], width_policy = "fit")
+controls = column(children=[aperture, exptime, template, redshift, magnitude, bb_temperature, starparam, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
 controls_tab = TabPanel(child=controls, title='Controls')
 info_tab = TabPanel(child=Div(text = h.help()), title='Info')
 inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 

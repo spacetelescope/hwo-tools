@@ -19,9 +19,15 @@ import stsynphot as stsyn
 import echelle_help as h 
 from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
-from syotools.models import Telescope, Spectrograph, Source, SourceSpectrographicExposure
+from syotools.models import Telescope, Source, SourceSpectrographicExposure
 
 spectra_library = copy.deepcopy(syn_spectra_library)
+# remove the existing blackbody entries
+spectra_library = {x: spectra_library[x] for x in spectra_library if "Blackbody" not in x}
+# add new ones
+spectra_library["Blackbody (set temperature below)"] = spectra_library["Flat (AB)"]
+spectra_library["Phoenix Model (set temp, metallicity, and log(g) below)"] = spectra_library["Flat (AB)"]
+
 
 echelle_source = None
 hwo = None
@@ -141,6 +147,21 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
        bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
        print(bb, bb_temperature.value)
        echelle_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
+    if ('Phoenix' in template.value):
+        wave = np.linspace(100,6000,300) << u.Angstrom
+        temp = bb_temperature.value
+        metal = phoenix_metal.value
+        logg = phoenix_logg.value
+        try:
+            phoenix = stsyn.grid_to_spec('phoenix', temp, metal, logg)
+        except (stsyn.exceptions.ParameterOutOfBounds, ValueError) as err:
+            spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+            snr_results.data = dict(w=wave, sn = np.zeros_like(wave.value)) 
+            warnings.text = str(err)
+            return snr_results, spectrum_template
+        phoenix.z = redshift.value
+        phoenix = phoenix.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv'))
+        echelle_source.sed = phoenix
 
     echelle_exp.source = echelle_source
     echelle_exp.verbose = True 
@@ -174,7 +195,7 @@ source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
 
 # Set up widgets and their callbacks (faking the mouseup policy via "source" b/c functional callback doesn't do that. 
-template = Select(title="Template Spectrum", value="QSO", options=list(syn_spectra_library.keys()), width=200)
+template = Select(title="Template Spectrum", value="QSO", options=list(spectra_library.keys()), width=200)
 
 redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
 redshift_callback = CustomJS(args=dict(source=source), code="""
@@ -188,11 +209,23 @@ magnitude_callback = CustomJS(args=dict(source=source), code="""
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
 
-bb_temperature = Slider(title="Blackbody Temperature [K]", value=20000., start=2000., end=200000.0, step=1000., width=200)
+bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=1000., width=200)
 temperature_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
 bb_temperature.js_on_change("value_throttled", temperature_callback) 
+
+phoenix_metal = Slider(title="Metallicity (solar)", value=0., start=-4., end=0.5, step=0.1, sizing_mode="stretch_width")
+metallicity_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+phoenix_metal.js_on_change("value_throttled", metallicity_callback) 
+
+phoenix_logg = Slider(title="Log(g) (solar)", value=4., start=0., end=5.5, step=0.1, sizing_mode="stretch_width")
+logg_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+phoenix_logg.js_on_change("value_throttled", logg_callback) 
 
 grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
                  options=list(suitable_bands.keys()))
@@ -258,9 +291,10 @@ upload.on_change("filename", process_spectrum)
 for w in [template, grating]:  w.on_change('value', update_data)
  
 # Set up layouts and add to document
-help_text = Div(text = h.help(), width=250) 
-source_settings = column(children=[template, redshift, magnitude, bb_temperature, upload, warning], sizing_mode='fixed', max_width=250, width=250, height=300)
-controls_panel = TabPanel(child=source_settings, title='Source') 
+help_text = Div(text = h.help(), width=250)
+starparam = row(children=[phoenix_metal, phoenix_logg], width_policy = "fit")
+source_settings = column(children=[template, redshift, magnitude, bb_temperature, starparam, upload, warning], sizing_mode='fixed', max_width=250, width=250, height=300)
+controls_panel = TabPanel(child=source_settings, title='Source')
 help_panel = TabPanel(child=help_text, title='Info') 
 source_inputs = Tabs(tabs=[ controls_panel, help_panel], width=250) 
 #source_inputs = Tabs(tabs=[ controls_panel], width=300) 

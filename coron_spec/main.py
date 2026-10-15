@@ -1,4 +1,5 @@
 import os
+import io
 from functools import partial
 
 import base64
@@ -18,11 +19,17 @@ import synphot as syn
 import stsynphot as stsyn
 
 import pyEDITH as pE
+import logging
 
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/..")
 
 from common import catalog, pyedith_etc_common
+
+pyedith_logger = logging.getLogger("pyEDITH")
+stringlogging = io.StringIO()
+pyedith_logger.addHandler(logging.StreamHandler(stringlogging))
+pyedith_logger.setLevel(logging.ERROR)
 
 MODE = "IFS"
 
@@ -70,6 +77,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
         self.spec_plot.line("wavelength", "FpFs", source=self.obsdata)
         self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover')
+        self.spec_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
@@ -267,7 +275,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         global obsdata
         global exptime_compute
 
-
+        newwarnings=set()
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -280,8 +288,16 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-
                 return
+            except Exception as err:
+                self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                self.baddata.data={"wavelength": self.observation.wavelength}
+                return
+            message = stringlogging.getvalue()
+            if message is not None:
+                newwarnings.update(message)
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
             if any(np.isinf(self.observation.exptime)):
@@ -294,12 +310,12 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                                                     set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                     )
 
-
-
             print(len(obs))
 
-            good = [True if np.isfinite(x) and x < 1e8 * u.s else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+            good = [True if np.isfinite(x) else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
             bad = np.invert(good)
+
+        self.warning.text += message
 
         self.baddata.data={"wavelength": self.observation.wavelength[bad]}
         self.obsdata.data={"wavelength": self.observation.wavelength[good], "exptime": self.observation.exptime[good].to(u.hr), "FpFs": self.scene.Fp_over_Fs[good],
@@ -314,6 +330,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
     def do_recalculate_snr(self, newvalues):
 
+        newwarnings=set()
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -329,8 +346,16 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.snr_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-
                 return
+            except Exception as err:
+                self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                self.baddata.data={"wavelength": self.observation.wavelength}
+                return
+            message = stringlogging.getvalue()
+            if message is not None:
+                newwarnings.update(message)
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
             if any(np.isinf(self.observation.exptime)):

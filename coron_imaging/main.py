@@ -1,4 +1,5 @@
 import os
+import io
 from functools import partial
 
 import base64
@@ -18,11 +19,18 @@ import synphot as syn
 import stsynphot as stsyn
 
 import pyEDITH as pE
+import logging
 
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/..")
 
 from common import catalog, pyedith_etc_common
+
+pyedith_logger = logging.getLogger("pyEDITH")
+stringlogging = io.StringIO()
+pyedith_logger.addHandler(logging.StreamHandler(stringlogging))
+pyedith_logger.setLevel(logging.ERROR)
+
 
 param_snr=10
 FILTERS = {"UVIS 0": [
@@ -129,6 +137,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
         self.spec_plot.line("wavelength", "obs", source=self.obsdata)
         self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+        self.spec_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.spec_plot.segment(x0='band_lo', y0='obs', x1='band_hi', y1='obs', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_plot.segment(x0='wavelength', y0='noise_hi', x1='wavelength', y1='noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
@@ -335,6 +344,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         good = []
         bad_wavelengths = []
 
+        newwarnings=set()
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -347,8 +357,15 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            except Exception as err:
+                self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
-                return
+            message = stringlogging.getvalue()
+            if message is not None:
+                newwarnings.update(message)
+                #bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
             #if any(np.isinf(self.observation.exptime)):
@@ -364,7 +381,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
             print("Obs", obs)
             print("Noise", noise)
             exptime = self.observation.exptime[0] << u.h
-            if np.isfinite(exptime) and exptime < (1e8 * u.s):
+            if np.isfinite(exptime):
                 good.append(True)
                 bwidth.append(filt.bandwidth)
                 name.append(filt.name)
@@ -387,11 +404,13 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
         bwidth = np.asarray(bwidth) << u.um
 
+        self.warning.text += message
+
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
                     "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
                     "band_lo": wave_filters[good] - bwidth[good]/2, "band_hi": wave_filters[good] + bwidth[good]/2, 
                     "snr": snr_filters[good], "name": name[good]}
-        self.baddata.data={"wavelength": bad_wavelengths}
+        self.baddata.data={"wavelength": np.asarray(bad_wavelengths)}
     #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
         self.exp_plot.title.text =  title_text
@@ -418,6 +437,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         good = []
         bad_wavelengths = []
 
+        newwarnings=set()
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -430,8 +450,14 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-
-                return
+            except Exception as err:
+                self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            message = stringlogging.getvalue()
+            if message is not None:
+                newwarnings.update(message)
+                #bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
             if any(np.isinf(self.observation.exptime)):
@@ -460,6 +486,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 snr_filters.append(self.observation.fullsnr[0])
             else:
                 bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
+        print(bad_wavelengths)
         name = np.asarray(name)
         exptime_filters = np.asarray(exptime_filters) << u.hr
         wave_filters = np.asarray(wave_filters) << u.um
@@ -470,12 +497,12 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
         bwidth = np.asarray(bwidth) << u.um
 
-
+        self.warning.text += message
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
                     "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
                     "band_lo": wave_filters[good] - bwidth[good]/2, "band_hi": wave_filters[good] + bwidth[good]/2, 
                     "snr": snr_filters[good], "name": name[good]}
-        self.baddata.data={"wavelength": bad_wavelengths}
+        self.baddata.data={"wavelength": np.asarray(bad_wavelengths)}
     #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
         self.snr_plot.title.text = title_text

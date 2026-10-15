@@ -187,13 +187,21 @@ def update_data(attrname, old, new):
         logg = phoenix_logg.value
         try:
             phoenix = stsyn.grid_to_spec('phoenix', temp, metal, logg)
-        except (stsyn.exceptions.ParameterOutOfBounds, ValueError) as err:
+        except stsyn.exceptions.ParameterOutOfBounds as err:
             spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
-            source1.data = dict(w=pivots[0], sn = np.zeros_like(pivots[0].value), desc=names[0]) 
-            source2.data = dict(w=pivots[1], sn = np.zeros_like(pivots[1].value), desc=names[1]) 
-            source3.data = dict(w=pivots[2], sn = np.zeros_like(pivots[2].value), desc=names[2]) 
-            source4.data = dict(w=pivots[3], sn = np.zeros_like(pivots[3].value), desc=names[3]) 
-            warnings.text = str(err)
+            source1.data = dict(w=[0.1], sn = [0], desc=[""]) 
+            source2.data = dict(w=[0.3], sn = [0], desc=[""]) 
+            source3.data = dict(w=[0.8], sn = [0], desc=[""]) 
+            source4.data = dict(w=[1.2], sn = [0], desc=[""]) 
+            warning.text = str(err)
+            return source1, source2, source3, source4
+        except ValueError as err:
+            spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+            source1.data = dict(w=[0.1], sn = [0], desc=[""]) 
+            source2.data = dict(w=[0.3], sn = [0], desc=[""]) 
+            source3.data = dict(w=[0.8], sn = [0], desc=[""]) 
+            source4.data = dict(w=[1.2], sn = [0], desc=[""]) 
+            warning.text = f"log(g) value not in file (original error: {err})"
             return source1, source2, source3, source4
         phoenix.z = redshift.value
         phoenix = phoenix.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv'))

@@ -155,7 +155,12 @@ def update_data(attrname, old, new): # use this one for updating pysynphot templ
         except (stsyn.exceptions.ParameterOutOfBounds, ValueError) as err:
             spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
             snr_results.data = dict(w=wave, sn = np.zeros_like(wave.value)) 
-            warnings.text = str(err)
+            warning.text = str(err)
+            return snr_results, spectrum_template
+        except ValueError as err:
+            spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+            snr_results.data = dict(w=wave, sn = np.zeros_like(wave.value)) 
+            warning.text = f"log(g) value not in file (original error: {str(err)})"
             return snr_results, spectrum_template
         phoenix.z = redshift.value
         phoenix = phoenix.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv'))

@@ -32,24 +32,8 @@ class pyEDITHETC():
         #parameters.update(updates)
 
         self.scene.load_configuration(self.parameters)
-        print("Post-load Parameters length")
-        print("scene.F0", len(self.scene.F0))
-        print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
-        print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
         self.scene.calculate_zodi_exozodi(self.parameters)
-        print("Post-load Parameters length")
-        print("scene.F0", len(self.scene.F0))
-        print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
-        print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
         self.scene.validate_configuration()
-        print("Post-load Parameters length")
-        print("scene.F0", len(self.scene.F0))
-        print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
-        print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
-        #print("area_cm2", area_cm2)
-        #print("det_photometric_aperture_throuphput_arr", len(det_photometric_aperture_throughput_arr))
-        #print("observatory.total_throughput", len(self.observatory.total_throughput))
-        #print("deltalambda_nm", len(deltalambda_nm))
 
     def update_observation(self,filt):
 

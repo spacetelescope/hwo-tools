@@ -315,7 +315,9 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             good = [True if np.isfinite(x) else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
             bad = np.invert(good)
 
-        self.warning.text += message
+        newwarnings = "".join(newwarnings)
+        warningslist = newwarnings.split("\n")
+        self.warning.text += " ".join(list(set(warningslist)))
 
         self.baddata.data={"wavelength": self.observation.wavelength[bad]}
         self.obsdata.data={"wavelength": self.observation.wavelength[good], "exptime": self.observation.exptime[good].to(u.hr), "FpFs": self.scene.Fp_over_Fs[good],
@@ -346,13 +348,10 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.snr_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-                return
             except Exception as err:
                 self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
                 self.exptime_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-                self.baddata.data={"wavelength": self.observation.wavelength}
-                return
             message = stringlogging.getvalue()
             if message is not None:
                 newwarnings.update(message)
@@ -373,6 +372,10 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
             good = [True if np.isfinite(x) else False for x in self.observation.fullsnr]
             bad = np.invert(good)
+
+        newwarnings = "".join(newwarnings)
+        warningslist = newwarnings.split("\n")
+        self.warning.text += " ".join(list(set(warningslist)))
 
         self.baddata.data={"wavelength": self.observation.wavelength[bad]}
         self.obsdata.data={"wavelength": self.observation.wavelength, "exptime": self.newexp.value * np.ones_like(self.observation.wavelength.value), "FpFs": self.scene.Fp_over_Fs, "obs": obs, "noise_hi": obs + noise/2., "noise_lo": obs - noise/2., "snr": self.observation.fullsnr}

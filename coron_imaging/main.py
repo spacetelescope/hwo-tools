@@ -68,11 +68,11 @@ FILTERS = {"UVIS 0": [
             ],
             "UVIS 4": [
             pE.Filter("CI_4A808.7", center=0.8087, bandwidth=0.0302, type="IMAGER"),
-            pE.Filter("CI_4B838.9", center=0.8389, bandwidth=0.0314, type="IMAGER"),
-            pE.Filter("CI_4C870.3", center=0.8703, bandwidth=0.0325, type="IMAGER"),
-            pE.Filter("CI_4D902.8", center=0.9028, bandwidth=0.0338, type="IMAGER"),
-            pE.Filter("CI_4E936.6", center=0.9366, bandwidth=0.0350, type="IMAGER"),
-            pE.Filter("CI_4F874",   center=0.8740, bandwidth=0.1600, type="IMAGER"),
+            #pE.Filter("CI_4B838.9", center=0.8389, bandwidth=0.0314, type="IMAGER"),
+            #pE.Filter("CI_4C870.3", center=0.8703, bandwidth=0.0325, type="IMAGER"),
+            #pE.Filter("CI_4D902.8", center=0.9028, bandwidth=0.0338, type="IMAGER"),
+            #pE.Filter("CI_4E936.6", center=0.9366, bandwidth=0.0350, type="IMAGER"),
+            #pE.Filter("CI_4F874",   center=0.8740, bandwidth=0.1600, type="IMAGER"),
             ],
             # EAC5 CI_BRIDGE_DI
             "Bridge": [
@@ -83,18 +83,18 @@ FILTERS = {"UVIS 0": [
             pE.Filter("CI_F983",  center=0.983, bandwidth=0.032, type="IMAGER"),
             pE.Filter("CI_F1015",  center=1.015, bandwidth=0.033, type="IMAGER"),
             pE.Filter("CI_F1048",  center=1.048, bandwidth=0.034, type="IMAGER"),
-            pE.Filter("CI_F1083",  center=1.083, bandwidth=0.035, type="IMAGER"),
+            #pE.Filter("CI_F1083",  center=1.083, bandwidth=0.035, type="IMAGER"),
             ],
             # EAC5 CI_NIR2_DI
             "NIR2": [
-            pE.Filter("CI_F1038",  center=1.038, bandwidth=0.076, type="IMAGER"),
-            pE.Filter("CI_F1117",  center=1.117, bandwidth=0.082, type="IMAGER"),
+            #pE.Filter("CI_F1038",  center=1.038, bandwidth=0.076, type="IMAGER"),
+            #pE.Filter("CI_F1117",  center=1.117, bandwidth=0.082, type="IMAGER"),
             pE.Filter("CI_F1202",  center=1.202, bandwidth=0.088, type="IMAGER"),
             pE.Filter("CI_F1294",  center=1.294, bandwidth=0.095, type="IMAGER"),
             pE.Filter("CI_F1393",  center=1.393, bandwidth=0.102, type="IMAGER"),
             pE.Filter("CI_F1499",  center=1.499, bandwidth=0.110, type="IMAGER"),
-            pE.Filter("CI_F1613",  center=1.613, bandwidth=0.118, type="IMAGER"),
-            pE.Filter("CI_F1736",  center=1.736, bandwidth=0.128, type="IMAGER"),
+            #pE.Filter("CI_F1613",  center=1.613, bandwidth=0.118, type="IMAGER"),
+            #pE.Filter("CI_F1736",  center=1.736, bandwidth=0.128, type="IMAGER"),
             ]
             }
 
@@ -344,7 +344,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         good = []
         bad_wavelengths = []
 
-        newwarnings=set()
+        newwarnings=[]
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -364,7 +364,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
             message = stringlogging.getvalue()
             if message is not None:
-                newwarnings.update(message)
+                newwarnings.append(message)
                 #bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
@@ -404,7 +404,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
         bwidth = np.asarray(bwidth) << u.um
 
-        self.warning.text += message
+        newwarnings = "".join(newwarnings)
+        warningslist = newwarnings.split("\n")
+        self.warning.text += " ".join(list(set(warningslist)))
 
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
                     "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
@@ -488,6 +490,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
         print(bad_wavelengths)
         name = np.asarray(name)
+
         exptime_filters = np.asarray(exptime_filters) << u.hr
         wave_filters = np.asarray(wave_filters) << u.um
         fpfs_filters = np.asarray(fpfs_filters) << u.dimensionless_unscaled
@@ -497,7 +500,10 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
         bwidth = np.asarray(bwidth) << u.um
 
-        self.warning.text += message
+        newwarnings = "".join(newwarnings)
+        warningslist = newwarnings.split("\n")
+        self.warning.text += " ".join(list(set(warningslist)))
+
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
                     "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
                     "band_lo": wave_filters[good] - bwidth[good]/2, "band_hi": wave_filters[good] + bwidth[good]/2, 

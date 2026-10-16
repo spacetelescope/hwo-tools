@@ -24,6 +24,11 @@ from syotools.spectra.utils import load_txtfile, load_synfits
 from syotools.models import Telescope, IFS, Source, SourceIFSExposure
 
 spectra_library = copy.deepcopy(syn_spectra_library)
+# remove the existing blackbody entries
+spectra_library = {x: spectra_library[x] for x in spectra_library if "Blackbody" not in x}
+# add new ones
+spectra_library["Blackbody (set temperature below)"] = spectra_library["Flat (AB)"]
+spectra_library["Phoenix Model (set temp, metallicity, and log(g) below)"] = spectra_library["Flat (AB)"]
 
 FLUXUNIT = u.erg / u.s / u.cm**2 / u.AA
 
@@ -40,13 +45,14 @@ run_compute = True
 
 hwo = Telescope() 
 hwo.set_from_hwome('EAC5')
-suitable_instruments, suitable_bands = hwo.find_instrument_with("ifs")
+suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="ifs")
 
 # Set up layouts and add to document
 help_text = Div(text = h.help(), width=200) 
 help_panel = TabPanel(child=help_text, title='Info') 
 source_inputs = Tabs(tabs=[ help_panel], width=300)
 
+warning_box = Div(text='<p></p>')
 grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
                  options=list(suitable_bands.keys()))
 
@@ -76,13 +82,16 @@ def update_snr(band_name, instrument_name, exptime):
 
     instrument.add_exposure(ifs_exp)
     ifs_exp.exptime = exptime
-
-    ifs_exp.calculate_snr(custom_band=band_name)
-    
-    snr = ifs_exp.snr[0]
-    wave = ifs_exp.wave
-
-    return snr, wave
+    warnings = ""
+    try:
+        ifs_exp.calculate_snr(custom_band=band_name)
+        snr = ifs_exp.snr[0].value
+        wave = ifs_exp.wave[0].value
+    except syn.exceptions.SynphotError as exp:
+        warnings = f"<span color='red'> {exp} </span>"
+        wave = np.zeros(3)
+        snr = np.zeros_like(wave)
+    return snr, wave, warnings
 
 
 def update_data(): # use this one for updating synphot templates 
@@ -100,6 +109,8 @@ def update_data(): # use this one for updating synphot templates
         redshift = panel.redshift
         magnitude = panel.magnitude
         bb_temperature = panel.bb_temperature
+        phoenix_metal = panel.phoenix_metal
+        phoenix_logg = panel.phoenix_logg
         print() 
         print() 
         print("You have chosen template ", template.value) 
@@ -115,11 +126,31 @@ def update_data(): # use this one for updating synphot templates
 
         if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
             wave = np.linspace(100,30000,300) << u.Angstrom
-            bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, bb_temperature.value)
+            bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, temperature=bb_temperature.value)
             bb.z = redshift.value
             bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
             ifs_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave << u.Angstrom, lookup_table=bb(wave))
-
+        if ('Phoenix' in template.value):
+            wave = np.linspace(100,30000,300) << u.Angstrom
+            temp = bb_temperature.value
+            metal = phoenix_metal.value
+            logg = phoenix_logg.value
+            try:
+                phoenix = stsyn.grid_to_spec('phoenix', temp, metal, logg)
+            except stsyn.exceptions.ParameterOutOfBounds as err:
+                spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+                snr_results.data = dict(w=wave, sn = np.zeros_like(wave.value)) 
+                warning_box.text = str(err)
+                return snr_results, spectrum_template
+            except ValueError as err:
+                spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+                snr_results.data = dict(w=wave, sn = np.zeros_like(wave.value)) 
+                warning_box.text = f"log(g) value not in file (original error: {str(err)})"
+                return snr_results, spectrum_template
+            phoenix.z = redshift.value
+            phoenix = phoenix.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv'))
+            ifs_source.sed = phoenix
+            
         flux_converted = syn.units.convert_flux(ifs_source.sed.waveset, ifs_source.sed(ifs_source.sed.waveset), FLUXUNIT)
 
         all_fluxes.extend(flux_converted.value)
@@ -132,14 +163,15 @@ def update_data(): # use this one for updating synphot templates
 
     ifs_exp.verbose = True 
 
-    snr, wave = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    snr, wave, warnings = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    warning_box.text=warnings
 
     snr_fixed = np.nan_to_num(snr, nan=0)
 
-    snr_results.data = dict(w=wave.value, sn = snr_fixed)
+    snr_results.data = dict(w=wave, sn = snr_fixed)
 
-    background = instrument.sky(wave) + ifs_exp.thermal(wave)
-    instrument_info.data = dict(wave=wave, bef=syn.units.convert_flux(wave, background, FLUXUNIT).value)
+    background = instrument.sky(wave * u.AA) + ifs_exp.thermal(wave * u.AA)
+    instrument_info.data = dict(wave=wave, bef=syn.units.convert_flux(wave * u.AA, background, FLUXUNIT).value)
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
@@ -192,8 +224,14 @@ class source_widget():
         self.magnitude = Slider(title="AB Magnitude", value=21., start=15., end=30.0, step=0.1, width=200)
         self.magnitude.on_change("value", unlock_calcbutton)
 
-        self.bb_temperature = Slider(title="Blackbody Temperature [K]", value=10000., start=3000., end=200000.0, step=1000., width=200)
+        self.bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=1000., width=200)
         self.bb_temperature.on_change("value", unlock_calcbutton)
+
+        self.phoenix_metal = Slider(title="Metallicity (solar)", value=0., start=-4., end=0.5, step=0.1, sizing_mode="stretch_width")
+        self.phoenix_metal.on_change("value", unlock_calcbutton) 
+
+        self.phoenix_logg = Slider(title="Log(g) (solar)", value=4., start=0., end=5.5, step=0.1, sizing_mode="stretch_width")
+        self.phoenix_logg.on_change("value", unlock_calcbutton) 
 
         self.upload = FileInput(accept=[".txt", ".csv", ".ascii", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
         self.upload.on_change("filename", self.process_spectrum)
@@ -246,10 +284,11 @@ def add_source_callback(event):
     global flux_plot
     # create the new widget
     new_source_widget = source_widget()
+    starparam = row(children=[new_source_widget.phoenix_metal, new_source_widget.phoenix_logg], width_policy = "fit")
     sources.append(new_source_widget)
     source_num += 1
     new_source = column(children=[new_source_widget.template, new_source_widget.redshift, new_source_widget.magnitude, 
-                                  new_source_widget.bb_temperature, new_source_widget.upload, new_source_widget.warning], 
+                                  new_source_widget.bb_temperature, starparam, new_source_widget.upload, new_source_widget.warning], 
                                   sizing_mode='fixed', max_width=300, width=250, height=300)
     print("Column Source", new_source)
     source_panel = TabPanel(child=new_source, title=f"Src {source_num}")
@@ -317,4 +356,4 @@ exposure_inputs = Tabs(tabs=[ exposure_panel ], width=300)
 row1 = row(children=[source_inputs, flux_plot])
 row2 = row(children=[exposure_inputs, sn_plot])
 
-curdoc().add_root(column(children=[row1, add_source, snr_compute, row2]))
+curdoc().add_root(column(children=[row1, add_source, snr_compute, warning_box, row2]))

@@ -13,7 +13,7 @@ body {
   /* background-color: #1D1B4D;*/ 
   color: #FFF;
   background-color: #000000; 
-  background-image: url(https://www.stsci.edu/~tumlinso/CameraHeader.png);
+  background-image: url("HWO_All_Camera.png");
   background-position: top;
   background-size: 1000px;
   background-repeat: no-repeat;

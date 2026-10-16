@@ -1,4 +1,5 @@
 import os
+import io
 from functools import partial
 
 import base64
@@ -18,21 +19,28 @@ import synphot as syn
 import stsynphot as stsyn
 
 import pyEDITH as pE
+import logging
 
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/..")
 
 from common import catalog, pyedith_etc_common
 
+pyedith_logger = logging.getLogger("pyEDITH")
+stringlogging = io.StringIO()
+pyedith_logger.addHandler(logging.StreamHandler(stringlogging))
+pyedith_logger.setLevel(logging.ERROR)
+
+
 param_snr=10
 FILTERS = {"UVIS 0": [
             # EAC5 CI_VIS_DI
-            pE.Filter("CI_0A413.2", center=0.4132, bandwidth=0.0169, type="IMAGER"),
-            pE.Filter("CI_0B430.1", center=0.4301, bandwidth=0.0176, type="IMAGER"),
-            pE.Filter("CI_0C447.7", center=0.4477, bandwidth=0.0183, type="IMAGER"),
+            #pE.Filter("CI_0A413.2", center=0.4132, bandwidth=0.0169, type="IMAGER"),
+            #pE.Filter("CI_0B430.1", center=0.4301, bandwidth=0.0176, type="IMAGER"),
+            #pE.Filter("CI_0C447.7", center=0.4477, bandwidth=0.0183, type="IMAGER"),
             pE.Filter("CI_0D466",   center=0.4660, bandwidth=0.0191, type="IMAGER"),
             pE.Filter("CI_0E485.1", center=0.4851, bandwidth=0.0199, type="IMAGER"),
-            pE.Filter("CI_0F450",   center=0.4500, bandwidth=0.0900, type="IMAGER"),
+            #pE.Filter("CI_0F450",   center=0.4500, bandwidth=0.0900, type="IMAGER"),
             ],
             "UVIS 1": [
             pE.Filter("CI_1A505",   center=0.5050, bandwidth=0.0207, type="IMAGER"),
@@ -60,11 +68,11 @@ FILTERS = {"UVIS 0": [
             ],
             "UVIS 4": [
             pE.Filter("CI_4A808.7", center=0.8087, bandwidth=0.0302, type="IMAGER"),
-            pE.Filter("CI_4B838.9", center=0.8389, bandwidth=0.0314, type="IMAGER"),
-            pE.Filter("CI_4C870.3", center=0.8703, bandwidth=0.0325, type="IMAGER"),
-            pE.Filter("CI_4D902.8", center=0.9028, bandwidth=0.0338, type="IMAGER"),
-            pE.Filter("CI_4E936.6", center=0.9366, bandwidth=0.0350, type="IMAGER"),
-            pE.Filter("CI_4F874",   center=0.8740, bandwidth=0.1600, type="IMAGER"),
+            #pE.Filter("CI_4B838.9", center=0.8389, bandwidth=0.0314, type="IMAGER"),
+            #pE.Filter("CI_4C870.3", center=0.8703, bandwidth=0.0325, type="IMAGER"),
+            #pE.Filter("CI_4D902.8", center=0.9028, bandwidth=0.0338, type="IMAGER"),
+            #pE.Filter("CI_4E936.6", center=0.9366, bandwidth=0.0350, type="IMAGER"),
+            #pE.Filter("CI_4F874",   center=0.8740, bandwidth=0.1600, type="IMAGER"),
             ],
             # EAC5 CI_BRIDGE_DI
             "Bridge": [
@@ -75,18 +83,18 @@ FILTERS = {"UVIS 0": [
             pE.Filter("CI_F983",  center=0.983, bandwidth=0.032, type="IMAGER"),
             pE.Filter("CI_F1015",  center=1.015, bandwidth=0.033, type="IMAGER"),
             pE.Filter("CI_F1048",  center=1.048, bandwidth=0.034, type="IMAGER"),
-            pE.Filter("CI_F1083",  center=1.083, bandwidth=0.035, type="IMAGER"),
+            #pE.Filter("CI_F1083",  center=1.083, bandwidth=0.035, type="IMAGER"),
             ],
             # EAC5 CI_NIR2_DI
             "NIR2": [
-            pE.Filter("CI_F1038",  center=1.038, bandwidth=0.076, type="IMAGER"),
-            pE.Filter("CI_F1117",  center=1.117, bandwidth=0.082, type="IMAGER"),
+            #pE.Filter("CI_F1038",  center=1.038, bandwidth=0.076, type="IMAGER"),
+            #pE.Filter("CI_F1117",  center=1.117, bandwidth=0.082, type="IMAGER"),
             pE.Filter("CI_F1202",  center=1.202, bandwidth=0.088, type="IMAGER"),
             pE.Filter("CI_F1294",  center=1.294, bandwidth=0.095, type="IMAGER"),
             pE.Filter("CI_F1393",  center=1.393, bandwidth=0.102, type="IMAGER"),
             pE.Filter("CI_F1499",  center=1.499, bandwidth=0.110, type="IMAGER"),
-            pE.Filter("CI_F1613",  center=1.613, bandwidth=0.118, type="IMAGER"),
-            pE.Filter("CI_F1736",  center=1.736, bandwidth=0.128, type="IMAGER"),
+            #pE.Filter("CI_F1613",  center=1.613, bandwidth=0.118, type="IMAGER"),
+            #pE.Filter("CI_F1736",  center=1.736, bandwidth=0.128, type="IMAGER"),
             ]
             }
 
@@ -94,7 +102,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     # classmethods
     target_planet, target_star = catalog.load_catalog()
 
-    EACS = ["EAC1"]
+    EACS = ["EAC5"]
     filter_list = []
 
     def __init__(self):
@@ -129,6 +137,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
         self.spec_plot.line("wavelength", "obs", source=self.obsdata)
         self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+        self.spec_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.spec_plot.segment(x0='band_lo', y0='obs', x1='band_hi', y1='obs', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_plot.segment(x0='wavelength', y0='noise_hi', x1='wavelength', y1='noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
@@ -161,11 +170,11 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
         self.newexp.on_change("value", self.exp_callback)
 
-        self.photbands= Select(title="Photometric Bands", value="UVIS 0", 
+        self.photbands= Select(title="Photometric Bands", value="UVIS 1", 
                 options=list(FILTERS.keys()), width=250)
         self.photbands.on_change("value", self.photbands_callback)
 
-        self.newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, ) 
+        self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=5, end=15, step=0.1, ) 
         self.newdiameter.on_change("value", self.diameter_callback)
 
         self.star = Select(title="Template Star Spectrum", value="G2V star", 
@@ -335,6 +344,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         good = []
         bad_wavelengths = []
 
+        newwarnings=[]
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -347,8 +357,15 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            except Exception as err:
+                self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
-                return
+            message = stringlogging.getvalue()
+            if message is not None:
+                newwarnings.append(message)
+                #bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
             #if any(np.isinf(self.observation.exptime)):
@@ -364,7 +381,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
             print("Obs", obs)
             print("Noise", noise)
             exptime = self.observation.exptime[0] << u.h
-            if np.isfinite(exptime) and exptime < (1e8 * u.s):
+            if np.isfinite(exptime):
                 good.append(True)
                 bwidth.append(filt.bandwidth)
                 name.append(filt.name)
@@ -387,11 +404,15 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
         bwidth = np.asarray(bwidth) << u.um
 
+        newwarnings = "".join(newwarnings)
+        warningslist = newwarnings.split("\n")
+        self.warning.text += " ".join(list(set(warningslist)))
+
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
                     "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
                     "band_lo": wave_filters[good] - bwidth[good]/2, "band_hi": wave_filters[good] + bwidth[good]/2, 
                     "snr": snr_filters[good], "name": name[good]}
-        self.baddata.data={"wavelength": bad_wavelengths}
+        self.baddata.data={"wavelength": np.asarray(bad_wavelengths)}
     #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
         self.exp_plot.title.text =  title_text
@@ -418,6 +439,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         good = []
         bad_wavelengths = []
 
+        newwarnings=set()
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -430,8 +452,14 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-
-                return
+            except Exception as err:
+                self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            message = stringlogging.getvalue()
+            if message is not None:
+                newwarnings.update(message)
+                #bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
             if any(np.isinf(self.observation.exptime)):
@@ -460,7 +488,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 snr_filters.append(self.observation.fullsnr[0])
             else:
                 bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
+        print(bad_wavelengths)
         name = np.asarray(name)
+
         exptime_filters = np.asarray(exptime_filters) << u.hr
         wave_filters = np.asarray(wave_filters) << u.um
         fpfs_filters = np.asarray(fpfs_filters) << u.dimensionless_unscaled
@@ -470,12 +500,15 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         snr_filters = np.asarray(snr_filters) << u.dimensionless_unscaled
         bwidth = np.asarray(bwidth) << u.um
 
+        newwarnings = "".join(newwarnings)
+        warningslist = newwarnings.split("\n")
+        self.warning.text += " ".join(list(set(warningslist)))
 
         self.obsdata.data={"wavelength": wave_filters[good], "exptime": exptime_filters[good], "FpFs": fpfs_filters[good], 
                     "obs": obs_filters[good], "noise_hi": noise_hi[good], "noise_lo": noise_lo[good], 
                     "band_lo": wave_filters[good] - bwidth[good]/2, "band_hi": wave_filters[good] + bwidth[good]/2, 
                     "snr": snr_filters[good], "name": name[good]}
-        self.baddata.data={"wavelength": bad_wavelengths}
+        self.baddata.data={"wavelength": np.asarray(bad_wavelengths)}
     #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
         self.snr_plot.title.text = title_text
@@ -490,6 +523,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     def photbands_callback(self, attr, old, new):
         self.parameters["filter_list"] = FILTERS[new]
         self.filter_list = pE.parse_input.parse_filters(self.parameters)
+        self.inputs.data.update({"new_filt": [FILTERS[new]], "scene": [True]})
 
     def snr_callback(self, attr, old, new):
         print(attr, old, new)

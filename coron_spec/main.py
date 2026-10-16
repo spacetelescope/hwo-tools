@@ -1,4 +1,5 @@
 import os
+import io
 from functools import partial
 
 import base64
@@ -18,26 +19,33 @@ import synphot as syn
 import stsynphot as stsyn
 
 import pyEDITH as pE
+import logging
 
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/..")
 
 from common import catalog, pyedith_etc_common
 
+pyedith_logger = logging.getLogger("pyEDITH")
+stringlogging = io.StringIO()
+pyedith_logger.addHandler(logging.StreamHandler(stringlogging))
+pyedith_logger.setLevel(logging.ERROR)
+
+MODE = "IFS"
+
+configuration = pE.Observatory._load_eac_configuration("EAC5")
+print("Initial_Configuration", configuration[MODE].keys())
+FILTERS = {}
+for band in configuration[MODE].keys():
+    wave_range = configuration[MODE][band]["wavelength_range"]
+    FILTERS[band] = pE.Filter(band, low=wave_range[0], high=wave_range[1], resolution=50, type=MODE)
+
 param_snr=10
-FILTERS = { "UVIS": [
-        pE.Filter("CI_VIS_IFS_Prism",low=0.4,high=2.0, resolution=50,type='IFS'),
-        ], "Bridge": [
-        pE.Filter("CI_Bridge_IFS_Prism",low=0.4,high=2.0, resolution=35,type='IFS'),
-        ], "NIR2": [
-        pE.Filter("CI_NIR2_IFS_Prism",low=0.4,high=2.0, resolution=10,type='IFS')
-        ]
-        }
 
 class CoronSpec(pyedith_etc_common.pyEDITHETC):
     # classmethods
     target_planet, target_star = catalog.load_catalog()
-    EACS = ["EAC1"]
+    EACS = ["EAC5"]
     filter_list = []
 
     def __init__(self):
@@ -69,6 +77,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
         self.spec_plot.line("wavelength", "FpFs", source=self.obsdata)
         self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover')
+        self.spec_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
@@ -90,7 +99,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.hrpanel2 = Div(text="<p>------------------ planet --------------------</p>")
         self.hrpanel3 = Div(text="<p>----------------------------------------------</p>")
 
-        # currently unused, as we only have EAC1 working
+        # currently unused, as we only have EAC1 and EAC5 working
         self.eac_buttons = RadioButtonGroup(labels=self.EACS, active=0)
         self.eac_buttons.on_change("active", self.eac_callback)
 
@@ -100,11 +109,11 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
         self.newexp.on_change("value", self.exp_callback)
 
-        self.photbands= Select(title="Photometric Bands", value="UVIS", 
+        self.photbands= Select(title="Spectroscopic Bands", value="CI_VIS_IFS", 
                 options=list(FILTERS.keys()), width=250)
         self.photbands.on_change("value", self.photbands_callback)
 
-        self.newdiameter  = Slider(title="Mirror Diameter", value=7., start=5, end=15, step=0.1, )
+        self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=5, end=15, step=0.1, )
         self.newdiameter.on_change("value", self.diameter_callback)
 
         self.star = Select(title="Template Star Spectrum", value="G2V star",
@@ -179,7 +188,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         # observation parameters
         # set up wavelengths
         self.parameters["wavelength"] = np.linspace(0.2, 2.0, 1000)
-        self.parameters["filter_list"] = FILTERS["UVIS"]
+        self.parameters["filter_list"] = FILTERS["CI_VIS_IFS"]
         self.parameters["nlambd"] = len(self.parameters["wavelength"]) # number of wavelengths
         self.parameters["snr"] = param_snr * np.ones_like(self.parameters["wavelength"]) # the SNR you want for each spectral bin
         self.parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
@@ -240,11 +249,11 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.parameters["dec"] = +20.000
 
         # Observatory parameters
-        self.parameters["observing_mode"] = "IFS" # ETC should use IFS mode
+        self.parameters["observing_mode"] = MODE # ETC should use IFS mode
         if "eacnum" in self.parameters:
             self.parameters["observatory_preset"] = self.EACS[self.parameters["eacnum"]]
         else:
-            self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
+            self.parameters["observatory_preset"] = "EAC5" # tells ETC to use EAC5 yaml files throughputs
         self.parameters["IFS_eff"]  = 1. # extra throughput of the IFS
         #self.parameters["npix_multiplier"] = np.ones_like(self.parameters["wavelength"]) # number of detector pixels per spectral bin
         #self.parameters["noisefloor_PPF"] = 30 # post processing factor of 30 is a good realistic value for this
@@ -266,7 +275,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         global obsdata
         global exptime_compute
 
-
+        newwarnings=set()
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -279,8 +288,16 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-
                 return
+            except Exception as err:
+                self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                self.baddata.data={"wavelength": self.observation.wavelength}
+                return
+            message = stringlogging.getvalue()
+            if message is not None:
+                newwarnings.update(message)
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
             if any(np.isinf(self.observation.exptime)):
@@ -293,12 +310,14 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                                                     set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                     )
 
-
-
             print(len(obs))
 
-            good = [True if np.isfinite(x) and x < 1e8 * u.s else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
+            good = [True if np.isfinite(x) else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years)
             bad = np.invert(good)
+
+        newwarnings = "".join(newwarnings)
+        warningslist = newwarnings.split("\n")
+        self.warning.text += " ".join(list(set(warningslist)))
 
         self.baddata.data={"wavelength": self.observation.wavelength[bad]}
         self.obsdata.data={"wavelength": self.observation.wavelength[good], "exptime": self.observation.exptime[good].to(u.hr), "FpFs": self.scene.Fp_over_Fs[good],
@@ -313,6 +332,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
     def do_recalculate_snr(self, newvalues):
 
+        newwarnings=set()
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
             newvalues.data["filt"] = [filt]
@@ -328,8 +348,13 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.snr_compute.label = "Compute"
                 self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-
-                return
+            except Exception as err:
+                self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+                self.exptime_compute.label = "Compute"
+                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            message = stringlogging.getvalue()
+            if message is not None:
+                newwarnings.update(message)
             #print("SNR", newsnr.value * np.ones_like(observation.wavelength.value))
             #print("Exptime", observation.exptime)
             if any(np.isinf(self.observation.exptime)):
@@ -348,6 +373,10 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             good = [True if np.isfinite(x) else False for x in self.observation.fullsnr]
             bad = np.invert(good)
 
+        newwarnings = "".join(newwarnings)
+        warningslist = newwarnings.split("\n")
+        self.warning.text += " ".join(list(set(warningslist)))
+
         self.baddata.data={"wavelength": self.observation.wavelength[bad]}
         self.obsdata.data={"wavelength": self.observation.wavelength, "exptime": self.newexp.value * np.ones_like(self.observation.wavelength.value), "FpFs": self.scene.Fp_over_Fs, "obs": obs, "noise_hi": obs + noise/2., "noise_lo": obs - noise/2., "snr": self.observation.fullsnr}
         #print("New Data", obsdata.data)
@@ -364,7 +393,8 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
     def photbands_callback(self, attr, old, new):
         self.parameters["filter_list"] = FILTERS[new]
         self.filter_list = pE.parse_input.parse_filters(self.parameters)
-
+        self.inputs.data.update({"new_filt": [FILTERS[new]], "scene": [True]})
+    
     def snr_callback(self, attr, old, new):
         print(attr, old, new)
         self.inputs.data.update({"new_snr": [new], "observation": [True]})

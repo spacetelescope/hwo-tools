@@ -332,6 +332,8 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         global obsdata
         global exptime_compute
 
+        wavelength_of_interest = newvalues.data.pop("wavelength_of_interest",0.5)
+
         name = []
         wave_filters = []
         exptime_filters = []
@@ -353,6 +355,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
             try:
                 pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, ETC_validation=False, mode="exposure_time")
+                ind_reflam = np.argmin(np.abs(self.observation.wavelength - wavelength_of_interest))
+                self.observation.obstime = self.observation.exptime[ind_reflam] # seconds
+                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
@@ -386,12 +391,12 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 bwidth.append(filt.bandwidth)
                 name.append(filt.name)
                 wave_filters.append(self.observation.wavelength.to_value(u.um)[0])
-                exptime_filters.append(self.observation.exptime[0].to_value(u.hr))
+                exptime_filters.append(self.observation.obstime.to_value(u.hr))
                 fpfs_filters.append(self.scene.Fp_over_Fs[0].value)
                 obs_filters.append(obs[0].value)
                 noise_hi.append(obs[0].value + noise[0].value/2.)
                 noise_lo.append(obs[0].value - noise[0].value/2.)
-                snr_filters.append(self.newsnr.value)
+                snr_filters.append(self.observation.fullsnr[0])
             else:
                 bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
         name = np.asarray(name)
@@ -423,6 +428,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
 
     def do_recalculate_snr(self, newvalues):
+
+        wavelength_of_interest = newvalues.data.pop("wavelength_of_interest",0.5)
+
         self.update_calculation(newvalues)
 
         self.observation.obstime = (self.newexp.value * u.hr).to(u.s)

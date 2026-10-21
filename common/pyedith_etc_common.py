@@ -30,17 +30,19 @@ class pyEDITHETC():
     
     def update_scene(self):
         #parameters.update(updates)
-
+        print("There2")
         self.scene.load_configuration(self.parameters)
         self.scene.calculate_zodi_exozodi(self.parameters)
         self.scene.validate_configuration()
 
-    def update_observation(self,filt):
-
-        self.observation.load_configuration(self.parameters, filter=filt) # load the specified configuration in the parameters dict 
+    def update_observation(self):
+        print("There1")
+        self.observation.load_configuration(self.parameters, filter=self.parameters["filt"]) # load the specified configuration in the parameters dict 
+        print("There3")
         self.observation.set_output_arrays()
+        print("there4")
         self.observation.validate_configuration()
-        
+        print("there5")
 
     def print_observatory(observatory):
         print("Parameters in observatory:")
@@ -109,6 +111,7 @@ class pyEDITHETC():
         # should always be present
         if "filt" in newvalues.data:
             filt = newvalues.data["filt"][0]
+            self.parameters["filt"] = filt
             print("Updated filter", filt)
             del newvalues.data["filt"]
         if "new_star" in newvalues.data:
@@ -163,7 +166,7 @@ class pyEDITHETC():
 
         if "observation" in newvalues.data and newvalues.data["observation"][0]:
             print("Rerun observation...")
-            self.update_observation(filt)
+            self.update_observation()
             newvalues.data["observation"][0] = False
 
         if "scene" in newvalues.data and newvalues.data["scene"][0]:

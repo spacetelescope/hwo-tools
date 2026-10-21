@@ -64,21 +64,22 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.intro = Div(text=f'<p>This Habworlds Coronagraphic Spectroscopy ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), v{pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
 
         self.exp_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
-        self.exp_plot.line("wavelength", "exptime", source=self.obsdata)
+        self.exp_plot.line("wavelength", "exptime", legend_label="Exposure Time", source=self.obsdata)
         self.exp_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.exp_panel = TabPanel(child=self.exp_plot, title='Exposure Time') #, width=800)
 
         self.snr_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.snr_plot.line("wavelength", "snr", source=self.obsdata)
+        self.snr_plot.line("wavelength", "snr", legend_label="SNR", source=self.obsdata)
         self.snr_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
 
 
         self.spec_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.spec_plot.line("wavelength", "FpFs", source=self.obsdata)
-        self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover')
+        self.spec_plot.line("wavelength", "FpFs", legend_label="Relative planetary flux Fp/Fs", source=self.obsdata)
+        self.spec_plot.scatter('wavelength', 'obs', legend_label="Observed flux ratio", source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover')
         self.spec_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot.legend.title = ""
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
         self.exptime_compute = Button(label="Calculate", button_type="primary")

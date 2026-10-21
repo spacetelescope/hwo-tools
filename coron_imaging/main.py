@@ -121,25 +121,28 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.intro = Div(text=f'<p>This Habworlds Coronagraphic Imaging ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), v{pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
 
         self.exp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
-        self.exp_plot.scatter("wavelength", "exptime", source=self.obsdata)
+        self.exp_plot.scatter("wavelength", "exptime", legend_label="Exposure Time", source=self.obsdata)
         self.exp_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.exp_plot.segment(x0='band_lo', y0='exptime', x1='band_hi', y1='exptime', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.exp_plot.legend.title= ""
         self.exp_panel = TabPanel(child=self.exp_plot, title='Exposure Time') #, width=800)
 
 
         self.snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.snr_plot.scatter("wavelength", "snr", source=self.obsdata)
+        self.snr_plot.scatter("wavelength", "snr", legend_label="SNR", source=self.obsdata)
         self.snr_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.snr_plot.segment(x0='band_lo', y0='snr', x1='band_hi', y1='snr', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.snr_plot.legend.title = ""
         self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
 
 
         self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
         self.spec_plot.line("wavelength", "obs", source=self.obsdata)
-        self.spec_plot.scatter('wavelength', 'obs', source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+        self.spec_plot.scatter('wavelength', 'obs', legend_label="Observed Flux Ratio Fp/Fs", source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
         self.spec_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
         self.spec_plot.segment(x0='band_lo', y0='obs', x1='band_hi', y1='obs', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
         self.spec_plot.segment(x0='wavelength', y0='noise_hi', x1='wavelength', y1='noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot.legend.title = ""
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
         self.exptime_compute = Button(label="Calculate", button_type="primary")
@@ -173,6 +176,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.photbands= Select(title="Photometric Bands", value="UVIS 1", 
                 options=list(FILTERS.keys()), width=250)
         self.photbands.on_change("value", self.photbands_callback)
+
+        self.reffilter= Select(title="Filter of Interest", value=FILTERS["UVIS 1"][-1].name, options=[x.name for x in FILTERS["UVIS 1"]])
+        self.reffilter.on_change("value", self.reffilter_callback)
 
         self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=5, end=15, step=0.1, ) 
         self.newdiameter.on_change("value", self.diameter_callback)
@@ -215,13 +221,11 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.exp_snr_toggle = RadioGroup(labels=["Solve For Exposure Time", "Solve For SNR"], active=0)
         def exp_snr_callback(active, old, new):
             if (new == 0):
-                print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.photbands, self.hrpanel1, self.star, self.starparam, 
+                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.photbands, self.reffilter, self.hrpanel1, self.star, self.starparam, 
                                           self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
                 outputs.tabs = [self.spec_panel, self.exp_panel, self.info_panel]
             elif new == 1:
-                print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.photbands, self.hrpanel1, self.star, self.starparam, 
+                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.photbands, self.reffilter, self.hrpanel1, self.star, self.starparam, 
                                           self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.snr_compute, self.upload, self.warning]
                 outputs.tabs = [self.spec_panel, self.snr_panel, self.info_panel]                   
             #controls.change.emit()
@@ -230,7 +234,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.exp_snr_toggle.on_change("active", exp_snr_callback)
 
         # this is the initial for-exptime selection
-        self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.photbands, self.hrpanel1, self.star, self.starparam, self.distance, 
+        self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.photbands, self.reffilter, self.hrpanel1, self.star, self.starparam, self.distance, 
                                 self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
 
         outputs = Tabs(tabs=[self.spec_panel, self.exp_panel, self.info_panel], sizing_mode="inherit")
@@ -248,7 +252,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         # observation parameters
         # set up wavelengths
         self.parameters["wavelength"] = [0.365, 1.8]
-        self.parameters["filter_list"] = FILTERS["UVIS 0"]
+        self.parameters["filter_list"] = FILTERS["UVIS 1"]
         self.parameters["snr"] = param_snr# the SNR you want for each spectral bin 
         self.parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
         #self.parameters["photometric_aperture_radius"] = None#0.85 # radius of the photometric aperture in units of lambda/D
@@ -318,6 +322,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.recompute_star_flux()
         self.recompute_planet_flux()
 
+        # actually a filter, here
+        self.parameters["wavelength_of_interest"] = FILTERS["UVIS 1"][-1].name
+
         # this piece, alone, has to be created WITH some configured parameters.
         self.observatory_config = pE.parse_input.get_observatory_config(self.parameters)
 
@@ -332,8 +339,6 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         global obsdata
         global exptime_compute
 
-        wavelength_of_interest = newvalues.data.pop("wavelength_of_interest",0.5)
-
         name = []
         wave_filters = []
         exptime_filters = []
@@ -346,6 +351,26 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         good = []
         bad_wavelengths = []
 
+        # 1. Calculation time for the filter of interest
+        try:
+            filter_of_interest = self.parameters["wavelength_of_interest"]
+            newvalues.data["observation"] = [True]
+            newvalues.data["filt"] = [x for x in self.parameters["filter_list"] if x.name == filter_of_interest]
+            self.update_calculation(newvalues)
+            pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, ETC_validation=False, mode="exposure_time")
+            self.observation.obstime = self.observation.exptime # seconds
+        except UnboundLocalError:
+            self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
+            self.exptime_compute.label = "Compute"
+            self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            return
+        except Exception as err:
+            self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
+            self.exptime_compute.label = "Compute"
+            self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            return
+
+        # now, assuming that was successful, compute SNR for the rest of the filters
         newwarnings=[]
         for filt in self.filter_list:
             newvalues.data["observation"] = [True]
@@ -354,18 +379,20 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
             self.update_calculation(newvalues)
 
             try:
-                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, ETC_validation=False, mode="exposure_time")
-                ind_reflam = np.argmin(np.abs(self.observation.wavelength - wavelength_of_interest))
-                self.observation.obstime = self.observation.exptime[ind_reflam] # seconds
                 pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
+                obs, noise = pE.utils.synthesize_observation(self.newsnr.value * np.ones_like(self.observation.wavelength.value),
+                                                        self.scene, 
+                                                        random_seed=2026, # seed defaults to None
+                                                        set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
+                                                        )
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
-                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                #self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
             except Exception as err:
                 self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
                 self.exptime_compute.label = "Compute"
-                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                #self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
 
             message = stringlogging.getvalue()
             if message is not None:
@@ -429,7 +456,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
     def do_recalculate_snr(self, newvalues):
 
-        wavelength_of_interest = newvalues.data.pop("wavelength_of_interest",0.5)
+        wavelength_of_interest = self.parameters["wavelength_of_interest"]
 
         self.update_calculation(newvalues)
 
@@ -531,7 +558,13 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     def photbands_callback(self, attr, old, new):
         self.parameters["filter_list"] = FILTERS[new]
         self.filter_list = pE.parse_input.parse_filters(self.parameters)
-        self.inputs.data.update({"new_filt": [FILTERS[new]], "scene": [True]})
+        self.reffilter.value=FILTERS[new][-1].name
+        self.reffilter.options=[x.name for x in FILTERS[new]]
+        self.inputs.data.update({"new_filt": [new], "scene": [True]})
+
+    def reffilter_callback(self, attr, old, new):
+        print(attr, old, new)
+        self.parameters["wavelength_of_interest"] = new
 
     def snr_callback(self, attr, old, new):
         print(attr, old, new)

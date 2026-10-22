@@ -30,19 +30,14 @@ class pyEDITHETC():
     
     def update_scene(self):
         #parameters.update(updates)
-        print("There2")
         self.scene.load_configuration(self.parameters)
         self.scene.calculate_zodi_exozodi(self.parameters)
         self.scene.validate_configuration()
 
     def update_observation(self):
-        print("There1")
         self.observation.load_configuration(self.parameters, filter=self.parameters["filt"]) # load the specified configuration in the parameters dict 
-        print("There3")
         self.observation.set_output_arrays()
-        print("there4")
         self.observation.validate_configuration()
-        print("there5")
 
     def print_observatory(observatory):
         print("Parameters in observatory:")

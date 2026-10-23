@@ -23,6 +23,11 @@ import synphot as syn
 import stsynphot as stsyn
 
 spectra_library = copy.deepcopy(syn_spectra_library)
+# remove the existing blackbody entries
+spectra_library = {x: spectra_library[x] for x in spectra_library if "Blackbody" not in x}
+# add new ones
+spectra_library["Blackbody (set temperature below)"] = spectra_library["Flat (AB)"]
+spectra_library["Phoenix Model (set temp, metallicity, and log(g) below)"] = spectra_library["Flat (AB)"]
 
 FLUXUNIT = u.ABmag
 
@@ -36,6 +41,8 @@ source3 = ColumnDataSource(data=dict())
 source4 = ColumnDataSource(data=dict())
 suitable_instruments = {}
 template_to_start_with = "Flat (AB)"
+
+warning = Div(text='<p></p>')
 
 def update_snr(suitable_instruments, exptime):
     global hri_source
@@ -55,21 +62,24 @@ def update_snr(suitable_instruments, exptime):
         instrument.add_exposure(hri_exp)
         hri_exp.source = hri_source
         hri_exp.exptime = exptime
+        warnings = ""
         for band_name in bands:
+            band = instrument.configuration["bands"][band_name]
             try:
                 print("Band", band_name)
                 hri_exp.calculate_snr(custom_band=band_name)
-                band = instrument.configuration["bands"][band_name]
                 pivotwave.append(band["effective_wavelength"].value)
                 snr.append(hri_exp.snr[0].value)
-            except (syn.exceptions.DisjointError, syn.exceptions.SynphotError):
-                print("Disjoint")
-                continue
+            except (syn.exceptions.DisjointError, syn.exceptions.SynphotError) as exp:
+                warnings = f"<p style='color:Tomato;'>{exp}</p>"
+                pivotwave.append(band["effective_wavelength"].value)
+                snr.append(0)
+
         snrs.append(np.asarray(snr))
         pivots.append(np.asarray(pivotwave))
         names.append(bands)
 
-    return snrs, pivots, names
+    return snrs, pivots, names, warnings
 
 def flatten(arr):
     # https://realpython.com/python-flatten-list/
@@ -98,12 +108,13 @@ def initialize_setup():
     hri_exp.source = hri_source
     hri_exp.verbose = True 
 
-    snrs, pivots, names = update_snr(suitable_instruments, 1 * u.h)
+    snrs, pivots, names, warnings = update_snr(suitable_instruments, 1 * u.h)
+    warning.text=warnings
 
     source1 = ColumnDataSource(data=dict(x=pivots[0], y=snrs[0], desc=names[0]))
     source2 = ColumnDataSource(data=dict(x=pivots[1], y=snrs[1], desc=names[1]))
     source3 = ColumnDataSource(data=dict(x=pivots[2], y=snrs[2], desc=names[2]))
-    #source4 = ColumnDataSource(data=dict(x=pivots[3], y=snrs[3], desc=names[3]))
+    source4 = ColumnDataSource(data=dict(x=pivots[3], y=snrs[3], desc=names[3]))
 
 initialize_setup()
 
@@ -163,6 +174,39 @@ def update_data(attrname, old, new):
 
     hri_source.set_sed(template.value, magnitude.value, 0., 0., library=spectra_library)
 
+    if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
+       wave = np.linspace(100,30000,300) << u.Angstrom
+       bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, temperature=bb_temperature.value)
+       bb.z = redshift.value
+       bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
+       hri_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
+    if ('Phoenix' in template.value):
+        wave = np.linspace(100,30000,300) << u.Angstrom
+        temp = bb_temperature.value
+        metal = phoenix_metal.value
+        logg = phoenix_logg.value
+        try:
+            phoenix = stsyn.grid_to_spec('phoenix', temp, metal, logg)
+        except stsyn.exceptions.ParameterOutOfBounds as err:
+            spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+            source1.data = dict(w=[0.1], sn = [0], desc=[""]) 
+            source2.data = dict(w=[0.3], sn = [0], desc=[""]) 
+            source3.data = dict(w=[0.8], sn = [0], desc=[""]) 
+            source4.data = dict(w=[1.2], sn = [0], desc=[""]) 
+            warning.text = str(err)
+            return source1, source2, source3, source4
+        except ValueError as err:
+            spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+            source1.data = dict(w=[0.1], sn = [0], desc=[""]) 
+            source2.data = dict(w=[0.3], sn = [0], desc=[""]) 
+            source3.data = dict(w=[0.8], sn = [0], desc=[""]) 
+            source4.data = dict(w=[1.2], sn = [0], desc=[""]) 
+            warning.text = f"log(g) value not in file (original error: {err})"
+            return source1, source2, source3, source4
+        phoenix.z = redshift.value
+        phoenix = phoenix.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv'))
+        hri_source.sed = phoenix
+
     normalization_band = stsyn.band(spectra_library[template.value].band)
     hri_source.sed.normalize(magnitude.value * u.ABmag, normalization_band) 
     print('Renorming to ', magnitude.value) 
@@ -173,15 +217,19 @@ def update_data(attrname, old, new):
 
     spectrum_template.data = {'w':hri_source.sed.waveset.value, 'f':flux_converted.value}    
 
-    snrs, pivots, names = update_snr(suitable_instruments, [exptime.value] * u.hr) 
+    snrs, pivots, names, warnings = update_snr(suitable_instruments, [exptime.value] * u.hr) 
+    warning.text=warnings
 
     source1.data = dict(x=pivots[0], y=snrs[0], desc=names[0]) 
     source2.data = dict(x=pivots[1], y=snrs[1], desc=names[1]) 
     source3.data = dict(x=pivots[2], y=snrs[2], desc=names[2])
-    #source4.data = dict(x=pivots[3], y=snrs[3], desc=names[3])
+    source4.data = dict(x=pivots[3], y=snrs[3], desc=names[3])
 
     snr_plot.y_range.start = 0
-    snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs)),5.]) 
+    try:
+        snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs)),5.]) 
+    except ValueError:
+        pass
 
     sed_plot.y_range.start = np.max(flux_converted.value)+5.
     sed_plot.y_range.end = np.min(flux_converted.value)-5.
@@ -190,7 +238,7 @@ def update_data(attrname, old, new):
     sed_plot.title.text = text
     warning.text = ""
 
-    return source1, source2, source3
+    return source1, source2, source3, source4
 
 # fake source for managing callbacks 
 source = ColumnDataSource(data=dict(value=[]))
@@ -208,17 +256,41 @@ exptime_callback = CustomJS(args=dict(source=source), code="""
 """)
 exptime.js_on_change("value_throttled", exptime_callback) 
 
+redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
+redshift_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+redshift.js_on_change("value_throttled", redshift_callback) 
+
 magnitude = Slider(title="Magnitude (AB)", value=30.0, start=20.0, end=35., step=0.1, width=250) 
 magnitude_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
 
+bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=1000., width=200)
+temperature_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+bb_temperature.js_on_change("value_throttled", temperature_callback) 
+
+phoenix_metal = Slider(title="Metallicity (solar)", value=0., start=-4., end=0.5, step=0.1, sizing_mode="stretch_width")
+metallicity_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+phoenix_metal.js_on_change("value_throttled", metallicity_callback) 
+
+phoenix_logg = Slider(title="Log(g) (solar)", value=4., start=0., end=5.5, step=0.1, sizing_mode="stretch_width")
+logg_callback = CustomJS(args=dict(source=source), code="""
+    source.data = { value: [cb_obj.value] }
+""")
+phoenix_logg.js_on_change("value_throttled", logg_callback) 
+
+
 
 template = Select(title="Template Spectrum", value="Flat (AB)", options=list(spectra_library.keys()), width=250) 
 
 upload = FileInput(accept=[".txt", ".csv", ".ascii", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
-warning = Div(text='<p></p>')
 
 def process_spectrum(attr, old, new):
     global template
@@ -265,8 +337,8 @@ upload.on_change("filename", process_spectrum)
 for w in [template]:
     w.on_change('value', update_data)
 
-
-controls = column(children=[aperture, exptime, magnitude, template, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
+starparam = row(children=[phoenix_metal, phoenix_logg], width_policy = "fit")
+controls = column(children=[aperture, exptime, template, redshift, magnitude, bb_temperature, starparam, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
 controls_tab = TabPanel(child=controls, title='Controls')
 info_tab = TabPanel(child=Div(text = h.help()), title='Info')
 inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 

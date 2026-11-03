@@ -180,7 +180,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.reffilter= Select(title="Filter of Interest", value=FILTERS["UVIS 1"][-1].name, options=[x.name for x in FILTERS["UVIS 1"]])
         self.reffilter.on_change("value", self.reffilter_callback)
 
-        self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=5, end=15, step=0.1, ) 
+        self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=6, end=8, step=0.1, ) 
         self.newdiameter.on_change("value", self.diameter_callback)
 
         self.star = Select(title="Template Star Spectrum", value="G2V star", 

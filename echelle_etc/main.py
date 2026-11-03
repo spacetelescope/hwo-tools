@@ -235,7 +235,7 @@ phoenix_logg.js_on_change("value_throttled", logg_callback)
 grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
                  options=list(suitable_bands.keys()))
 
-aperture= Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=4., end=15.0, step=0.1, width=200)
+aperture= Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=6.0, end=8.0, step=0.1, width=200)
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)

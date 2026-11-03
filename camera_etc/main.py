@@ -244,7 +244,7 @@ def update_data(attrname, old, new):
 source = ColumnDataSource(data=dict(value=[]))
 source.on_change('data', update_data)
 
-aperture = Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=4., end=15.0, step=0.1, tags=[4,5,6,6], width=250) 
+aperture = Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=6.0, end=8.0, step=0.1, tags=[4,5,6,6], width=250) 
 aperture_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
 """)

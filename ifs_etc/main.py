@@ -56,7 +56,7 @@ warning_box = Div(text='<p></p>')
 grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
                  options=list(suitable_bands.keys()))
 
-aperture= Slider(title="Aperture (meters)", value=10., start=4., end=15.0, step=0.1, width=200)
+aperture= Slider(title="Aperture (meters)", value=7., start=6.0, end=8.0, step=0.1, width=200)
 
 exptime = Slider(title="Exposure Time [hr]", value=1.0, start=0.1, end=10.0, step=0.1, width=200)
 

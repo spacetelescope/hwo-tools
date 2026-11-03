@@ -117,7 +117,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.refwave= Slider(title="Wavelength of Interest", value=FILTERS["CI_VIS_IFS"].center.value, start=FILTERS["CI_VIS_IFS"].low.value, end=FILTERS["CI_VIS_IFS"].high.value, step=0.01)
         self.refwave.on_change("value", self.refwave_callback)
 
-        self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=5, end=15, step=0.1, )
+        self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=6, end=8, step=0.1, )
         self.newdiameter.on_change("value", self.diameter_callback)
 
         self.star = Select(title="Template Star Spectrum", value="G2V star",

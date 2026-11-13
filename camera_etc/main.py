@@ -7,7 +7,7 @@ import copy
 import numpy as np, astropy.units as u 
 
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource, HoverTool, Range1d  
+from bokeh.models import ColumnDataSource, HoverTool, Range1d, VArea
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import Slider, Div, Select, FileInput
 from bokeh.models.layouts import TabPanel, Tabs
@@ -23,67 +23,125 @@ import synphot as syn
 import stsynphot as stsyn
 
 spectra_library = copy.deepcopy(syn_spectra_library)
+# remove the existing blackbody entries
+spectra_library = {x: spectra_library[x] for x in spectra_library if "Blackbody" not in x}
+# add new ones
+spectra_library["Blackbody (set temperature below)"] = spectra_library["Flat (AB)"]
+spectra_library["Phoenix Model (set temp, metallicity, and log(g) below)"] = spectra_library["Flat (AB)"]
 
 FLUXUNIT = u.ABmag
+APERTURE_UPPER = 8.0 * u.m
+APERTURE_LOWER = 6.0 * u.m
 
-hri_source = None
-hri_exp = None
-hri = None
+source = None
+exp = None
+inst = None
 hwo = None
 source1 = ColumnDataSource(data=dict())
 source2 = ColumnDataSource(data=dict())
 source3 = ColumnDataSource(data=dict())
 source4 = ColumnDataSource(data=dict())
+sourcea1 = ColumnDataSource(data=dict())
+sourcea2 = ColumnDataSource(data=dict())
+sourcea3 = ColumnDataSource(data=dict())
+sourcea4 = ColumnDataSource(data=dict())
 suitable_instruments = {}
 template_to_start_with = "Flat (AB)"
 
+warning = Div(text='<p></p>')
+
 def update_snr(suitable_instruments, exptime):
-    global hri_source
-    global hri_exp
+    global source
+    global exp
     global instrument
+    global hwo
+    snrs_upper = []
+    snrs_lower = []
     snrs = []
     pivots = []
+    waves = []
     names = []
+    allnames = []
     
     for instrument_name in suitable_instruments:
         bands = suitable_instruments[instrument_name]
         instrument = hwo.instruments[instrument_name]
         bands = sorted(bands, key=lambda x: instrument.configuration["bands"][x]["effective_wavelength"])
 
+        snr_upper = []
+        snr_lower = []
         snr = []
         pivotwave = []
-        instrument.add_exposure(hri_exp)
-        hri_exp.source = hri_source
-        hri_exp.exptime = exptime
+        wave = []
+        name = []
+        allname = []
+        instrument.add_exposure(exp)
+        exp.source = source
+        exp.exptime = exptime
+        warnings = ""
         for band_name in bands:
+            band = instrument.configuration["bands"][band_name]
+            hwo.effective_diameter = APERTURE_UPPER
             try:
                 print("Band", band_name)
-                hri_exp.calculate_snr(custom_band=band_name)
-                band = instrument.configuration["bands"][band_name]
+                exp.calculate_snr(custom_band=band_name)
                 pivotwave.append(band["effective_wavelength"].value)
-                snr.append(hri_exp.snr[0].value)
-            except (syn.exceptions.DisjointError, syn.exceptions.SynphotError):
-                print("Disjoint")
-                continue
-        snrs.append(np.asarray(snr))
-        pivots.append(np.asarray(pivotwave))
-        names.append(bands)
+                snr_upper.append(exp.snr[0].value)
+                snr.append(exp.snr[0].value)
+                wave.append(band["effective_wavelength"].value)
+                name.append(band_name)
+                allname.append(band_name)
+            except (syn.exceptions.DisjointError, syn.exceptions.SynphotError) as err:
+                warnings = f"<p style='color:Tomato;'>{err}</p>"
+                pivotwave.append(band["effective_wavelength"].value)
+                snr_upper.append(0)
+                snr.append(0)
+                wave.append(band["effective_wavelength"].value)
+                name.append(band_name)
+                allname.append(band_name)
+            hwo.effective_diameter = APERTURE_LOWER
+            try:
+                print("Band", band_name)
+                exp.calculate_snr(custom_band=band_name)
+                snr_lower.append(exp.snr[0].value)
+                snr.append(exp.snr[0].value)
+                wave.append(band["effective_wavelength"].value)
+                allname.append(band_name)
+            except (syn.exceptions.DisjointError, syn.exceptions.SynphotError) as err:
+                warnings = f"<p style='color:Tomato;'>{err}</p>"
+                snr_lower.append(0)
+                snr.append(0)
+                wave.append(band["effective_wavelength"].value)
+                allname.append(band_name)
 
-    return snrs, pivots, names
+
+        snrs_upper.append(np.asarray(snr_upper))
+        snrs_lower.append(np.asarray(snr_lower))
+        snrs.append(np.asarray(snr))
+        waves.append(np.asarray(wave))
+        pivots.append(np.asarray(pivotwave))
+        names.append(np.asarray(name))
+        allnames.append(np.asarray(allname))
+
+    return snrs, waves, allnames, snrs_upper, snrs_lower, pivots, names, warnings
 
 def flatten(arr):
     # https://realpython.com/python-flatten-list/
     return [item for row in arr for item in row]
 
 def initialize_setup():
-    global hri_source
-    global hri_exp
+    global source
+    global exp
     global hwo
 
     global source1
     global source2
     global source3
     global source4
+    global sourcea1
+    global sourcea2
+    global sourcea3
+    global sourcea4
     global suitable_instruments
 
 
@@ -91,33 +149,21 @@ def initialize_setup():
     hwo.set_from_hwome('EAC5')
     suitable_instruments, suitable_bands = hwo.find_instrument_with(kind="filter")
 
-    hri_source = Source() 
-    hri_source.set_sed(template_to_start_with, 30., 0., 0.)
+    source = Source()
 
-    hri_exp = SourcePhotometricExposure() 
-    hri_exp.source = hri_source
-    hri_exp.verbose = True 
-
-    snrs, pivots, names = update_snr(suitable_instruments, 1 * u.h)
-
-    source1 = ColumnDataSource(data=dict(x=pivots[0], y=snrs[0], desc=names[0]))
-    source2 = ColumnDataSource(data=dict(x=pivots[1], y=snrs[1], desc=names[1]))
-    source3 = ColumnDataSource(data=dict(x=pivots[2], y=snrs[2], desc=names[2]))
-    #source4 = ColumnDataSource(data=dict(x=pivots[3], y=snrs[3], desc=names[3]))
+    exp = SourcePhotometricExposure()
 
 initialize_setup()
-
-
 
 hover = HoverTool(point_policy="snap_to_data", 
         tooltips="""
         <div>
             <div>
-                <span style="font-size: 17px; font-weight: bold; color: #696">@desc band</span>
+                <span style="font-size: 17px; font-weight: bold; color: #696">@allnames</span>
             </div>
             <div>
                 <span style="font-size: 15px; font-weight: bold; color: #696">S/N = </span>
-                <span style="font-size: 15px; font-weight: bold; color: #696;">@y</span>
+                <span style="font-size: 15px; font-weight: bold; color: #696;">@snr</span>
             </div>
         </div>
         """
@@ -130,19 +176,36 @@ snr_plot.add_tools(hover)
 snr_plot.yaxis.axis_label = 'Signal to Noise Ratio'
 snr_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 
-snr_plot.line('x', 'y', source=source1, line_width=3, line_alpha=1.0) 
-snr_plot.scatter('x', 'y', source=source1, fill_color='white', line_color='blue', size=10)
-snr_plot.line('x', 'y', source=source2, line_width=3, line_color='orange', line_alpha=1.0)
-snr_plot.scatter('x', 'y', source=source2, fill_color='white', line_color='orange', size=8) 
-snr_plot.line('x', 'y', source=source3, line_width=3, line_color='red', line_alpha=1.0)
-snr_plot.scatter('x', 'y', source=source3, fill_color='white', line_color='red', size=8) 
-snr_plot.line('x', 'y', source=source4, line_width=3, line_color='green', line_alpha=1.0)
-snr_plot.scatter('x', 'y', source=source4, fill_color='white', line_color='green', size=8) 
+box1 = VArea(x="x" , y1="upper", y2="lower", fill_color="blue", fill_alpha=0.5) 
+snr_plot.line('x', 'upper', source=source1, legend_label="8m mirror", line_color="white", line_dash="solid", line_width=3, line_alpha=1.0) 
+snr_plot.line('x', 'lower', source=source1, legend_label="6m mirror", line_color="white", line_dash="dashed", line_width=3, line_alpha=1.0) 
+pts1 = snr_plot.scatter('wave', 'snr', source=sourcea1, fill_color='blue', line_color="blue", size=8)
+box2 = VArea(x="x" , y1="upper", y2="lower", fill_color='orange', fill_alpha=0.5)
+snr_plot.line('x', 'upper', source=source2, line_dash="solid", line_color="white", line_width=3, line_alpha=1.0) 
+snr_plot.line('x', 'lower', source=source2, line_dash="dashed", line_color="white", line_width=3, line_alpha=1.0) 
+pts2 = snr_plot.scatter('wave', 'snr', source=sourcea2, fill_color='orange', line_color="orange", size=8)
+box3 = VArea(x="x" , y1="upper", y2="lower", fill_color='red', fill_alpha=0.5)
+snr_plot.line('x', 'upper', source=source3, line_dash="solid", line_color="white", line_width=3, line_alpha=1.0) 
+snr_plot.line('x', 'lower', source=source3, line_dash="dashed", line_color="white", line_width=3, line_alpha=1.0) 
+pts3 = snr_plot.scatter('wave', 'snr', source=sourcea3, fill_color='red', line_color='red', size=8)
+box4 = VArea(x="x" , y1="upper", y2="lower",  fill_color='green', fill_alpha=0.5)
+snr_plot.line('x', 'upper', source=source4, line_dash="solid", line_color="white", line_width=3, line_alpha=1.0) 
+snr_plot.line('x', 'lower', source=source4, line_dash="dashed", line_color="white", line_width=3, line_alpha=1.0) 
+pts4 = snr_plot.scatter('wave', 'snr', source=sourcea4, fill_color='green', line_color="green", size=8)
+hover.renderers = [pts1, pts2, pts3, pts4]
+snr_plot.legend.title = ""
+snr_plot.legend.background_fill_color = "#4f4f4f"
+snr_plot.legend.label_text_color = "#cfcfcf"
 
-#hri_source = spectra_library[template_to_start_with]
-flux_converted = syn.units.convert_flux(hri_source.sed.waveset, hri_source.sed(hri_source.sed.waveset), FLUXUNIT)
+snr_plot.add_glyph(source1, box1)
+snr_plot.add_glyph(source2, box2)
+snr_plot.add_glyph(source3, box3)
+snr_plot.add_glyph(source4, box4)
 
-spectrum_template = ColumnDataSource(data=dict(w=hri_source.sed.waveset.value, 
+#source = spectra_library[template_to_start_with]
+flux_converted = syn.units.convert_flux(source.sed.waveset, source.sed(source.sed.waveset), FLUXUNIT)
+
+spectrum_template = ColumnDataSource(data=dict(w=source.sed.waveset.value, 
                                                f=flux_converted.value))
 
 sed_plot = figure(height=400, width=700,tools="crosshair,pan,reset,save,box_zoom,wheel_zoom",
@@ -152,36 +215,72 @@ sed_plot.yaxis.axis_label = 'AB Magnitude'
 sed_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 sed_plot.line('w','f',line_color='orange', line_width=3, source=spectrum_template, line_alpha=1.0)  
 
-
-
 def update_data(attrname, old, new):
-
-
+    global source
     print("You have chosen template ", template.value)
 
-    hwo.effective_diameter = aperture.value * u.m 
+    source.set_sed(template.value, magnitude.value, 0., 0., library=spectra_library)
 
-    hri_source.set_sed(template.value, magnitude.value, 0., 0., library=spectra_library)
+    if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
+       wave = np.linspace(100,30000,300) << u.Angstrom
+       bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, temperature=bb_temperature.value)
+       bb.z = redshift.value
+       bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
+       source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave, lookup_table=bb(wave))
+    if ('Phoenix' in template.value):
+        wave = np.linspace(100,30000,300) << u.Angstrom
+        temp = bb_temperature.value
+        metal = phoenix_metal.value
+        logg = phoenix_logg.value
+        try:
+            phoenix = stsyn.grid_to_spec('phoenix', temp, metal, logg)
+        except stsyn.exceptions.ParameterOutOfBounds as err:
+            spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+            source1.data = dict(w=[0.1], sn = [0], desc=[""]) 
+            source2.data = dict(w=[0.3], sn = [0], desc=[""]) 
+            source3.data = dict(w=[0.8], sn = [0], desc=[""]) 
+            source4.data = dict(w=[1.2], sn = [0], desc=[""]) 
+            warning.text = str(err)
+            return source1, source2, source3, source4
+        except ValueError as err:
+            spectrum_template.data = dict(w=wave, f=np.zeros_like(wave.value))
+            source1.data = dict(w=[0.1], sn = [0], desc=[""]) 
+            source2.data = dict(w=[0.3], sn = [0], desc=[""]) 
+            source3.data = dict(w=[0.8], sn = [0], desc=[""]) 
+            source4.data = dict(w=[1.2], sn = [0], desc=[""]) 
+            warning.text = f"log(g) value not in file (original error: {err})"
+            return source1, source2, source3, source4
+        phoenix.z = redshift.value
+        phoenix = phoenix.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv'))
+        source.sed = phoenix
 
     normalization_band = stsyn.band(spectra_library[template.value].band)
-    hri_source.sed.normalize(magnitude.value * u.ABmag, normalization_band) 
+    source.sed.normalize(magnitude.value * u.ABmag, normalization_band) 
     print('Renorming to ', magnitude.value) 
-    print('SED Waveunits: ', hri_source.sed.waveset.unit)
-    print('SED Fluxunits: ', hri_source.sed(hri_source.sed.waveset).unit)
+    print('SED Waveunits: ', source.sed.waveset.unit)
+    print('SED Fluxunits: ', source.sed(source.sed.waveset).unit)
 
-    flux_converted = syn.units.convert_flux(hri_source.sed.waveset, hri_source.sed(hri_source.sed.waveset), FLUXUNIT)
+    flux_converted = syn.units.convert_flux(source.sed.waveset, source.sed(source.sed.waveset), FLUXUNIT)
 
-    spectrum_template.data = {'w':hri_source.sed.waveset.value, 'f':flux_converted.value}    
+    spectrum_template.data = {'w': source.sed.waveset.value, 'f': flux_converted.value}    
 
-    snrs, pivots, names = update_snr(suitable_instruments, [exptime.value] * u.hr) 
+    snrs, waves, allnames, snrs_upper, snrs_lower, pivots, names, warnings = update_snr(suitable_instruments, [exptime.value] * u.hr) 
+    warning.text=warnings
 
-    source1.data = dict(x=pivots[0], y=snrs[0], desc=names[0]) 
-    source2.data = dict(x=pivots[1], y=snrs[1], desc=names[1]) 
-    source3.data = dict(x=pivots[2], y=snrs[2], desc=names[2])
-    #source4.data = dict(x=pivots[3], y=snrs[3], desc=names[3])
+    source1.data = dict(x=pivots[0], upper=snrs_upper[0], lower=snrs_lower[0], desc=names[0]) 
+    source2.data = dict(x=pivots[1], upper=snrs_upper[1], lower=snrs_lower[1], desc=names[1]) 
+    source3.data = dict(x=pivots[2], upper=snrs_upper[2], lower=snrs_lower[2], desc=names[2])
+    source4.data = dict(x=pivots[3], upper=snrs_upper[3], lower=snrs_lower[3], desc=names[3])
+    sourcea1.data = dict(wave=waves[0], snr=snrs[0], allnames=allnames[0])
+    sourcea2.data = dict(wave=waves[1], snr=snrs[1], allnames=allnames[1])
+    sourcea3.data = dict(wave=waves[2], snr=snrs[2], allnames=allnames[2])
+    sourcea4.data = dict(wave=waves[3], snr=snrs[3], allnames=allnames[3])
 
     snr_plot.y_range.start = 0
-    snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs)),5.]) 
+    try:
+        snr_plot.y_range.end = 1.3*np.max([np.max(flatten(snrs_upper)),5.]) 
+    except ValueError:
+        pass
 
     sed_plot.y_range.start = np.max(flux_converted.value)+5.
     sed_plot.y_range.end = np.min(flux_converted.value)-5.
@@ -190,35 +289,75 @@ def update_data(attrname, old, new):
     sed_plot.title.text = text
     warning.text = ""
 
-    return source1, source2, source3
+    return source1, source2, source3, source4, sourcea1, sourcea2, sourcea3, sourcea4
 
 # fake source for managing callbacks 
-source = ColumnDataSource(data=dict(value=[]))
-source.on_change('data', update_data)
+callhandler = ColumnDataSource(data=dict(value=[]))
+callhandler.on_change('data', update_data)
 
-aperture = Slider(title="Aperture (meters)", value=hwo.effective_diameter.value, start=4., end=15.0, step=0.1, tags=[4,5,6,6], width=250) 
-aperture_callback = CustomJS(args=dict(source=source), code="""
-    source.data = { value: [cb_obj.value] }
+aperture = Slider(title="Aperture (meters)", value=7.0, start=6.0, end=8.0, step=0.1, tags=[4,5,6,6], width=250) 
+aperture_callback = CustomJS(args=dict(callhandler=callhandler), code="""
+    callhandler.data = { value: [cb_obj.value] }
 """)
 aperture.js_on_change('value_throttled', aperture_callback) 
 
 exptime = Slider(title="Exptime (hours)", value=1., start=0.1, end=20.0, step=0.1, width=250) 
-exptime_callback = CustomJS(args=dict(source=source), code="""
-    source.data = { value: [cb_obj.value] }
+exptime_callback = CustomJS(args=dict(callhandler=callhandler), code="""
+    callhandler.data = { value: [cb_obj.value] }
 """)
 exptime.js_on_change("value_throttled", exptime_callback) 
 
+redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
+redshift_callback = CustomJS(args=dict(callhandler=callhandler), code="""
+    callhandler.data = { value: [cb_obj.value] }
+""")
+redshift.js_on_change("value_throttled", redshift_callback) 
+
 magnitude = Slider(title="Magnitude (AB)", value=30.0, start=20.0, end=35., step=0.1, width=250) 
-magnitude_callback = CustomJS(args=dict(source=source), code="""
-    source.data = { value: [cb_obj.value] }
+magnitude_callback = CustomJS(args=dict(callhandler=callhandler), code="""
+    callhandler.data = { value: [cb_obj.value] }
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
 
+bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=1000., width=200)
+temperature_callback = CustomJS(args=dict(callhandler=callhandler), code="""
+    callhandler.data = { value: [cb_obj.value] }
+""")
+bb_temperature.js_on_change("value_throttled", temperature_callback)
+bb_temperature.visible = False
+
+phoenix_metal = Slider(title="Metallicity (solar)", value=0., start=-4., end=0.5, step=0.1, sizing_mode="stretch_width")
+metallicity_callback = CustomJS(args=dict(callhandler=callhandler), code="""
+    callhandler.data = { value: [cb_obj.value] }
+""")
+phoenix_metal.js_on_change("value_throttled", metallicity_callback)
+phoenix_metal.visible = False
+
+phoenix_logg = Slider(title="Log(g) (solar)", value=4., start=0., end=5.5, step=0.1, sizing_mode="stretch_width")
+logg_callback = CustomJS(args=dict(callhandler=callhandler), code="""
+    callhandler.data = { value: [cb_obj.value] }
+""")
+phoenix_logg.js_on_change("value_throttled", logg_callback)
+phoenix_logg.visible = False
 
 template = Select(title="Template Spectrum", value="Flat (AB)", options=list(spectra_library.keys()), width=250) 
+def template_callback(attr, old, new):
+    print(attr, old, new)
+    if "Blackbody" in new:
+        bb_temperature.visible = True
+        phoenix_metal.visible = False
+        phoenix_logg.visible = False
+    elif "Phoenix" in new:
+        bb_temperature.visible = True
+        phoenix_metal.visible = True
+        phoenix_logg.visible = True
+    else:
+        bb_temperature.visible = False
+        phoenix_metal.visible = False
+        phoenix_logg.visible = False
+template.on_change("value", template_callback)
 
 upload = FileInput(accept=[".txt", ".csv", ".ascii", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
-warning = Div(text='<p></p>')
 
 def process_spectrum(attr, old, new):
     global template
@@ -265,8 +404,10 @@ upload.on_change("filename", process_spectrum)
 for w in [template]:
     w.on_change('value', update_data)
 
+update_data(False, False, False)
 
-controls = column(children=[aperture, exptime, magnitude, template, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
+starparam = row(children=[phoenix_metal, phoenix_logg], width_policy = "fit")
+controls = column(children=[exptime, template, redshift, magnitude, bb_temperature, starparam, upload, warning], sizing_mode='fixed', max_width=300, width=300, height=600) 
 controls_tab = TabPanel(child=controls, title='Controls')
 info_tab = TabPanel(child=Div(text = h.help()), title='Info')
 inputs = Tabs(tabs=[ controls_tab, info_tab], width=300) 
@@ -274,5 +415,5 @@ plots = Tabs(tabs=[ TabPanel(child=snr_plot, title='SNR'), TabPanel(child=sed_pl
 
 
 curdoc().add_root(row(children=[inputs, plots])) 
-curdoc().add_root(source) 
+curdoc().add_root(callhandler) 
 curdoc().add_root(source1) 

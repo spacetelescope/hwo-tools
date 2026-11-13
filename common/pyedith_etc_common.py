@@ -30,17 +30,14 @@ class pyEDITHETC():
     
     def update_scene(self):
         #parameters.update(updates)
-
         self.scene.load_configuration(self.parameters)
         self.scene.calculate_zodi_exozodi(self.parameters)
         self.scene.validate_configuration()
 
-    def update_observation(self,filt):
-
-        self.observation.load_configuration(self.parameters, filter=filt) # load the specified configuration in the parameters dict 
+    def update_observation(self):
+        self.observation.load_configuration(self.parameters, filter=self.parameters["filt"]) # load the specified configuration in the parameters dict 
         self.observation.set_output_arrays()
         self.observation.validate_configuration()
-        
 
     def print_observatory(observatory):
         print("Parameters in observatory:")
@@ -109,6 +106,7 @@ class pyEDITHETC():
         # should always be present
         if "filt" in newvalues.data:
             filt = newvalues.data["filt"][0]
+            self.parameters["filt"] = filt
             print("Updated filter", filt)
             del newvalues.data["filt"]
         if "new_star" in newvalues.data:
@@ -159,11 +157,11 @@ class pyEDITHETC():
             self.parameters["diameter"] = newvalues.data["new_telescope_diameter"][0]
             del newvalues.data["new_telescope_diameter"] # consume the new value
         else:
-            self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
+            self.parameters["observatory_preset"] = "EAC5" # tells ETC to use EAC5 yaml files throughputs
 
         if "observation" in newvalues.data and newvalues.data["observation"][0]:
             print("Rerun observation...")
-            self.update_observation(filt)
+            self.update_observation()
             newvalues.data["observation"][0] = False
 
         if "scene" in newvalues.data and newvalues.data["scene"][0]:
@@ -171,6 +169,11 @@ class pyEDITHETC():
             self.update_scene()
             if self.parameters["observing_mode"] == "IFS" and self.parameters["regrid_wavelength"] is True:
                 self.scene.regrid_spectra(self.observation)
+                print("Post-regrid Parameters length")
+                print("scene.F0", len(self.scene.F0))
+                print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
+                print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
+
             newvalues.data["scene"][0] = False
 
         observatory_config = pE.parse_input.get_observatory_config(self.parameters)

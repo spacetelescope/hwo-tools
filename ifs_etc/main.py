@@ -8,7 +8,7 @@ import numpy as np, astropy.units as u
 from functools import partial
 
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource, Range1d 
+from bokeh.models import ColumnDataSource, HoverTool, Range1d, VArea
 from bokeh.layouts import row, column
 from bokeh.models.widgets import Slider, Select, Div, Button, FileInput
 from bokeh.models.layouts import TabPanel, Tabs
@@ -17,7 +17,7 @@ from bokeh.models.callbacks import CustomJS
 import astropy.units as u
 import synphot as syn
 import stsynphot as stsyn
-import ifs_help as h 
+import help as h 
 
 from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
@@ -30,22 +30,32 @@ spectra_library = {x: spectra_library[x] for x in spectra_library if "Blackbody"
 spectra_library["Blackbody (set temperature below)"] = spectra_library["Flat (AB)"]
 spectra_library["Phoenix Model (set temp, metallicity, and log(g) below)"] = spectra_library["Flat (AB)"]
 
+WAVELENGTH_RANGE = [900, 5000]
+FLUX_COLOR = "limegreen"
+BG_COLOR = "gold"
+SNR_COLOR = "orange"
+MULTISOURCE = True
+
 FLUXUNIT = u.erg / u.s / u.cm**2 / u.AA
 
-hwo = None
-instrument = None
-ifs_exp = None
-snr_results = ColumnDataSource(data={})
-spectrum_template = []
-instrument_info = ColumnDataSource(data={})
-sources = []
-suitable_bands = {}
-source_num = 0
-run_compute = True
+APERTURE_UPPER = 8.0 * u.m
+APERTURE_LOWER = 6.0 * u.m
 
 hwo = Telescope() 
 hwo.set_from_hwome('EAC5')
 suitable_instruments, suitable_bands = hwo.find_instrument_with(instrument="ifs")
+
+instrument = None
+exp = None
+snr_results = ColumnDataSource(data={})
+snr_results_all = ColumnDataSource(data={})
+spectrum_template = []
+instrument_info = ColumnDataSource(data={})
+sources = []
+source_num = 0
+run_compute = True
+
+
 
 # Set up layouts and add to document
 help_text = Div(text = h.help(), width=200) 
@@ -56,42 +66,56 @@ warning_box = Div(text='<p></p>')
 grating = Select(title="Grating / Setting", value=list(suitable_bands.keys())[-1], width=200, \
                  options=list(suitable_bands.keys()))
 
-aperture= Slider(title="Aperture (meters)", value=7., start=6.0, end=8.0, step=0.1, width=200)
+#aperture= Slider(title="Aperture (meters)", value=7., start=6.0, end=8.0, step=0.1, width=200)
 
 exptime = Slider(title="Exposure Time [hr]", value=1.0, start=0.1, end=10.0, step=0.1, width=200)
 
 flux_plot = figure(height=400, width=800, 
-              tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 5000], y_range=[0, 4e-16], toolbar_location='right') 
-flux_plot.x_range=Range1d(900,5000,bounds=(900,5000))
+              tools="crosshair,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
+              x_range=WAVELENGTH_RANGE, y_range=[0, 4e-16], toolbar_location='right') 
+flux_plot.x_range=Range1d(*WAVELENGTH_RANGE,bounds=WAVELENGTH_RANGE)
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None))
-flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
+flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color=BG_COLOR, line_alpha=0.7, legend_label='Background')
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
 flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
 
 sn_plot = figure(height=400, width=800, 
-              tools="crosshair,hover,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
-              x_range=[900, 5000], y_range=[0, 40], toolbar_location='right')
-sn_plot.x_range=Range1d(900,5000,bounds=(900,5000))
+              tools="crosshair,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
+              x_range=WAVELENGTH_RANGE, y_range=[0, 40], toolbar_location='right')
+sn_plot.x_range=Range1d(*WAVELENGTH_RANGE,bounds=WAVELENGTH_RANGE)
 sn_plot.y_range=Range1d(0,40,bounds=(0,None)) 
 
 def update_snr(band_name, instrument_name, exptime):
-    global ifs_exp
+    global exp
     global instrument
     instrument = hwo.instruments[instrument_name]
 
-    instrument.add_exposure(ifs_exp)
-    ifs_exp.exptime = exptime
+    instrument.add_exposure(exp)
+    exp.exptime = exptime
     warnings = ""
+    hwo.effective_diameter = APERTURE_UPPER
     try:
-        ifs_exp.calculate_snr(custom_band=band_name)
-        snr = ifs_exp.snr[0].value
-        wave = ifs_exp.wave[0].value
+        exp.calculate_snr(custom_band=band_name)
+        snr_upper = exp.snr[0].value
+        wave = exp.wave[0].value
     except syn.exceptions.SynphotError as exp:
         warnings = f"<span color='red'> {exp} </span>"
         wave = np.zeros(3)
-        snr = np.zeros_like(wave)
-    return snr, wave, warnings
+        snr_upper = np.zeros_like(wave)
+
+    hwo.effective_diameter = APERTURE_LOWER
+    try:
+        exp.calculate_snr(custom_band=band_name)
+        snr_lower = exp.snr[0].value
+        wave = exp.wave[0].value
+    except syn.exceptions.SynphotError as exp:
+        warnings = f"<span color='red'> {exp} </span>"
+        wave = np.zeros(3)
+        snr_lower = np.zeros_like(wave)
+
+    snrs = np.append(snr_lower, snr_upper)
+    waves = np.append(wave, wave)
+    return snrs, waves, snr_upper, snr_lower, wave, warnings
 
 
 def update_data(): # use this one for updating synphot templates 
@@ -101,7 +125,7 @@ def update_data(): # use this one for updating synphot templates
     global suitable_bands
     global instrument_info
     # blank out the old list of sources
-    ifs_exp.sources = []
+    exp.sources = []
     all_fluxes = []
     max_val = np.asarray([0.0])
     for idx, panel in enumerate(sources):
@@ -115,21 +139,21 @@ def update_data(): # use this one for updating synphot templates
         print() 
         print("You have chosen template ", template.value) 
         print('Selected grating = ', grating.value) 
-        print('Your telescope diameter is set to', aperture.value) 
+        #print('Your telescope diameter is set to', aperture.value) 
         print('You asked for redshift', redshift.value) 
-        hwo.effective_diameter = aperture.value
+        #hwo.effective_diameter = aperture.value
 
-        ifs_exp.disable()
+        exp.disable()
         
-        ifs_source = Source() 
-        ifs_source.set_sed(template.value, magnitude.value, redshift.value, 0., library=spectra_library)
+        source = Source() 
+        source.set_sed(template.value, magnitude.value, redshift.value, 0., library=spectra_library)
 
         if ('Blackbody' in template.value):      #<---- update the blackbody curve here. 
             wave = np.linspace(100,30000,300) << u.Angstrom
             bb = syn.spectrum.SourceSpectrum(syn.models.BlackBody1D, temperature=bb_temperature.value)
             bb.z = redshift.value
             bb = bb.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv')) 
-            ifs_source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave << u.Angstrom, lookup_table=bb(wave))
+            source.sed = syn.spectrum.SourceSpectrum(syn.models.Empirical1D, points=wave << u.Angstrom, lookup_table=bb(wave))
         if ('Phoenix' in template.value):
             wave = np.linspace(100,30000,300) << u.Angstrom
             temp = bb_temperature.value
@@ -149,35 +173,38 @@ def update_data(): # use this one for updating synphot templates
                 return snr_results, spectrum_template
             phoenix.z = redshift.value
             phoenix = phoenix.normalize(magnitude.value * u.ABmag, stsyn.band('galex,fuv'))
-            ifs_source.sed = phoenix
+            source.sed = phoenix
             
-        flux_converted = syn.units.convert_flux(ifs_source.sed.waveset, ifs_source.sed(ifs_source.sed.waveset), FLUXUNIT)
+        flux_converted = syn.units.convert_flux(source.sed.waveset, source.sed(source.sed.waveset), FLUXUNIT)
 
         all_fluxes.extend(flux_converted.value)
 
-        spectrum_template[idx].data = dict(w=ifs_source.sed.waveset.value, f=flux_converted.value)
+        spectrum_template[idx].data = dict(w=source.sed.waveset.value, f=flux_converted.value)
 
-        ifs_exp.add_source(ifs_source)
+        exp.add_source(source)
 
     max_val = np.ma.max(all_fluxes)
 
-    ifs_exp.verbose = True 
+    exp.verbose = True 
 
-    snr, wave, warnings = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
+    snrs, waves, snr_upper, snr_lower, wave, warnings = update_snr(grating.value, suitable_bands[grating.value], exptime.value * u.hr)
     warning_box.text=warnings
 
-    snr_fixed = np.nan_to_num(snr, nan=0)
+    snr_upper_fixed = np.nan_to_num(snr_upper, nan=0)
+    snr_lower_fixed = np.nan_to_num(snr_lower, nan=0)
+    snrs_fixed = np.nan_to_num(snrs, nan=0)
 
-    snr_results.data = dict(w=wave, sn = snr_fixed)
+    snr_results.data = dict(w=wave, sn_upper = snr_upper_fixed, sn_lower = snr_lower_fixed)
+    snr_results_all.data = dict(wave=waves, snr=snrs_fixed)
 
-    background = instrument.sky(wave * u.AA) + ifs_exp.thermal(wave * u.AA)
+    background = instrument.sky(wave * u.AA) + exp.thermal(wave * u.AA)
     instrument_info.data = dict(wave=wave, bef=syn.units.convert_flux(wave * u.AA, background, FLUXUNIT).value)
 
     # set the axes to autoscale appropriately 
     flux_plot.y_range.start = 0 
     flux_plot.y_range.end = 1.5*max_val
     sn_plot.y_range.start = 0 
-    sn_plot.y_range.end = 1.3*np.max(snr_results.data['sn'])
+    sn_plot.y_range.end = 1.3*np.max(snr_results.data['sn_upper'])
 
     print() 
     print()
@@ -216,7 +243,7 @@ class source_widget():
 
     def __init__(self):
         self.template = Select(title="Template Spectrum", value="QSO", options=list(spectra_library.keys()), width=200)
-        self.template.on_change("value", unlock_calcbutton)
+        self.template.on_change("value", self.template_callback)
 
         self.redshift = Slider(title="Redshift", value=0.0, start=0., end=3.0, step=0.05, width=200)
         self.redshift.on_change("value", unlock_calcbutton)
@@ -224,14 +251,17 @@ class source_widget():
         self.magnitude = Slider(title="AB Magnitude", value=21., start=15., end=30.0, step=0.1, width=200)
         self.magnitude.on_change("value", unlock_calcbutton)
 
-        self.bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=1000., width=200)
+        self.bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=100., width=200)
         self.bb_temperature.on_change("value", unlock_calcbutton)
+        self.bb_temperature.visible = False
 
         self.phoenix_metal = Slider(title="Metallicity (solar)", value=0., start=-4., end=0.5, step=0.1, sizing_mode="stretch_width")
-        self.phoenix_metal.on_change("value", unlock_calcbutton) 
+        self.phoenix_metal.on_change("value", unlock_calcbutton)
+        self.phoenix_metal.visible = False
 
         self.phoenix_logg = Slider(title="Log(g) (solar)", value=4., start=0., end=5.5, step=0.1, sizing_mode="stretch_width")
-        self.phoenix_logg.on_change("value", unlock_calcbutton) 
+        self.phoenix_logg.on_change("value", unlock_calcbutton)
+        self.phoenix_logg.visible = False
 
         self.upload = FileInput(accept=[".txt", ".csv", ".ascii", ".fit", ".fits", ".asdf"], title="Upload a Spectrum (.txt or FITS format, 10 MiB max)", directory=False, multiple=False) # 1. list allowed extensions
         self.upload.on_change("filename", self.process_spectrum)
@@ -278,6 +308,22 @@ class source_widget():
         else:
             self.warning.text = "File too large"
 
+    def template_callback(self, attr, old, new):
+        print(attr, old, new)
+        if "Blackbody" in new:
+            self.bb_temperature.visible = True
+            self.phoenix_metal.visible = False
+            self.phoenix_logg.visible = False
+        elif "Phoenix" in new:
+            self.bb_temperature.visible = True
+            self.phoenix_metal.visible = True
+            self.phoenix_logg.visible = True
+        else:
+            self.bb_temperature.visible = False
+            self.phoenix_metal.visible = False
+            self.phoenix_logg.visible = False
+        unlock_calcbutton(attr, old, new)
+
 def add_source_callback(event):
     global source_num
     global sources
@@ -297,20 +343,20 @@ def add_source_callback(event):
     spectrum_template.append(ColumnDataSource(data={}))
 
     for spectrum in spectrum_template:
-        flux_plot.line('w', 'f', source=spectrum, line_width=3, line_color='firebrick', line_alpha=0.7, legend_label='Source Flux')
-        flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
+        flux_plot.line('w', 'f', source=spectrum, line_width=3, line_color=FLUX_COLOR, line_alpha=0.7, legend_label='Source Flux')
+        flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color=BG_COLOR, line_alpha=0.7, legend_label='Background')
     source_inputs.tabs.append(source_panel)
     unlock_calcbutton(None, None, None)
 
 def initialize_setup():
     global hwo
     global instrument
-    global ifs_exp
+    global exp
     global spectrum_template
     global snr_results
     global instrument_info
 
-    ifs_exp = SourceIFSExposure()
+    exp = SourceIFSExposure()
 
     add_source_callback(None)
 
@@ -320,13 +366,36 @@ def initialize_setup():
 initialize_setup()
 
 for spectrum in spectrum_template:
-    flux_plot.line('w', 'f', source=spectrum, line_width=3, line_color='firebrick', line_alpha=0.7, legend_label='Source Flux')
-flux_plot.line('w', 'bef', source=instrument_info, line_width=3, line_color='darksalmon', line_alpha=0.7, legend_label='Background')
+    flux_plot.line('w', 'f', source=spectrum, line_width=3, line_color=FLUX_COLOR, line_alpha=0.7, legend_label='Source Flux')
+flux_plot.line('w', 'bef', source=instrument_info, line_width=3, line_color=BG_COLOR, line_alpha=0.9, legend_label='Background')
 
+hover = HoverTool(point_policy="snap_to_data", 
+        tooltips="""
+        <div>
+            <div>
+                <span style="font-size: 15px; font-weight: bold; color: #696">Wave = </span>
+                <span style="font-size: 17px; font-weight: bold; color: #696">@wave</span>
+            </div>
+            <div>
+                <span style="font-size: 15px; font-weight: bold; color: #696">S/N = </span>
+                <span style="font-size: 15px; font-weight: bold; color: #696;">@snr</span>
+            </div>
+        </div>
+        """
+    )
+box1 = VArea(x="w" , y1="sn_upper", y2="sn_lower", fill_color=SNR_COLOR, fill_alpha=0.5)
+sn_plot.add_tools(hover)
+pts1 = sn_plot.scatter("wave", "snr", source=snr_results_all, fill_color=SNR_COLOR, line_color=SNR_COLOR, size=1)
+sn_plot.line('w', 'sn_upper', source=snr_results, line_width=3, line_color=SNR_COLOR, line_dash="solid", line_alpha=0.9, legend_label='8m mirror')
+sn_plot.line('w', 'sn_lower', source=snr_results, line_width=3, line_color=SNR_COLOR, line_dash="dashed", line_alpha=0.9, legend_label='6m mirror')
+sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
+sn_plot.yaxis.axis_label = 'S/N per pixel'
 
-sn_plot.line('w', 'sn', source=snr_results, line_width=3, line_color='orange', line_alpha=0.7, legend_label='S/N per resel')
-sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
-sn_plot.yaxis.axis_label = 'S/N per resel' 
+sn_plot.add_glyph(snr_results, box1)
+sn_plot.hover.renderers = [pts1]
+sn_plot.legend.title = ""
+sn_plot.legend.background_fill_color = "#4f4f4f"
+sn_plot.legend.label_text_color = "#cfcfcf"
 
 grating.on_change('value', unlock_calcbutton)
 
@@ -338,10 +407,10 @@ source.on_change('data', unlock_calcbutton)
 add_source = Button(label="Add Source", button_type="success")
 add_source.on_click(add_source_callback)
 
-aperture_callback = CustomJS(args=dict(source=source), code="""
-    source.data = { value: [cb_obj.value] }
-""")
-aperture.on_change('value', unlock_calcbutton)
+# aperture_callback = CustomJS(args=dict(source=source), code="""
+#     source.data = { value: [cb_obj.value] }
+# """)
+# aperture.on_change('value', unlock_calcbutton)
 
 exptime_callback = CustomJS(args=dict(source=source), code="""
     source.data = { value: [cb_obj.value] }
@@ -349,11 +418,14 @@ exptime_callback = CustomJS(args=dict(source=source), code="""
 exptime.on_change('value', unlock_calcbutton)
  
 
-exposure_inputs = column(children=[grating, aperture, exptime], sizing_mode='fixed', max_width=300, width=300, height=600 )
+exposure_inputs = column(children=[grating, exptime], sizing_mode='fixed', max_width=300, width=300, height=600 )
 exposure_panel = TabPanel(child=exposure_inputs, title='Exposure')
 exposure_inputs = Tabs(tabs=[ exposure_panel ], width=300) 
 
 row1 = row(children=[source_inputs, flux_plot])
 row2 = row(children=[exposure_inputs, sn_plot])
 
-curdoc().add_root(column(children=[row1, add_source, snr_compute, warning_box, row2]))
+if MULTISOURCE:
+    curdoc().add_root(column(children=[row1, add_source, snr_compute, warning_box, row2]))
+else:
+    curdoc().add_root(column(children=[row1, snr_compute, warning_box, row2]))

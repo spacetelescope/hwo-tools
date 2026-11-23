@@ -17,7 +17,7 @@ from bokeh.models.callbacks import CustomJS
 import astropy.units as u
 import synphot as syn
 import stsynphot as stsyn
-import help as h 
+import ifs_help as h 
 
 from syotools.spectra.spec_defaults import syn_spectra_library
 from syotools.spectra.utils import load_txtfile, load_synfits
@@ -31,8 +31,8 @@ spectra_library["Blackbody (set temperature below)"] = spectra_library["Flat (AB
 spectra_library["Phoenix Model (set temp, metallicity, and log(g) below)"] = spectra_library["Flat (AB)"]
 
 WAVELENGTH_RANGE = [900, 5000]
-FLUX_COLOR = "limegreen"
-BG_COLOR = "gold"
+FLUX_COLOR = "forestgreen"
+BG_COLOR = "lightpink"
 SNR_COLOR = "orange"
 MULTISOURCE = True
 
@@ -77,7 +77,9 @@ flux_plot.x_range=Range1d(*WAVELENGTH_RANGE,bounds=WAVELENGTH_RANGE)
 flux_plot.y_range=Range1d(0,4e-16,bounds=(0,None))
 flux_plot.line('wave', 'bef', source=instrument_info, line_width=3, line_color=BG_COLOR, line_alpha=0.7, legend_label='Background')
 flux_plot.yaxis.axis_label = 'Flux [erg / s / cm^2 / Ang]' 
-flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]' 
+flux_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
+flux_plot.legend.background_fill_color = "#4f4f4f"
+flux_plot.legend.label_text_color = "#bfbfbf"
 
 sn_plot = figure(height=400, width=800, 
               tools="crosshair,pan,reset,save,box_zoom,wheel_zoom", outline_line_color='black', 
@@ -98,8 +100,8 @@ def update_snr(band_name, instrument_name, exptime):
         exp.calculate_snr(custom_band=band_name)
         snr_upper = exp.snr[0].value
         wave = exp.wave[0].value
-    except syn.exceptions.SynphotError as exp:
-        warnings = f"<span color='red'> {exp} </span>"
+    except syn.exceptions.SynphotError as err:
+        warnings = f"<span color='red'> {err} </span>"
         wave = np.zeros(3)
         snr_upper = np.zeros_like(wave)
 
@@ -108,8 +110,8 @@ def update_snr(band_name, instrument_name, exptime):
         exp.calculate_snr(custom_band=band_name)
         snr_lower = exp.snr[0].value
         wave = exp.wave[0].value
-    except syn.exceptions.SynphotError as exp:
-        warnings = f"<span color='red'> {exp} </span>"
+    except syn.exceptions.SynphotError as err:
+        warnings = f"<span color='red'> {err} </span>"
         wave = np.zeros(3)
         snr_lower = np.zeros_like(wave)
 
@@ -386,8 +388,8 @@ hover = HoverTool(point_policy="snap_to_data",
 box1 = VArea(x="w" , y1="sn_upper", y2="sn_lower", fill_color=SNR_COLOR, fill_alpha=0.5)
 sn_plot.add_tools(hover)
 pts1 = sn_plot.scatter("wave", "snr", source=snr_results_all, fill_color=SNR_COLOR, line_color=SNR_COLOR, size=1)
-sn_plot.line('w', 'sn_upper', source=snr_results, line_width=3, line_color=SNR_COLOR, line_dash="solid", line_alpha=0.9, legend_label='8m mirror')
-sn_plot.line('w', 'sn_lower', source=snr_results, line_width=3, line_color=SNR_COLOR, line_dash="dashed", line_alpha=0.9, legend_label='6m mirror')
+sn_plot.line('w', 'sn_upper', source=snr_results, line_width=3, line_color="white", line_dash="solid", line_alpha=0.9, legend_label='8m mirror')
+sn_plot.line('w', 'sn_lower', source=snr_results, line_width=3, line_color="white", line_dash="dashed", line_alpha=0.9, legend_label='6m mirror')
 sn_plot.xaxis.axis_label = 'Wavelength [Angstrom]'
 sn_plot.yaxis.axis_label = 'S/N per pixel'
 
@@ -395,7 +397,7 @@ sn_plot.add_glyph(snr_results, box1)
 sn_plot.hover.renderers = [pts1]
 sn_plot.legend.title = ""
 sn_plot.legend.background_fill_color = "#4f4f4f"
-sn_plot.legend.label_text_color = "#cfcfcf"
+sn_plot.legend.label_text_color = "#bfbfbf"
 
 grating.on_change('value', unlock_calcbutton)
 

@@ -319,7 +319,7 @@ magnitude_callback = CustomJS(args=dict(callhandler=callhandler), code="""
 """)
 magnitude.js_on_change("value_throttled", magnitude_callback) 
 
-bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=1000., width=200)
+bb_temperature = Slider(title="Temperature [K]", value=10000., start=2000., end=70000.0, step=100., width=200)
 temperature_callback = CustomJS(args=dict(callhandler=callhandler), code="""
     callhandler.data = { value: [cb_obj.value] }
 """)

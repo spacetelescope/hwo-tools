@@ -1,6 +1,7 @@
 import os
 import io
 from functools import partial
+import yaml
 
 import base64
 import datetime
@@ -299,32 +300,32 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         """
         Load initial parameters for the Imaging ETC
         """
+
+        self.observatory = pE.Observatory()
+
         # observation parameters
         # set up wavelengths
-        self.parameters["wavelength"] = [0.365, 1.8]
+        self.parameters["wavelength"] = np.linspace(0.365, 1.8, 100)
         self.parameters["filter_list"] = FILTERS["UVIS 1"]
-        self.parameters["snr"] = param_snr# the SNR you want for each spectral bin 
         self.parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
         #self.parameters["photometric_aperture_radius"] = None#0.85 # radius of the photometric aperture in units of lambda/D
         self.parameters["psf_trunc_ratio"] = 0.3 # truncate the off-axis PSFs at this level 
-        self.parameters["bandwidth"] = 0.2
+        #self.parameters["bandwidth"] = 0.2
         self.parameters["regrid_wavelength"] = False # set the flag to do this. We also need to specify a few other parameters.
 
         # The Astrophysical 
         # STAR
         #parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
         self.parameters["distance"] = 10. # distance to the system in pc
-        self.parameters["separation"] = 0.1 # planetary separation in arcsec
+        self.inputs.data["new_angsep"] = [0.1] # planetary separation in arcsec
         #parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
         # Note: we can work in either mag or flux units. Let's choose to work in flux units. 
         #Fstar_obs_10pc = compute_blackbody_photon_flux(5770, parameters["wavelength"] << u.um, parameters["distance"] << u.pc)
 
-        self.parameters["stellar_radius"] = 1 # physical diameter of the star in Rsun units
-        self.parameters["magV"] = 4.5 # ABMag
-        # just this first time, because we need to load a planet to start with
-        self.reflect_planet = self.target_planet["Earth"]["spectrum"]
-        self.parameters["planetary_radius"] = self.target_planet["Earth"]["planetary_radius"]
+        self.inputs.data["new_stellar_radius"] = [1] # physical diameter of the star in Rsun units
+        self.inputs.data["new_stellar_magnitude"] = [4.5] # ABMag
 
+        self.inputs.data["new_snr"] = [param_snr]# the SNR you want for each spectral bin 
 
 
         # PLANET
@@ -368,21 +369,19 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.filter_list = pE.parse_input.parse_filters(self.parameters)
 
         # star must be loaded first, because planet flux is relative to star.
-        self.load_star("G2V star")
-        self.load_planet("Earth")
-        self.recompute_star_flux()
-        self.recompute_planet_flux()
+        self.inputs.data["new_star"] = ["G2V star"]
+        self.inputs.data["new_planet"] = ["Earth"]
+        # Bootstrap problem: The star is loaded first, but without (re)loading the planet first. So we need to
+        # load the planet first, specially.
+        self.load_planet(self.inputs.data["new_planet"][0])
+        self.load_star(self.inputs.data["new_star"][0])
+        self.inputs.data.update({"scene": [True], "observatory": [True], "observation": [True]})
 
         # actually a filter, here
         self.parameters["wavelength_of_interest"] = FILTERS["UVIS 1"][-1].name
 
-        # this piece, alone, has to be created WITH some configured parameters.
-        self.observatory_config = pE.parse_input.get_observatory_config(self.parameters)
+        self.recalculate_exptime(self.inputs)
 
-        self.observatory = pE.Observatory()
-        self.observatory.create_observatory(self.observatory_config)
-
-        self.recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
 
 
     def exptimecalc(self, diameter, newvalues, obsdata, baddata):
@@ -411,12 +410,12 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         except UnboundLocalError:
             self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
             self.exptime_compute.label = "Compute"
-            self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
             return
         except Exception as err:
             self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
             self.exptime_compute.label = "Compute"
-            self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
             return
 
         # now, assuming that was successful, compute SNR for the rest of the filters
@@ -427,6 +426,12 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
             self.update_calculation(newvalues)
 
+            print("Parameters")
+            # with open("example_parameters.yml", "w") as outfile:
+            #     yaml.dump(self.parameters, outfile)
+            for line in self.parameters:
+                print(f" {line}:", self.parameters[line])
+            print()
             try:
                 pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
                 obs, noise = pE.utils.synthesize_observation(self.newsnr.value,

@@ -53,13 +53,13 @@ class pyEDITHETC():
     def recompute_planet_flux(self):
         print(self.parameters)
         solid_angle = self.parameters["planetary_radius"]**2/(4 * (self.parameters["separation"]*self.parameters["distance"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
-        flux_planet = self.parameters["FstarV_10pc"] * solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron) * 0.55 # Assume quadrature; 55% illuminated
-        self.parameters["F0"] = flux_planet.value
+        flux_planet = self.parameters["Fstar_10pc"] * solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron) * 0.55 # Assume quadrature; 55% illuminated
+        #self.parameters["F0"] = flux_planet.value
         self.parameters["Fp/Fs"] = (solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron)).value
         self.angsep.value = self.parameters["separation"] # Make sure it matches what was used
 
 
-        print("Star:", self.parameters["FstarV_10pc"])
+        print("Star:", self.parameters["Fstar_10pc"])
         print("Planet:", self.reflect_planet(self.parameters["wavelength"] << u.micron), solid_angle)
         print(self.parameters["separation"], self.parameters["distance"])
 
@@ -90,12 +90,11 @@ class pyEDITHETC():
         new_star = self.parameters["current_star"].normalize(self.parameters["magV"] * u.ABmag, band=bp, force="taper")
         flux = new_star(self.parameters["wavelength"]<< u.micron)
         #magnitude.value = parameters["magV"] # make sure it matches what was used
-
         self.parameters["Fstar_10pc"] = syn.units.convert_flux(self.parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
-        # get the flux at 10 pc in the V band
-        self.parameters["FstarV_10pc"] = syn.units.convert_flux(self.parameters["wavelength"], syn.Observation(new_star, bp, force="taper").effstim(), u.photon / (u.s * u.cm**2 * u.nm)).value
+        ## get the flux at 10 pc in the V band
+        self.parameters["FstarV_10pc"] = syn.Observation(new_star, bp, force="taper").effstim(u.photon / (u.s * u.cm**2 * u.nm)).value
 
-        #print("Star Flux", flux)
+        print("Star Flux", flux)
 
     # Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
     # it is, particularly, unclear what 
@@ -103,12 +102,18 @@ class pyEDITHETC():
         print("------------------------------------")
         print(newvalues.data)
 
+
         # should always be present
         if "filt" in newvalues.data:
             filt = newvalues.data["filt"][0]
             self.parameters["filt"] = filt
             print("Updated filter", filt)
             del newvalues.data["filt"]
+            self.parameters["wavelength"] = filt.center.to_value(u.micron)
+            # the fluxes are wavelength-dependent
+            self.recompute_star_flux()
+            self.recompute_planet_flux()
+            #self.bandwave = self.parameters["wavelength"][np.logical_and(self.parameters["wavelength"] > filt.low.to_value(u.micron), self.parameters["wavelength"] < filt.high.to_value(u.micron))]
         if "new_star" in newvalues.data:
             print("Changed star")
             self.load_star(newvalues.data["new_star"][0])

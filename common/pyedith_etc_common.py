@@ -30,17 +30,14 @@ class pyEDITHETC():
     
     def update_scene(self):
         #parameters.update(updates)
-
         self.scene.load_configuration(self.parameters)
         self.scene.calculate_zodi_exozodi(self.parameters)
         self.scene.validate_configuration()
 
-    def update_observation(self,filt):
-
-        self.observation.load_configuration(self.parameters, filter=filt) # load the specified configuration in the parameters dict 
+    def update_observation(self):
+        self.observation.load_configuration(self.parameters, filter=self.parameters["filt"]) # load the specified configuration in the parameters dict 
         self.observation.set_output_arrays()
         self.observation.validate_configuration()
-        
 
     def print_observatory(observatory):
         print("Parameters in observatory:")
@@ -56,13 +53,13 @@ class pyEDITHETC():
     def recompute_planet_flux(self):
         print(self.parameters)
         solid_angle = self.parameters["planetary_radius"]**2/(4 * (self.parameters["separation"]*self.parameters["distance"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
-        flux_planet = self.parameters["FstarV_10pc"] * solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron) * 0.55 # Assume quadrature; 55% illuminated
-        self.parameters["F0"] = flux_planet.value
+        flux_planet = self.parameters["Fstar_10pc"] * solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron) * 0.55 # Assume quadrature; 55% illuminated
+        #self.parameters["F0"] = flux_planet.value
         self.parameters["Fp/Fs"] = (solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron)).value
         self.angsep.value = self.parameters["separation"] # Make sure it matches what was used
 
 
-        print("Star:", self.parameters["FstarV_10pc"])
+        print("Star:", self.parameters["Fstar_10pc"])
         print("Planet:", self.reflect_planet(self.parameters["wavelength"] << u.micron), solid_angle)
         print(self.parameters["separation"], self.parameters["distance"])
 
@@ -93,12 +90,10 @@ class pyEDITHETC():
         new_star = self.parameters["current_star"].normalize(self.parameters["magV"] * u.ABmag, band=bp, force="taper")
         flux = new_star(self.parameters["wavelength"]<< u.micron)
         #magnitude.value = parameters["magV"] # make sure it matches what was used
-
         self.parameters["Fstar_10pc"] = syn.units.convert_flux(self.parameters["wavelength"], flux, u.photon / (u.s * u.cm**2 * u.nm)).value
-        # get the flux at 10 pc in the V band
-        self.parameters["FstarV_10pc"] = syn.units.convert_flux(self.parameters["wavelength"], syn.Observation(new_star, bp, force="taper").effstim(), u.photon / (u.s * u.cm**2 * u.nm)).value
+        ## get the flux at 10 pc in the V band
+        self.parameters["FstarV_10pc"] = syn.Observation(new_star, bp, force="taper").effstim(u.photon / (u.s * u.cm**2 * u.nm)).value
 
-        #print("Star Flux", flux)
 
     # Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
     # it is, particularly, unclear what 
@@ -106,11 +101,19 @@ class pyEDITHETC():
         print("------------------------------------")
         print(newvalues.data)
 
+
         # should always be present
         if "filt" in newvalues.data:
             filt = newvalues.data["filt"][0]
-            print("Updated filter", filt)
+            self.parameters["filt"] = filt
+            #print("Updated filter", filt)
             del newvalues.data["filt"]
+            self.parameters["wavelength"] = filt.center.to_value(u.micron)
+            # the fluxes are wavelength-dependent
+            self.recompute_star_flux()
+            self.recompute_planet_flux()
+            newvalues.data["scene"] = [True] # need to recalculate the scene now
+            #self.bandwave = self.parameters["wavelength"][np.logical_and(self.parameters["wavelength"] > filt.low.to_value(u.micron), self.parameters["wavelength"] < filt.high.to_value(u.micron))]
         if "new_star" in newvalues.data:
             print("Changed star")
             self.load_star(newvalues.data["new_star"][0])
@@ -159,11 +162,11 @@ class pyEDITHETC():
             self.parameters["diameter"] = newvalues.data["new_telescope_diameter"][0]
             del newvalues.data["new_telescope_diameter"] # consume the new value
         else:
-            self.parameters["observatory_preset"] = "EAC1" # tells ETC to use EAC1 yaml files throughputs
+            self.parameters["observatory_preset"] = "EAC5" # tells ETC to use EAC5 yaml files throughputs
 
         if "observation" in newvalues.data and newvalues.data["observation"][0]:
             print("Rerun observation...")
-            self.update_observation(filt)
+            self.update_observation()
             newvalues.data["observation"][0] = False
 
         if "scene" in newvalues.data and newvalues.data["scene"][0]:
@@ -171,6 +174,11 @@ class pyEDITHETC():
             self.update_scene()
             if self.parameters["observing_mode"] == "IFS" and self.parameters["regrid_wavelength"] is True:
                 self.scene.regrid_spectra(self.observation)
+                print("Post-regrid Parameters length")
+                print("scene.F0", len(self.scene.F0))
+                print("scene.FS_over_F0", len(self.scene.Fs_over_F0))
+                print("scene.Fp_min_over_Fs", self.scene.Fp_min_over_Fs)
+
             newvalues.data["scene"][0] = False
 
         observatory_config = pE.parse_input.get_observatory_config(self.parameters)

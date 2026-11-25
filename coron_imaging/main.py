@@ -112,12 +112,12 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.observation = pE.Observation() # define the observation object
         self.scene = pE.AstrophysicalScene()
         self.observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
-        self.obsdata_high = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
+        self.obsdata_high = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], band_hi=[], band_lo=[], noise_hi=[], noise_lo=[], snr=[]))
         self.baddata_high = ColumnDataSource(data=dict(wavelength=[]))
-        self.obsdata_low = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
+        self.obsdata_low = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], band_hi=[], band_lo=[], noise_hi=[], noise_lo=[], snr=[]))
         self.baddata_low = ColumnDataSource(data=dict(wavelength=[]))
         self.polygon_data = ColumnDataSource(data=dict(wavelength=[], exptime_high=[], exptime_low=[], snr_high=[], snr_low=[]))
-        self.results_all = ColumnDataSource(data=dict(wavelength=[], exptime=[], snr=[]))
+        self.results_all = ColumnDataSource(data=dict(name=[], wavelength=[], exptime=[], snr=[]))
         self.inputs = ColumnDataSource(data=dict())
         self.widget_setup()
         self.tab_setup()
@@ -125,27 +125,16 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
     def widget_setup(self):
         self.intro = Div(text=f'<p>This Habworlds Coronagraphic Imaging ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), v{pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
 
-        hoversnr = HoverTool(point_policy="snap_to_data", 
+        hover = HoverTool(point_policy="snap_to_data", 
                 tooltips="""
                 <div>
                     <div>
-                        <span style="font-size: 15px; font-weight: bold; color: #696">Wave = </span>
-                        <span style="font-size: 17px; font-weight: bold; color: #696">@wave</span>
+                        <span style="font-size: 15px; font-weight: bold; color: #696">@name </span>
+                        <span style="font-size: 17px; font-weight: bold; color: #696">(@wavelength um)</span>
                     </div>
                     <div>
                         <span style="font-size: 15px; font-weight: bold; color: #696">S/N = </span>
                         <span style="font-size: 15px; font-weight: bold; color: #696;">@snr</span>
-                    </div>
-                </div>
-                """
-            )
-
-        hoverexp = HoverTool(point_policy="snap_to_data", 
-                tooltips="""
-                <div>
-                    <div>
-                        <span style="font-size: 15px; font-weight: bold; color: #696">Wave = </span>
-                        <span style="font-size: 17px; font-weight: bold; color: #696">@wave</span>
                     </div>
                     <div>
                         <span style="font-size: 15px; font-weight: bold; color: #696">Exp: = </span>
@@ -155,44 +144,26 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 """
             )
 
-        self.exp_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
-        self.exp_plot.add_tools(hoverexp)
-        boxexp = VArea(x="wavelength" , y1="exptime_high", y2="exptime_low", fill_color="blue", fill_alpha=0.5)
-        ptsexp = self.exp_plot.scatter("wave", "exptime", source=self.results_all, size=1)
-        self.exp_plot.scatter("wavelength", "exptime", legend_label="Exposure Time", source=self.obsdata_high)
-        self.exp_plot.scatter("wavelength", 0, source=self.baddata_high, marker="x", color="red")
-        self.exp_plot.scatter("wavelength", "exptime", legend_label="Exposure Time", source=self.obsdata_low)
-        self.exp_plot.scatter("wavelength", 0, source=self.baddata_low, marker="x", color="red")
-        self.exp_plot.segment(x0='band_lo', y0='exptime', x1='band_hi', y1='exptime', source=self.obsdata_high, line_width=1, line_dash="solid", line_color='#82AFF6', line_alpha=0.5, legend_label='8m mirror')
-        self.exp_plot.segment(x0='band_lo', y0='exptime', x1='band_hi', y1='exptime', source=self.obsdata_low, line_width=1, line_dash="dashed", line_color='#82AFF6', line_alpha=0.5, legend_label='6m mirror')
-        self.exp_plot.add_glyph(self.polygon_data, boxexp)
-        self.exp_plot.hover.renderers = [ptsexp]
-        self.exp_plot.legend.title= ""
-        self.exp_panel = TabPanel(child=self.exp_plot, title='Exposure Time') #, width=800)
-
-
-        self.snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.snr_plot.add_tools(hoversnr)
+        self.snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom"), toolbar_location="below")
+        self.snr_plot.add_tools(hover)
         boxsnr = VArea(x="wavelength" , y1="snr_high", y2="snr_low", fill_color="blue", fill_alpha=0.5)
-        ptssnr = self.exp_plot.scatter("wave", "snr", source=self.results_all, size=1)
-        self.snr_plot.scatter("wavelength", "snr", legend_label="SNR", source=self.obsdata_high)
         self.snr_plot.scatter("wavelength", 0, source=self.baddata_high, marker="x", color="red")
-        self.snr_plot.scatter("wavelength", "snr", legend_label="SNR", source=self.obsdata_low)
         self.snr_plot.scatter("wavelength", 0, source=self.baddata_low, marker="x", color="red")
         self.snr_plot.segment(x0='band_lo', y0='snr', x1='band_hi', y1='snr', source=self.obsdata_high, line_width=1, line_dash="solid", line_color='#82AFF6', line_alpha=0.5, legend_label='8m mirror')
         self.snr_plot.segment(x0='band_lo', y0='snr', x1='band_hi', y1='snr', source=self.obsdata_low, line_width=1, line_dash="dashed", line_color='#82AFF6', line_alpha=0.5, legend_label='6m mirror')
         self.snr_plot.add_glyph(self.polygon_data, boxsnr)
+        ptssnr = self.snr_plot.scatter("wavelength", "snr", source=self.results_all)
         self.snr_plot.hover.renderers = [ptssnr]
         self.snr_plot.legend.title = ""
         self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
 
 
-        self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
+        self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
         self.spec_plot.line("wavelength", "obs", source=self.obsdata_low)
         self.spec_plot.scatter('wavelength', 'obs', legend_label="Observed Flux Ratio Fp/Fs", source=self.obsdata_low, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
         self.spec_plot.scatter("wavelength", 0, source=self.baddata_low, marker="x", color="red")
         self.spec_plot.segment(x0='band_lo', y0='obs', x1='band_hi', y1='obs', source=self.obsdata_low, line_width=1, line_color='#82AFF6', line_alpha=0.5)
-        self.spec_plot.segment(x0='wavelength', y0='noise_hi', x1='wavelength', y1='noise_lo', source=self.obsdata_low, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot.segment(x0='wavelength', y0='noise_hi', x1='wavelength', y1='noise_lo', source=self.obsdata_low, line_width=1, line_color="#F68282", line_alpha=0.5)
         self.spec_plot.legend.title = ""
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
@@ -263,7 +234,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
 
     def tab_setup(self):
-        self.observation_tab = TabPanel(child=self.exp_plot, title='Observation') # , width=400)
+        self.observation_tab = TabPanel(child=self.snr_plot, title='Observation') # , width=400)
         self.info_panel = TabPanel(child=self.info_panel, title='Info') #, width=800)
 
         self.controls = column(children=[], sizing_mode='fixed', width=320, height=480) 
@@ -274,11 +245,9 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
             if (new == 0):
                 self.controls.children = [self.intro, self.exp_snr_toggle, self.newsnr, self.photbands, self.reffilter, self.hrpanel1, self.star, self.starparam, 
                                           self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
-                outputs.tabs = [self.spec_panel, self.exp_panel, self.info_panel]
             elif new == 1:
                 self.controls.children = [self.intro, self.exp_snr_toggle, self.newexp, self.photbands, self.reffilter, self.hrpanel1, self.star, self.starparam, 
                                           self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.snr_compute, self.upload, self.warning]
-                outputs.tabs = [self.spec_panel, self.snr_panel, self.info_panel]                   
             #controls.change.emit()
             #outputs.change.emit()
 
@@ -288,7 +257,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.controls.children=[self.intro, self.exp_snr_toggle, self.newsnr, self.photbands, self.reffilter, self.hrpanel1, self.star, self.starparam, self.distance, 
                                 self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
 
-        outputs = Tabs(tabs=[self.spec_panel, self.exp_panel, self.info_panel], sizing_mode="inherit")
+        outputs = Tabs(tabs=[self.spec_panel, self.snr_panel, self.info_panel], sizing_mode="inherit")
         plots = column(children=[outputs], sizing_mode='fixed', width=640, height=480)
         l = layout([[self.controls, plots]],sizing_mode='fixed', width=960, height=480)
 
@@ -330,7 +299,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
         # PLANET
         # Most of these input spectra are albedo for a system. Actual conversion would require knowing the system separation and relative sizes of the star and planet. OR we make that an input parameter.
-        self.parameters["delta_mag"] = 15# * u.ABmag
+        #self.parameters["delta_mag"] = 15# * u.ABmag
         # FpFs = target_planet["Earth"]["spectrum"](self.parameters["wavelength"] << u.um)
         # # normalize
         # contrast = 1e-8
@@ -410,13 +379,15 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         except UnboundLocalError:
             self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
             self.exptime_compute.label = "Compute"
-            obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-            return
+            obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "band_hi": [], "band_lo": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            baddata.data={"wavelength": np.asarray([x.center for x in self.parameters["filter_list"]])}
+            return obsdata, baddata
         except Exception as err:
             self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
             self.exptime_compute.label = "Compute"
-            obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-            return
+            obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "band_hi": [], "band_lo": [], "noise_hi": [], "noise_lo": [], "snr": []}
+            baddata.data={"wavelength": np.asarray([x.center for x in self.parameters["filter_list"]])}
+            return obsdata, baddata
 
         # now, assuming that was successful, compute SNR for the rest of the filters
         newwarnings=[]
@@ -426,13 +397,16 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
 
             self.update_calculation(newvalues)
 
-            print("Parameters")
-            # with open("example_parameters.yml", "w") as outfile:
-            #     yaml.dump(self.parameters, outfile)
-            for line in self.parameters:
-                print(f" {line}:", self.parameters[line])
-            print()
+            # print("Parameters")
+            # # with open("example_parameters.yml", "w") as outfile:
+            # #     yaml.dump(self.parameters, outfile)
+            # for line in self.parameters:
+            #     print(f" {line}:", self.parameters[line])
+            # print()
             try:
+                # for line in self.scene.__dict__:
+                #     print(f" {line}:", getattr(self.scene, line))
+                # print()
                 pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
                 obs, noise = pE.utils.synthesize_observation(self.newsnr.value,
                                                         self.scene, 
@@ -468,7 +442,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 name.append(filt.name)
                 wave_filters.append(self.observation.wavelength.to_value(u.um)[0])
                 exptime_filters.append(self.observation.obstime.to_value(u.hr))
-                print(self.observation.obstime.to_value(u.hr))
+                #print(self.observation.obstime.to_value(u.hr))
                 fpfs_filters.append(self.scene.Fp_over_Fs[0].value)
                 obs_filters.append(obs[0].value)
                 noise_hi.append(obs[0].value + noise[0].value/2.)
@@ -504,17 +478,18 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.obsdata_high, self.baddata_high = self.exptimecalc(8, newvalues, self.obsdata_high, self.baddata_high)
 
         self.polygon_data.data = {"wavelength": np.asarray(self.obsdata_low.data["wavelength"]), "exptime_low": np.asarray(self.obsdata_low.data["exptime"]), "exptime_high": np.asarray(self.obsdata_high.data["exptime"]), "snr_low": np.asarray(self.obsdata_low.data["snr"]), "snr_high": np.asarray(self.obsdata_high.data["snr"])}
-        self.results_all.data = {"wavelength": np.append(np.asarray(self.obsdata_low.data["wavelength"]),np.asarray(self.obsdata_high.data["wavelength"])), 
-                                "exptime": np.append(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"])),
-                                "snr": np.append(np.asarray(self.obsdata_low.data["snr"]),np.asarray(self.obsdata_high.data["snr"]))}
-        for line in self.results_all.data:
-            print(line, len(self.results_all.data[line]))
+        self.results_all.data = {"name": np.append(np.asarray(self.obsdata_low.data["name"]),np.asarray(self.obsdata_high.data["name"])), 
+                                 "wavelength": np.append(np.asarray(self.obsdata_low.data["wavelength"]),np.asarray(self.obsdata_high.data["wavelength"])), 
+                                 "exptime": np.append(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"])),
+                                 "snr": np.append(np.asarray(self.obsdata_low.data["snr"]),np.asarray(self.obsdata_high.data["snr"]))}
+        # for line in self.results_all.data:
+        #     print(line, len(self.results_all.data[line]))
 
-        print(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"]))
+        #print(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"]))
 
         #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
-        self.exp_plot.title.text =  title_text
+        self.snr_plot.title.text =  title_text
         self.spec_plot.title.text = title_text
 
         self.exptime_compute.label = "Compute"
@@ -584,7 +559,6 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 snr_filters.append(self.observation.fullsnr[0])
             else:
                 bad_wavelengths.append(self.observation.wavelength.to_value(u.um))
-        print(bad_wavelengths)
         name = np.asarray(name)
 
         exptime_filters = np.asarray(exptime_filters) << u.hr

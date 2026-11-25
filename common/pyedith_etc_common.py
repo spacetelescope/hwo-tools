@@ -94,7 +94,6 @@ class pyEDITHETC():
         ## get the flux at 10 pc in the V band
         self.parameters["FstarV_10pc"] = syn.Observation(new_star, bp, force="taper").effstim(u.photon / (u.s * u.cm**2 * u.nm)).value
 
-        print("Star Flux", flux)
 
     # Ordinarily, these would be separate, but at the moment all changes here would seem to affect observatory, observation, and scene
     # it is, particularly, unclear what 
@@ -107,12 +106,13 @@ class pyEDITHETC():
         if "filt" in newvalues.data:
             filt = newvalues.data["filt"][0]
             self.parameters["filt"] = filt
-            print("Updated filter", filt)
+            #print("Updated filter", filt)
             del newvalues.data["filt"]
             self.parameters["wavelength"] = filt.center.to_value(u.micron)
             # the fluxes are wavelength-dependent
             self.recompute_star_flux()
             self.recompute_planet_flux()
+            newvalues.data["scene"] = [True] # need to recalculate the scene now
             #self.bandwave = self.parameters["wavelength"][np.logical_and(self.parameters["wavelength"] > filt.low.to_value(u.micron), self.parameters["wavelength"] < filt.high.to_value(u.micron))]
         if "new_star" in newvalues.data:
             print("Changed star")

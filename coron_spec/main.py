@@ -7,7 +7,7 @@ import datetime
 
 import numpy as np
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource, Paragraph, Range1d, RadioGroup, RadioButtonGroup, SetValue
+from bokeh.models import ColumnDataSource, Paragraph, Range1d, RadioGroup, RadioButtonGroup, HoverTool, VArea
 from bokeh.models.widgets import Slider, Div, Select, Button, FileInput
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import row, column, layout
@@ -52,33 +52,61 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.parameters = {}
         self.scene = pE.AstrophysicalScene()
         self.observation = pE.Observation() # define the observation object
-        self.observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
-        self.obsdata = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], noise_hi=[], noise_lo=[], snr=[]))
-        self.baddata = ColumnDataSource(data=dict(wavelength=[]))
+        self.observatory = pE.Observatory() # this piece, alone, has to be created WITH some configured parameters.
+        self.obsdata_high = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], band_hi=[], band_lo=[], noise_hi=[], noise_lo=[], snr=[]))
+        self.baddata_high = ColumnDataSource(data=dict(wavelength=[]))
+        self.obsdata_low = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], band_hi=[], band_lo=[], noise_hi=[], noise_lo=[], snr=[]))
+        self.baddata_low = ColumnDataSource(data=dict(wavelength=[]))
+        self.polygon_data = ColumnDataSource(data=dict(wavelength=[], exptime_high=[], exptime_low=[], snr_high=[], snr_low=[]))
+        self.results_all = ColumnDataSource(data=dict(name=[], wavelength=[], exptime=[], snr=[]))
         self.inputs = ColumnDataSource(data=dict())
-
         self.widget_setup()
         self.tab_setup()
 
     def widget_setup(self):
         self.intro = Div(text=f'<p>This Habworlds Coronagraphic Spectroscopy ETC is powered by pyEDITH (E. Alei, M. Currie, C. Stark), v{pE.__version__}.</p><p>Selecting a planet will reset the default separation.</p>')
 
-        self.exp_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='Exposure Time (hr)', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
-        self.exp_plot.line("wavelength", "exptime", legend_label="Exposure Time", source=self.obsdata)
-        self.exp_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
-        self.exp_panel = TabPanel(child=self.exp_plot, title='Exposure Time') #, width=800)
+        hover = HoverTool(point_policy="snap_to_data", 
+                tooltips="""
+                <div>
+                    <div>
+                        <span style="font-size: 15px; font-weight: bold; color: #696">Wavelength =</span>
+                        <span style="font-size: 15px; font-weight: bold; color: #696">@wavelength</span>
+                    </div>
+                    <div>
+                        <span style="font-size: 15px; font-weight: bold; color: #696">S/N = </span>
+                        <span style="font-size: 15px; font-weight: bold; color: #696;">@snr</span>
+                    </div>
+                    <div>
+                        <span style="font-size: 15px; font-weight: bold; color: #696">Exp: = </span>
+                        <span style="font-size: 15px; font-weight: bold; color: #696;">@exptime</span>
+                    </div>
+                </div>
+                """
+            )
 
-        self.snr_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.snr_plot.line("wavelength", "snr", legend_label="SNR", source=self.obsdata)
-        self.snr_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
+        self.snr_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom"), toolbar_location="below")
+        self.snr_plot.add_tools(hover)
+        boxsnr = VArea(x="wavelength" , y1="snr_high", y2="snr_low", fill_color="teal", fill_alpha=0.5)
+        self.snr_plot.line("wavelength", "snr", source=self.obsdata_high, line_dash="solid", line_color="#82F6D1", line_width=1, line_alpha=0.8, legend_label='8m mirror')
+        self.snr_plot.scatter("wavelength", 0, source=self.baddata_high, marker="x", color="red")
+        self.snr_plot.line("wavelength", "snr", source=self.obsdata_low, line_dash="dashed", line_color='#82F6D1', line_width=1, line_alpha=0.8, legend_label='6m mirror')
+        self.snr_plot.scatter("wavelength", 0, source=self.baddata_low, marker="x", color="red")
+        self.snr_plot.segment(x0='band_lo', y0='snr', x1='band_hi', y1='snr', source=self.obsdata_high, line_width=1)
+        self.snr_plot.segment(x0='band_lo', y0='snr', x1='band_hi', y1='snr', source=self.obsdata_low, line_width=1)
+        self.snr_plot.add_glyph(self.polygon_data, boxsnr)
+        ptssnr = self.snr_plot.scatter("wavelength", "snr", source=self.results_all, color="aquamarine")
+        self.snr_plot.hover.renderers = [ptssnr]
+        self.snr_plot.legend.title = ""
         self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
 
 
-        self.spec_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr")], toolbar_location="below")
-        self.spec_plot.line("wavelength", "FpFs", legend_label="Relative planetary flux Fp/Fs", source=self.obsdata)
-        self.spec_plot.scatter('wavelength', 'obs', legend_label="Observed flux ratio", source=self.obsdata, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover')
-        self.spec_plot.scatter("wavelength", 0, source=self.baddata, marker="x", color="red")
-        self.spec_plot.segment('wavelength', 'noise_hi', 'wavelength', 'noise_lo', source=self.obsdata, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
+        self.spec_plot.line("wavelength", "obs", source=self.obsdata_low)
+        self.spec_plot.scatter('wavelength', 'obs', legend_label="Observed Flux Ratio Fp/Fs", source=self.obsdata_low, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
+        self.spec_plot.scatter("wavelength", 0, source=self.baddata_low, marker="x", color="red")
+        self.spec_plot.segment(x0='band_lo', y0='obs', x1='band_hi', y1='obs', source=self.obsdata_low, line_width=1, line_color='#82AFF6', line_alpha=0.5)
+        self.spec_plot.segment(x0='wavelength', y0='noise_hi', x1='wavelength', y1='noise_lo', source=self.obsdata_low, line_width=1, line_color='#F68282', line_alpha=0.5)
         self.spec_plot.legend.title = ""
         self.spec_panel = TabPanel(child=self.spec_plot, title='Spectrum') #, width=800)
 
@@ -110,11 +138,11 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.newexp  = Slider(title="Target Exposure Time (hrs)", value=10, start=0.1, end=1000.0, step=0.1, )
         self.newexp.on_change("value", self.exp_callback)
 
-        self.photbands= Select(title="Spectroscopic Bands", value="CI_VIS_IFS", 
+        self.photbands= Select(title="Spectroscopic Bands", value="vis", 
                 options=list(FILTERS.keys()), width=250)
         self.photbands.on_change("value", self.photbands_callback)
 
-        self.refwave= Slider(title="Wavelength of Interest", value=FILTERS["CI_VIS_IFS"].center.value, start=FILTERS["CI_VIS_IFS"].low.value, end=FILTERS["CI_VIS_IFS"].high.value, step=0.01)
+        self.refwave= Slider(title="Wavelength of Interest", value=FILTERS["vis"].center.value, start=FILTERS["vis"].low.value, end=FILTERS["vis"].high.value, step=0.01)
         self.refwave.on_change("value", self.refwave_callback)
 
         self.newdiameter  = Slider(title="Mirror Diameter", value=8.7, start=6, end=8, step=0.1, )
@@ -149,7 +177,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
 
     def tab_setup(self):
-        self.observation_tab = TabPanel(child=self.exp_plot, title='Observation') # , width=400)
+        self.observation_tab = TabPanel(child=self.snr_plot, title='Observation') # , width=400)
         self.info_panel = TabPanel(child=self.info_panel, title='Info') #, width=800)
 
         self.controls = column(children=[], sizing_mode='fixed', width=320, height=480)
@@ -159,30 +187,28 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         def exp_snr_callback(active, old, new):
             if (new == 0):
                 print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.photbands, self.refwave, self.hrpanel1, self.star, self.starparam,
+                self.controls.children = [self.intro, self.exp_snr_toggle, self.newsnr, self.photbands, self.refwave, self.hrpanel1, self.star, self.starparam,
                                           self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
-                outputs.tabs = [self.spec_panel, self.exp_panel, self.info_panel]
             elif new == 1:
                 print(self.controls.children)
-                self.controls.children = [self.intro, self.newdiameter, self.exp_snr_toggle, self.newexp, self.photbands, self.refwave, self.hrpanel1, self.star, self.starparam,
+                self.controls.children = [self.intro, self.exp_snr_toggle, self.newexp, self.photbands, self.refwave, self.hrpanel1, self.star, self.starparam,
                                           self.distance, self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.snr_compute, self.upload, self.warning]
-                outputs.tabs = [self.spec_panel, self.snr_panel, self.info_panel]
             #controls.change.emit()
             #outputs.change.emit()
 
         self.exp_snr_toggle.on_change("active", exp_snr_callback)
 
         # this is the initial for-exptime selection
-        self.controls.children=[self.intro, self.newdiameter, self.exp_snr_toggle, self.newsnr, self.photbands, self.refwave, self.hrpanel1, self.star, self.starparam, self.distance,
+        self.controls.children=[self.intro, self.exp_snr_toggle, self.newsnr, self.photbands, self.refwave, self.hrpanel1, self.star, self.starparam, self.distance,
                                 self.hrpanel2, self.planet, self.angsep, self.hrpanel3, self.exptime_compute, self.upload, self.warning]
 
-        outputs = Tabs(tabs=[self.spec_panel, self.exp_panel, self.info_panel], sizing_mode="inherit")
+        outputs = Tabs(tabs=[self.spec_panel, self.snr_panel, self.info_panel], sizing_mode="inherit")
         plots = column(children=[outputs], sizing_mode='fixed', width=640, height=540)
         l = layout([[self.controls, plots]],sizing_mode='fixed', width=960, height=540)
 
         curdoc().theme = 'dark_minimal'
         curdoc().add_root(l)
-        curdoc().add_root(self.obsdata)
+        #curdoc().add_root(self.obsdata)
 
     def load_initial(self):
         """
@@ -192,9 +218,9 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         # observation parameters
         # set up wavelengths
         self.parameters["wavelength"] = np.linspace(0.2, 2.0, 1000)
-        self.parameters["filter_list"] = FILTERS["CI_VIS_IFS"]
+        self.parameters["filter_list"] = FILTERS["vis"]
         self.parameters["nlambd"] = len(self.parameters["wavelength"]) # number of wavelengths
-        self.parameters["snr"] = param_snr * np.ones_like(self.parameters["wavelength"]) # the SNR you want for each spectral bin
+        self.parameters["snr"] = param_snr # the SNR you want for each spectral bin
         self.parameters["CRb_multiplier"] = 2. # factor to multiply the background by (used for differential imaging)
         #self.parameters["photometric_aperture_radius"] = None#0.85 # radius of the photometric aperture in units of lambda/D
         self.parameters["psf_trunc_ratio"] = 0.3 # truncate the off-axis PSFs at this level
@@ -209,7 +235,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         # STAR
         #self.parameters["Lstar"] = 1. # luminosity of the star in solar luminosities
         self.parameters["distance"] = 10. # distance to the system in pc
-        self.parameters["separation"] = 0.1 # planetary separation in arcsec
+        self.inputs.data["new_angsep"] = [0.1] # planetary separation in arcsec
         #self.parameters["Fp/Fs"] = FpFs # 1e-8 for testing (bright planet)
 
 
@@ -221,7 +247,7 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
 
         # PLANET
         # Most of these input spectra are albedo for a system. Actual conversion would require knowing the system separation and relative sizes of the star and planet. OR we make that an input parameter.
-        self.parameters["delta_mag"] = 15# * u.ABmag
+        #self.parameters["delta_mag"] = 15# * u.ABmag
         # FpFs = self.target_planet["Earth"]["spectrum"](parameters["wavelength"] << u.um)
         # # normalize
         # contrast = 1e-8
@@ -240,12 +266,6 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         #print("Planet", FpFs, Fplan_obs)
         #flux_planet = Fstar_obs_10pc * FpFs * self.parameters["delta_mag"]
         #self.parameters["F0"] = flux_planet.value
-
-        self.load_star("G2V star")
-        self.load_planet("Earth")
-        self.recompute_star_flux()
-        self.recompute_planet_flux()
-        #print("Star and Planet", self.parameters["Fstar_10pc"], self.parameters["Fp/Fs"])
 
         # SCENE
         self.parameters["nzodis"] = 3. # number of zodis for exozodi estimate
@@ -266,20 +286,23 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.parameters['overrides'] = ['diameter']
         self.filter_list= pE.parse_input.parse_filters(self.parameters)
 
-        # this piece, alone, has to be created WITH some configured parameters.
-        self.observatory_config = pE.parse_input.get_observatory_config(self.parameters)
+        # star must be loaded first, because planet flux is relative to star.
+        self.inputs.data["new_star"] = ["G2V star"]
+        self.inputs.data["new_planet"] = ["Earth"]
+        self.parameters["wavelength_of_interest"] = [self.parameters["filter_list"].center.to_value(u.micron)]
+        # Bootstrap problem: The star is loaded first, but without (re)loading the planet first. So we need to
+        # load the planet first, specially.
+        self.load_planet(self.inputs.data["new_planet"][0])
+        self.load_star(self.inputs.data["new_star"][0])
+        self.inputs.data.update({"scene": [True], "observatory": [True], "observation": [True]})
 
-        self.observatory = pE.Observatory()
-        self.observatory.create_observatory(self.observatory_config)
 
+        self.recalculate_exptime(self.inputs)
 
-        self.recalculate_exptime(ColumnDataSource(data={"scene": [True], "observatory": [True], "observation": [True]}))
+    def exptimecalc(self, diameter, newvalues, obsdata, baddata):
+        wavelength_of_interest = self.parameters["wavelength_of_interest"]
 
-    def do_recalculate_exptime(self, newvalues):
-        global obsdata
-        global exptime_compute
-
-        wavelength_of_interest = newvalues.data.pop("wavelength_of_interest",0.5)
+        newvalues.data.update({"new_telescope_diameter": [diameter], "observatory": [True]})
 
         newwarnings=set()
         for filt in self.filter_list:
@@ -289,20 +312,29 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             self.update_calculation(newvalues)
 
             try:
-                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory)
+                # print("Parameters")
+                # # with open("example_parameters.yml", "w") as outfile:
+                # #     yaml.dump(self.parameters, outfile)
+                # for line in self.parameters:
+                #     print(f" {line}:", self.parameters[line])
+                # print()
+                pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="exposure_time")
                 ind_reflam = np.argmin(np.abs(self.observation.wavelength.value - wavelength_of_interest))
+                #print(ind_reflam, wavelength_of_interest)
                 self.observation.obstime = self.observation.exptime[ind_reflam] # seconds
                 pE.calculate_exposure_time_or_snr(self.observation, self.scene, self.observatory, mode="signal_to_noise")
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
-                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "band_hi": [], "band_lo": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                baddata.data={"wavelength": self.observation.wavelength}
+
                 return
             except Exception as err:
                 self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
                 self.exptime_compute.label = "Compute"
-                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
-                self.baddata.data={"wavelength": self.observation.wavelength}
+                obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "band_hi": [], "band_lo": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                baddata.data={"wavelength": self.observation.wavelength}
                 return
             message = stringlogging.getvalue()
             if message is not None:
@@ -313,13 +345,12 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
                 self.warning.text = "<p style='color:Gold;'>WARNING: Planet outside OWA or inside IWA. Hardcoded infinity results.</p>"
             else:
                 self.warning.text = "<p></p>"
-            obs, noise = pE.utils.synthesize_observation(self.newsnr.value * np.ones_like(self.observation.wavelength.value),
+            obs, noise = pE.utils.synthesize_observation(self.newsnr.value,
                                                     self.scene,
                                                     random_seed=2026, # seed defaults to None
                                                     set_below_zero=0., # if the fake data falls below zero, set the data point as this. default = NaN
                                                     )
 
-            print(len(obs))
 
             good = [True if np.isfinite(x) else False for x in self.observation.exptime] # there's no way we're doing anything that takes 100,000,000 seconds (3.169 years) but we'll at least show it.
             bad = np.invert(good)
@@ -328,20 +359,44 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         warningslist = newwarnings.split("\n")
         self.warning.text += " ".join(list(set(warningslist)))
 
-        self.baddata.data={"wavelength": self.observation.wavelength[bad]}
-        self.obsdata.data={"wavelength": self.observation.wavelength[good], "exptime": self.observation.obstime * np.ones_like(self.observation.wavelength.value[good]), "FpFs": self.scene.Fp_over_Fs[good],
-                    "obs": obs[good], "noise_hi": obs[good] + noise[good]/2., "noise_lo": obs[good] - noise[good]/2., "snr": self.observation.fullsnr[good]}
+        baddata.data={"wavelength": self.observation.wavelength[bad]}
+        obsdata.data={"wavelength": self.observation.wavelength[good], 
+                      "exptime": self.observation.obstime * np.ones_like(self.observation.wavelength.value[good]), 
+                      "FpFs": self.scene.Fp_over_Fs[good],
+                      "obs": obs[good], 
+                      "noise_hi": obs[good] + noise[good]/2., 
+                      "noise_lo": obs[good] - noise[good]/2., 
+                      "snr": self.observation.fullsnr[good]}
+        #print("New Data", obsdata.data)
+
+        return obsdata, baddata
+
+    def do_recalculate_exptime(self, newvalues):
+        self.obsdata_low, self.baddata_low = self.exptimecalc(6, newvalues, self.obsdata_low, self.baddata_low)
+        self.obsdata_high, self.baddata_high = self.exptimecalc(8, newvalues, self.obsdata_high, self.baddata_high)
+
+        self.polygon_data.data = {"wavelength": np.asarray(self.obsdata_low.data["wavelength"]), "exptime_low": np.asarray(self.obsdata_low.data["exptime"]), "exptime_high": np.asarray(self.obsdata_high.data["exptime"]), "snr_low": np.asarray(self.obsdata_low.data["snr"]), "snr_high": np.asarray(self.obsdata_high.data["snr"])}
+        self.results_all.data = {"wavelength": np.append(np.asarray(self.obsdata_low.data["wavelength"]),np.asarray(self.obsdata_high.data["wavelength"])), 
+                                 "exptime": np.append(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"])),
+                                 "snr": np.append(np.asarray(self.obsdata_low.data["snr"]),np.asarray(self.obsdata_high.data["snr"]))}
+        # for line in self.results_all.data:
+        #     print(line, len(self.results_all.data[line]))
+
+        #print(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"]))
+
         #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - SNR={np.round(self.newsnr.value, decimals=2)} - {self.EACS[self.eac_buttons.active]}"
-        self.exp_plot.title.text =  title_text
+        self.snr_plot.title.text =  title_text
         self.spec_plot.title.text = title_text
 
         self.exptime_compute.label = "Compute"
 
 
-    def do_recalculate_snr(self, newvalues):
+    def snrcalc(self, diameter, newvalues, obsdata, baddata):
 
         wavelength_of_interest = newvalues.data.pop("wavelength_of_interest",0.5)
+
+        newvalues.data.update({"new_telescope_diameter": [diameter], "observatory": [True]})
 
         newwarnings=set()
         for filt in self.filter_list:
@@ -358,11 +413,13 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.snr_compute.label = "Compute"
-                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "band_hi": [], "band_lo": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                baddata.data={"wavelength": np.asarray([x.center for x in self.parameters["filter_list"]])}
             except Exception as err:
                 self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
                 self.exptime_compute.label = "Compute"
-                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "band_hi": [], "band_lo": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                baddata.data={"wavelength": np.asarray([x.center for x in self.parameters["filter_list"]])}
             message = stringlogging.getvalue()
             if message is not None:
                 newwarnings.update(message)
@@ -388,12 +445,31 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         warningslist = newwarnings.split("\n")
         self.warning.text += " ".join(list(set(warningslist)))
 
-        self.baddata.data={"wavelength": self.observation.wavelength[bad]}
-        self.obsdata.data={"wavelength": self.observation.wavelength, "exptime": self.newexp.value * np.ones_like(self.observation.wavelength.value), "FpFs": self.scene.Fp_over_Fs, 
+        baddata.data={"wavelength": self.observation.wavelength[bad]}
+        obsdata.data={"wavelength": self.observation.wavelength, "exptime": self.newexp.value * np.ones_like(self.observation.wavelength.value), "FpFs": self.scene.Fp_over_Fs, 
                            "obs": obs, "noise_hi": obs + noise/2., "noise_lo": obs - noise/2., "snr": self.observation.fullsnr}
+
+        return obsdata, baddata
+
+    def do_recalculate_snr(self, newvalues):
+
+        wavelength_of_interest = self.parameters["wavelength_of_interest"]
+
+        self.update_calculation(newvalues)
+
+        self.observation.obstime = (self.newexp.value * u.hr).to(u.s)
+
+        self.obsdata_low, self.baddata_low = self.snrcalc(6, newvalues, self.obsdata_low, self.baddata_low)
+        self.obsdata_high, self.baddata_high = self.snrcalc(8, newvalues, self.obsdata_high, self.baddata_high)
+
+        self.polygon_data.data = {"wavelength": np.asarray(self.obsdata_low.data["wavelength"]), "exptime_low": np.asarray(self.obsdata_low.data["exptime"]), "exptime_high": np.asarray(self.obsdata_high.data["exptime"]), "snr_low": np.asarray(self.obsdata_low.data["snr"]), "snr_high": np.asarray(self.obsdata_high.data["snr"])}
+        self.results_all.data = {"wavelength": np.append(np.asarray(self.obsdata_low.data["wavelength"]),np.asarray(self.obsdata_high.data["wavelength"])), 
+                                 "exptime": np.append(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"])),
+                                 "snr": np.append(np.asarray(self.obsdata_low.data["snr"]),np.asarray(self.obsdata_high.data["snr"]))}
+
         #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
-        self.snr_plot.title.text =  title_text
+        self.snr_plot.title.text = title_text
         self.spec_plot.title.text = title_text
 
         self.snr_compute.label = "Compute"
@@ -408,10 +484,11 @@ class CoronSpec(pyedith_etc_common.pyEDITHETC):
         self.refwave.value=FILTERS[new].center.value
         self.refwave.start=FILTERS[new].low.value
         self.refwave.end=FILTERS[new].high.value
+        self.parameters["wavelength_of_interest"] = [self.parameters["filter_list"].center.to_value(u.micron)]
         self.inputs.data.update({"new_filt": [FILTERS[new]], "scene": [True]})
 
     def refwave_callback(self, attr, old, new):
-        self.inputs.data.update({"wavelength_of_interest": [new], "scene": [True]})
+        self.parameters["wavelength_of_interest"] = new
     
     def snr_callback(self, attr, old, new):
         print(attr, old, new)

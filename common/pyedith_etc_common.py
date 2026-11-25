@@ -51,7 +51,6 @@ class pyEDITHETC():
                 print("-->",key)
 
     def recompute_planet_flux(self):
-        print(self.parameters)
         solid_angle = self.parameters["planetary_radius"]**2/(4 * (self.parameters["separation"]*self.parameters["distance"]*1.5e8)**2) #Momentarily put both in km. pi cancels out of top and bottom. 
         flux_planet = self.parameters["Fstar_10pc"] * solid_angle * self.reflect_planet(self.parameters["wavelength"] << u.micron) * 0.55 # Assume quadrature; 55% illuminated
         #self.parameters["F0"] = flux_planet.value
@@ -70,7 +69,6 @@ class pyEDITHETC():
         self.parameters["separation"] = self.target_planet[sourceID]["semimajor_axis"]/self.parameters["distance"]
         self.angsep.value = self.target_planet[sourceID]["semimajor_axis"]/self.parameters["distance"]
 
-        print("Planet", self.parameters)
         
 
     def load_star(self, sourceID):
@@ -108,7 +106,10 @@ class pyEDITHETC():
             self.parameters["filt"] = filt
             #print("Updated filter", filt)
             del newvalues.data["filt"]
-            self.parameters["wavelength"] = filt.center.to_value(u.micron)
+            if self.parameters["observing_mode"] == "IMAGER":
+                self.parameters["wavelength"] = filt.center.to_value(u.micron)
+            else:
+                self.parameters["wavelength"] = filt.wavelength.to_value(u.micron)
             # the fluxes are wavelength-dependent
             self.recompute_star_flux()
             self.recompute_planet_flux()
@@ -147,7 +148,7 @@ class pyEDITHETC():
             del newvalues.data["new_distance"] # consume the new value
         if "new_snr" in newvalues.data:
             print("Changed SNR")
-            self.parameters["snr"] = newvalues.data["new_snr"][0] * np.ones_like(self.parameters["wavelength"])
+            self.parameters["snr"] = newvalues.data["new_snr"][0]# * np.ones_like(self.parameters["wavelength"])
             del newvalues.data["new_snr"] # consume the new value
         if "new_exp" in newvalues.data:
             print("Changed Exposure Time")

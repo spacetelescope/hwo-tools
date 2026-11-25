@@ -111,7 +111,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.parameters = {}
         self.observation = pE.Observation() # define the observation object
         self.scene = pE.AstrophysicalScene()
-        self.observatory = None # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
+        self.observatory = pE.Observatory() # this piece, alone, has to be created WITH some configured parameters. So that's done in load_initial()
         self.obsdata_high = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], band_hi=[], band_lo=[], noise_hi=[], noise_lo=[], snr=[]))
         self.baddata_high = ColumnDataSource(data=dict(wavelength=[]))
         self.obsdata_low = ColumnDataSource(data=dict(wavelength=[], exptime=[], FpFs=[], obs=[], band_hi=[], band_lo=[], noise_hi=[], noise_lo=[], snr=[]))
@@ -130,7 +130,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 <div>
                     <div>
                         <span style="font-size: 15px; font-weight: bold; color: #696">@name </span>
-                        <span style="font-size: 17px; font-weight: bold; color: #696">(@wavelength um)</span>
+                        <span style="font-size: 15px; font-weight: bold; color: #696">(@wavelength um)</span>
                     </div>
                     <div>
                         <span style="font-size: 15px; font-weight: bold; color: #696">S/N = </span>
@@ -144,7 +144,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
                 """
             )
 
-        self.snr_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom"), toolbar_location="below")
+        self.snr_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='SNR', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom"), toolbar_location="below")
         self.snr_plot.add_tools(hover)
         boxsnr = VArea(x="wavelength" , y1="snr_high", y2="snr_low", fill_color="blue", fill_alpha=0.5)
         self.snr_plot.scatter("wavelength", 0, source=self.baddata_high, marker="x", color="red")
@@ -158,7 +158,7 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.snr_panel = TabPanel(child=self.snr_plot, title='SNR') #, width=800)
 
 
-        self.spec_plot = figure(height=480, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
+        self.spec_plot = figure(height=540, title=f"", x_axis_label='microns', y_axis_label='Fp/Fs', tools=("crosshair,pan,reset,save,box_zoom,wheel_zoom,hover"), tooltips=[("Filter Name: ", "@name"), ("Wavelength (microns): ", "@wavelength"), ("Fp/Fs: ", "@FpFs"), ("SNR: ", "@snr"), ("Exposure Time (hr): ", "@exptime")], toolbar_location="below")
         self.spec_plot.line("wavelength", "obs", source=self.obsdata_low)
         self.spec_plot.scatter('wavelength', 'obs', legend_label="Observed Flux Ratio Fp/Fs", source=self.obsdata_low, fill_color='#B4D9FF', line_color='black', size=8, name='snr_plot_circle_hover') 
         self.spec_plot.scatter("wavelength", 0, source=self.baddata_low, marker="x", color="red")
@@ -269,8 +269,6 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         """
         Load initial parameters for the Imaging ETC
         """
-
-        self.observatory = pE.Observatory()
 
         # observation parameters
         # set up wavelengths
@@ -522,11 +520,13 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
             except UnboundLocalError:
                 self.warning.text = "<p style='color:Tomato;'>ERROR: Inputs out of bounds. Try again</p>"
                 self.exptime_compute.label = "Compute"
-                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "band_hi": [], "band_lo": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                baddata.data={"wavelength": np.asarray([x.center for x in self.parameters["filter_list"]])}
             except Exception as err:
                 self.warning.text = f"<p style='color:Tomato;'>{str(err)}</p>"
                 self.exptime_compute.label = "Compute"
-                self.obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                obsdata.data={"wavelength": [], "exptime": [], "FpFs": [], "obs": [], "band_hi": [], "band_lo": [], "noise_hi": [], "noise_lo": [], "snr": []}
+                baddata.data={"wavelength": np.asarray([x.center for x in self.parameters["filter_list"]])}
             message = stringlogging.getvalue()
             if message is not None:
                 newwarnings.update(message)
@@ -595,9 +595,10 @@ class CoronImaging(pyedith_etc_common.pyEDITHETC):
         self.obsdata_high, self.baddata_high = self.snrcalc(8, newvalues, self.obsdata_high, self.baddata_high)
 
         self.polygon_data.data = {"wavelength": np.asarray(self.obsdata_low.data["wavelength"]), "exptime_low": np.asarray(self.obsdata_low.data["exptime"]), "exptime_high": np.asarray(self.obsdata_high.data["exptime"]), "snr_low": np.asarray(self.obsdata_low.data["snr"]), "snr_high": np.asarray(self.obsdata_high.data["snr"])}
-        self.results_all.data = {"wavelength": np.append(np.asarray(self.obsdata_low.data["wavelength"]),np.asarray(self.obsdata_high.data["wavelength"])), 
-                                "exptime": np.append(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"])),
-                                "snr": np.append(np.asarray(self.obsdata_low.data["snr"]),np.asarray(self.obsdata_high.data["snr"]))}
+        self.results_all.data = {"name": np.append(np.asarray(self.obsdata_low.data["name"]),np.asarray(self.obsdata_high.data["name"])), 
+                                 "wavelength": np.append(np.asarray(self.obsdata_low.data["wavelength"]),np.asarray(self.obsdata_high.data["wavelength"])), 
+                                 "exptime": np.append(np.asarray(self.obsdata_low.data["exptime"]),np.asarray(self.obsdata_high.data["exptime"])),
+                                 "snr": np.append(np.asarray(self.obsdata_low.data["snr"]),np.asarray(self.obsdata_high.data["snr"]))}
 
         #print("New Data", obsdata.data)
         title_text = f"{self.planet.value} - {self.star.value} - {np.round(self.distance.value, decimals=2)} pc - {np.round(self.angsep.value, decimals=2)} arcsec - Exptime={np.round(self.newexp.value, decimals=2)} hrs - {self.EACS[self.eac_buttons.active]}"
